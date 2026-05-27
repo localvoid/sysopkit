@@ -16,20 +16,9 @@
       "name": "@sysopkit/cli",
       "version": "0.1.0",
     },
-    "packages/@sysopkit/experimental": {
-      "name": "@sysopkit/experimental",
-      "version": "0.0.0",
-      "devDependencies": {
-        "@sysopkit/test-utils": "workspace:*",
-      },
-      "peerDependencies": {
-        "@sysopkit/linux": "workspace:*",
-        "sysopkit": "workspace:*",
-      },
-    },
     "packages/@sysopkit/linux": {
       "name": "@sysopkit/linux",
-      "version": "0.1.0",
+      "version": "0.4.0",
       "devDependencies": {
         "@sysopkit/test-utils": "workspace:*",
       },
@@ -39,7 +28,7 @@
     },
     "packages/@sysopkit/openwrt": {
       "name": "@sysopkit/openwrt",
-      "version": "0.0.1",
+      "version": "0.4.0",
       "devDependencies": {
         "@sysopkit/test-utils": "workspace:*",
       },
@@ -57,7 +46,7 @@
     },
     "packages/sysopkit": {
       "name": "sysopkit",
-      "version": "0.1.0",
+      "version": "0.4.0",
     },
     "tests": {
       "name": "sysopkit-tests",
@@ -157,8 +146,6 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.67.0", "", { "os": "win32", "cpu": "x64" }, "sha512-bw24y+/1MHS4QDkons3YyHkPT9uCMoLHHgQhb+mb8NOjTYwub1CZ+K9Ngr8aO5DMrDrkqHwTzlTwFP2vS8Y/ZQ=="],
 
     "@sysopkit/cli": ["@sysopkit/cli@workspace:packages/@sysopkit/cli"],
-
-    "@sysopkit/experimental": ["@sysopkit/experimental@workspace:packages/@sysopkit/experimental"],
 
     "@sysopkit/linux": ["@sysopkit/linux@workspace:packages/@sysopkit/linux"],
 
