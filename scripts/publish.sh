@@ -2,18 +2,18 @@
 
 set -euo pipefail
 
-cd packages/sysopkit/
+cd "$1"
+shift
 
-current_version=$(jq -r .version package.json)
-package_name=$(jq -r .name package.json)
-published_version=$(npm --no-workspaces view "$package_name" version 2>/dev/null || echo "")
+CURRENT_VER=$(jq -r .version package.json)
+PKG_NAME=$(jq -r .name package.json)
+PUBLISHED_VER=$(npm --no-workspaces view "$PKG_NAME" version 2>/dev/null || echo "")
 
-if [[ "$published_version" == "$current_version" ]]; then
-  echo "Version $current_version already published"
+if [[ "$PUBLISHED_VER" == "$CURRENT_VER" ]]; then
   exit 0
 fi
 
-filename="${PWD}/archive.tgz"
-bun pm pack --filename "$filename"
-npm --no-workspaces publish "$filename" --access public "$@"
-rm -rf "$filename"
+ARCHIVE="${PWD}/archive.tgz"
+bun pm pack --filename "$ARCHIVE"
+npm --no-workspaces publish "$ARCHIVE" --access public "$@"
+rm -rf "$ARCHIVE"

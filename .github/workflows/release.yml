@@ -17,6 +17,7 @@ on:
         required: true
         description: Increment version
         options:
+          - ignore
           - patch
           - minor
           - major
@@ -32,7 +33,7 @@ env:
 
 jobs:
   release:
-    name: Increment version
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -48,6 +49,7 @@ jobs:
       - run: bun run build
       - run: bun run test
       - name: Increment versions and push changes
+        if: ${{ github.event.inputs.increment != 'ignore' }}
         run: |
           cd ./packages/${{ github.event.inputs.package }}
           bun pm version "${{ github.event.inputs.increment }}" --no-git-tag-version
@@ -62,7 +64,4 @@ jobs:
         run: |
           npm config set provenance true
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          ./scripts/publish.sh ./packages/sysopkit --provenance
-          ./scripts/publish.sh ./packages/@sysopkit/linux --provenance
-          ./scripts/publish.sh ./packages/@sysopkit/openwrt --provenance
-          ./scripts/publish.sh ./packages/@sysopkit/cli --provenance
+          ./scripts/publish.sh ./packages/${{ github.event.inputs.package }} --provenance
