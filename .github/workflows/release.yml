@@ -10,7 +10,6 @@ on:
           - sysopkit
           - "@sysopkit/linux"
           - "@sysopkit/openwrt"
-          - "@sysopkit/openwrt"
           - "@sysopkit/cli"
       increment:
         type: choice
@@ -33,7 +32,7 @@ env:
 
 jobs:
   release:
-    name: Release
+    name: Release ${{ github.event.inputs.package }} (${{ github.event.inputs.increment }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
