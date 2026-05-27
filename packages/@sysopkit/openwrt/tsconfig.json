@@ -1,0 +1,14 @@
+{
+  "extends": "../../../tsconfig.composite.json",
+  "references": [
+    {
+      "path": "../../sysopkit"
+    },
+    {
+      "path": "../linux"
+    },
+    {
+      "path": "../test-utils"
+    }
+  ]
+}

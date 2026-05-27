@@ -1,0 +1,84 @@
+---
+title: Getting Started
+description: Install SysopKit and run your first automation script.
+---
+
+import { Tabs, TabItem, Code } from '@astrojs/starlight/components';
+
+SysopKit works with all Node-compatible runtimes.
+
+## Installation
+
+<Tabs>
+  <TabItem label="npm" icon="rocket">
+    <Code lang="sh" code="npm install sysopkit" />
+  </TabItem>
+  <TabItem label="pnpm" icon="pnpm">
+    <Code lang="sh" code="pnpm install sysopkit" />
+  </TabItem>
+  <TabItem label="Bun" icon="bun">
+    <Code lang="sh" code="bun install sysopkit" />
+  </TabItem>
+</Tabs>
+
+## Quick Start
+
+Create a file `setup.ts`:
+
+```ts
+import { apply, task } from 'sysopkit';
+import { resolveInventory } from 'sysopkit/inventory';
+import { start } from 'sysopkit/start';
+import { sudo } from 'sysopkit/middleware/sudo';
+import { createFile } from 'sysopkit/op/file';
+import { sh } from 'sysopkit/op/sh';
+
+const INVENTORY = {
+  groups: {
+    web: {
+      hosts: {
+        'web-1': { host: '192.168.1.10', user: 'sysop' },
+        'web-2': { host: '192.168.1.11', user: 'sysop' },
+      },
+    },
+  },
+};
+
+await start(async () => {
+  await using hosts = resolveInventory(INVENTORY);
+
+  await apply('setup nginx', hosts.getByGroup('web'), async () => {
+    await sudo(async () => {
+      await task('install nginx', async () => {
+        await sh('apt install -y nginx');
+      });
+
+      await createFile({
+        path: '/etc/nginx/sites-available/default',
+        content: 'server { listen 80; }',
+        mode: 0o644,
+      });
+
+      await task('enable nginx', async () => {
+        await sh('systemctl enable --now nginx');
+      });
+    });
+  });
+});
+```
+
+Run it:
+
+<Tabs>
+  <TabItem label="node" icon="rocket">
+    <Code lang="sh" code="node setup.ts" />
+  </TabItem>
+  <TabItem label="Bun" icon="bun">
+    <Code lang="sh" code="bun setup.ts" />
+  </TabItem>
+</Tabs>
+
+## Next Steps
+
+- [Tutorial](/tutorial/) — walk through a complete provisioning scenario
+- [Concepts](/concepts/execution-model/) — understand the execution model and architecture

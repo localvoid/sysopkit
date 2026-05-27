@@ -1,0 +1,166 @@
+{
+  "name": "sysopkit",
+  "version": "0.4.0",
+  "description": "SysopKit - System Operations Toolkit",
+  "keywords": [
+    "ansible",
+    "infra",
+    "sysop",
+    "sysopkit"
+  ],
+  "homepage": "https://www.sysopkit.com",
+  "bugs": "https://github.com/localvoid/sysopkit/issues",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Boris Kaul <localvoid@gmail.com> (https://github.com/localvoid)",
+  "repository": "github:localvoid/sysopkit",
+  "files": [
+    "dist",
+    "src",
+    "!dist/**/*.tsbuildinfo",
+    "README.md",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./inventory": {
+      "bun": "./src/inventory.ts",
+      "types": "./dist/inventory.d.ts",
+      "default": "./dist/inventory.js"
+    },
+    "./start": {
+      "bun": "./src/start.ts",
+      "types": "./dist/start.d.ts",
+      "default": "./dist/start.js"
+    },
+    "./reporter/console": {
+      "bun": "./src/reporter/console.ts",
+      "types": "./dist/reporter/console.d.ts",
+      "default": "./dist/reporter/console.js"
+    },
+    "./connector/local": {
+      "bun": "./src/connector/local.ts",
+      "types": "./dist/connector/local.d.ts",
+      "default": "./dist/connector/local.js"
+    },
+    "./connector/ssh": {
+      "bun": "./src/connector/ssh.ts",
+      "types": "./dist/connector/ssh.d.ts",
+      "default": "./dist/connector/ssh.js"
+    },
+    "./connector/podman": {
+      "bun": "./src/connector/podman.ts",
+      "types": "./dist/connector/podman.d.ts",
+      "default": "./dist/connector/podman.js"
+    },
+    "./middleware/sudo": {
+      "bun": "./src/middleware/sudo.ts",
+      "types": "./dist/middleware.sudo.d.ts",
+      "default": "./dist/middleware/sudo.js"
+    },
+    "./middleware/trace": {
+      "bun": "./src/middleware/trace.ts",
+      "types": "./dist/middleware/trace.d.ts",
+      "default": "./dist/middleware/trace.js"
+    },
+    "./middleware/expect": {
+      "bun": "./src/middleware/expect.ts",
+      "types": "./dist/middleware/expect.d.ts",
+      "default": "./dist/middleware/expect.js"
+    },
+    "./middleware/transform-cmd": {
+      "bun": "./src/middleware/transform-cmd.ts",
+      "types": "./dist/middleware/transform-cmd.d.ts",
+      "default": "./dist/middleware/transform-cmd.js"
+    },
+    "./op/bash": {
+      "bun": "./src/op/bash.ts",
+      "types": "./dist/op/bash.d.ts",
+      "default": "./dist/op/bash.js"
+    },
+    "./op/curl": {
+      "bun": "./src/op/curl.ts",
+      "types": "./dist/op/curl.d.ts",
+      "default": "./dist/op/curl.js"
+    },
+    "./op/exec": {
+      "bun": "./src/op/exec.ts",
+      "types": "./dist/op/exec.d.ts",
+      "default": "./dist/op/exec.js"
+    },
+    "./op/file": {
+      "bun": "./src/op/file.ts",
+      "types": "./dist/op/file.d.ts",
+      "default": "./dist/op/file.js"
+    },
+    "./op/ini": {
+      "bun": "./src/op/ini.ts",
+      "types": "./dist/op/ini.d.ts",
+      "default": "./dist/op/ini.js"
+    },
+    "./op/mount": {
+      "bun": "./src/op/mount.ts",
+      "types": "./dist/op/mount.d.ts",
+      "default": "./dist/op/mount.js"
+    },
+    "./op/net": {
+      "bun": "./src/op/net.ts",
+      "types": "./dist/op/net.d.ts",
+      "default": "./dist/op/net.js"
+    },
+    "./op/netcat": {
+      "bun": "./src/op/netcat.ts",
+      "types": "./dist/op/netcat.d.ts",
+      "default": "./dist/op/netcat.js"
+    },
+    "./op/proc": {
+      "bun": "./src/op/proc.ts",
+      "types": "./dist/op/proc.d.ts",
+      "default": "./dist/op/proc.js"
+    },
+    "./op/rsync": {
+      "bun": "./src/op/rsync.ts",
+      "types": "./dist/op/rsync.d.ts",
+      "default": "./dist/op/rsync.js"
+    },
+    "./op/sh": {
+      "bun": "./src/op/sh.ts",
+      "types": "./dist/op/sh.d.ts",
+      "default": "./dist/op/sh.js"
+    },
+    "./op/ssh": {
+      "bun": "./src/op/ssh.ts",
+      "types": "./dist/op/ssh.d.ts",
+      "default": "./dist/op/ssh.js"
+    },
+    "./op/tar": {
+      "bun": "./src/op/tar.ts",
+      "types": "./dist/op/tar.d.ts",
+      "default": "./dist/op/tar.js"
+    },
+    "./op/users": {
+      "bun": "./src/op/users.ts",
+      "types": "./dist/op/users.d.ts",
+      "default": "./dist/op/users.js"
+    },
+    "./op/wget": {
+      "bun": "./src/op/wget.ts",
+      "types": "./dist/op/wget.d.ts",
+      "default": "./dist/op/wget.js"
+    },
+    "./utils/gpg": {
+      "bun": "./src/utils/gpg.ts",
+      "types": "./dist/utils/gpg.d.ts",
+      "default": "./dist/utils/gpg.js"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
+  }
+}

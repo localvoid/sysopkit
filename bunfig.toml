@@ -1,0 +1,7 @@
+[test]
+pathIgnorePatterns = ["**/node_modules/**", "**/dist/**"]
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["**/node_modules/**", "**/dist/**", "**/*.test.ts"]
+
+[run]
+bun = true

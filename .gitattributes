@@ -1,0 +1,34 @@
+* text=auto eol=lf
+
+*.js    text
+*.ts    text
+*.toml  text
+*.json  text
+*.jsonc text
+*.yaml  text
+*.yml   text
+*.md    text
+*.css   text
+*.html  text
+*.csv   text
+
+# Shell & Windows specific scripts
+*.sh    text eol=lf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary files
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.mov   binary
+*.mp4   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+
+# Hide generated files from diffs and language statistics
+bun.lock   linguist-generated

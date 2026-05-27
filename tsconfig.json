@@ -1,0 +1,20 @@
+{
+  "references": [
+    {
+      "path": "./packages/sysopkit"
+    },
+    {
+      "path": "./packages/@sysopkit/test-utils"
+    },
+    {
+      "path": "./packages/@sysopkit/linux"
+    },
+    {
+      "path": "./packages/@sysopkit/openwrt"
+    },
+    {
+      "path": "./packages/@sysopkit/cli"
+    }
+  ],
+  "files": []
+}

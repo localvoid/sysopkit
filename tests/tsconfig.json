@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "customConditions": ["bun"],
+
+    "lib": ["ES2024"],
+    "types": ["node", "bun"],
+
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+
+    "skipLibCheck": true
+  },
+  "include": ["./unit/**/*.ts", "./integration/**/*.ts"]
+}

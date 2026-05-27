@@ -1,0 +1,31 @@
+{
+  "name": "@sysopkit/cli",
+  "version": "0.1.0",
+  "description": "CLI Utilities for SysopKit",
+  "keywords": [
+    "sysopkit"
+  ],
+  "homepage": "https://www.sysopkit.com",
+  "bugs": "https://github.com/localvoid/sysopkit/issues",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Boris Kaul <localvoid@gmail.com> (https://github.com/localvoid)",
+  "repository": "github:localvoid/sysopkit",
+  "files": [
+    "dist",
+    "src",
+    "!dist/**/*.tsbuildinfo",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "true",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

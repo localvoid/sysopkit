@@ -1,0 +1,64 @@
+---
+title: SysopKit
+description: TypeScript infrastructure automation toolkit. A programmatic alternative to YAML-driven tools like Ansible.
+template: splash
+hero:
+  title: |
+    SysopKit
+  tagline: TypeScript infrastructure automation. Agentless, composable, and 100% type-safe.
+  image:
+    alt: SysopKit Logo
+    file: ../../assets/hero-icon.png
+  actions:
+    - text: Get Started
+      link: /getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/localvoid/sysopkit
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard, Icon } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Agentless Architecture" icon="seti:favicon">
+    Runs shell commands on target hosts via SSH. No background agents or daemons to install or
+    manage.
+  </Card>
+  <Card title="TypeScript-First Design" icon="seti:typescript">
+    No proprietary DSLs to learn. If you can write TypeScript, you can automate your entire
+    infrastructure.
+  </Card>
+  <Card title="Zero NPM Dependencies" icon="padlock">
+    Built without external dependencies. Lightweight, fast, and auditable for secure environments.
+  </Card>
+  <Card title="Idempotent & Safe" icon="approve-check">
+    Smart change-detection ensuring tasks only run when necessary.
+  </Card>
+  <Card title="Native OpenSSH" icon="seti:shell">
+    Utilizes your system's OpenSSH client with ControlMaster multiplexing for blazing-fast,
+    persistent connection speeds.
+  </Card>
+  <Card title="Parallel Execution" icon="rocket">
+    Multi-host batching with customizable concurrency limits and strict failure thresholds.
+  </Card>
+</CardGrid>
+
+---
+
+## Next Steps
+
+<CardGrid>
+  <LinkCard
+    title="Quick Start Guide"
+    description="Install SysopKit and run your first remote automation script in under 5 minutes."
+    href="/getting-started/"
+  />
+  <LinkCard
+    title="Overview"
+    description="Learn about SysopKit's architecture, project structure, and key concepts."
+    href="/overview/"
+  />
+</CardGrid>

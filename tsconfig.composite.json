@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "${configDir}/src",
+    "outDir": "${configDir}/dist",
+    "declarationDir": "${configDir}/dist",
+
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "moduleDetection": "force",
+    "customConditions": ["bun"],
+
+    "lib": ["ES2024"],
+    "types": ["node"],
+
+    "isolatedDeclarations": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "importHelpers": true,
+    "noEmitHelpers": true,
+
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+
+    "skipLibCheck": true
+  },
+  "include": ["${configDir}/src/**/*.ts"]
+}

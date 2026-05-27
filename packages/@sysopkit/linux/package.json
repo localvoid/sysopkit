@@ -1,0 +1,97 @@
+{
+  "name": "@sysopkit/linux",
+  "version": "0.4.0",
+  "description": "Linux operations for SysopKit",
+  "keywords": [
+    "sysopkit"
+  ],
+  "homepage": "https://www.sysopkit.com",
+  "bugs": "https://github.com/localvoid/sysopkit/issues",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Boris Kaul <localvoid@gmail.com> (https://github.com/localvoid)",
+  "repository": "github:localvoid/sysopkit",
+  "files": [
+    "dist",
+    "src",
+    "!dist/**/*.tsbuildinfo",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "true",
+  "exports": {
+    "./pkg/apt": {
+      "bun": "./src/pkg/apt.ts",
+      "types": "./dist/pkg/apt.d.ts",
+      "default": "./dist/pkg/apt.js"
+    },
+    "./pkg/dnf": {
+      "bun": "./src/pkg/dnf.ts",
+      "types": "./dist/pkg/dnf.d.ts",
+      "default": "./dist/pkg/dnf.js"
+    },
+    "./pkg/rpm": {
+      "bun": "./src/pkg/rpm.ts",
+      "types": "./dist/pkg/rpm.d.ts",
+      "default": "./dist/pkg/rpm.js"
+    },
+    "./cpu": {
+      "bun": "./src/cpu.ts",
+      "types": "./dist/cpu.d.ts",
+      "default": "./dist/cpu.js"
+    },
+    "./disk": {
+      "bun": "./src/disk.ts",
+      "types": "./dist/disk.d.ts",
+      "default": "./dist/disk.js"
+    },
+    "./kernel": {
+      "bun": "./src/kernel.ts",
+      "types": "./dist/kernel.d.ts",
+      "default": "./dist/kernel.js"
+    },
+    "./limits": {
+      "bun": "./src/limits.ts",
+      "types": "./dist/limits.d.ts",
+      "default": "./dist/limits.js"
+    },
+    "./mem": {
+      "bun": "./src/mem.ts",
+      "types": "./dist/mem.d.ts",
+      "default": "./dist/mem.js"
+    },
+    "./os": {
+      "bun": "./src/os.ts",
+      "types": "./dist/os.d.ts",
+      "default": "./dist/os.js"
+    },
+    "./sudoers": {
+      "bun": "./src/sudoers.ts",
+      "types": "./dist/sudoers.d.ts",
+      "default": "./dist/sudoers.js"
+    },
+    "./sysctl": {
+      "bun": "./src/sysctl.ts",
+      "types": "./dist/sysctl.d.ts",
+      "default": "./dist/sysctl.js"
+    },
+    "./systemd": {
+      "bun": "./src/systemd.ts",
+      "types": "./dist/systemd.d.ts",
+      "default": "./dist/systemd.js"
+    },
+    "./tuned": {
+      "bun": "./src/tuned.ts",
+      "types": "./dist/tuned.d.ts",
+      "default": "./dist/tuned.js"
+    }
+  },
+  "devDependencies": {
+    "@sysopkit/test-utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "sysopkit": "workspace:^"
+  }
+}

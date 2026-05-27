@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "moduleDetection": "force",
+    "lib": ["ES2024"],
+    "types": ["node"],
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "astro.config.ts", "./astro/**/*.ts"]
+}

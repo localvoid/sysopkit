@@ -1,0 +1,78 @@
+{
+  "name": "@sysopkit/openwrt",
+  "version": "0.4.0",
+  "description": "OpenWRT operations for SysopKit",
+  "keywords": [
+    "sysopkit"
+  ],
+  "homepage": "https://www.sysopkit.com",
+  "bugs": "https://github.com/localvoid/sysopkit/issues",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Boris Kaul <localvoid@gmail.com> (https://github.com/localvoid)",
+  "repository": "github:localvoid/sysopkit",
+  "files": [
+    "dist",
+    "src",
+    "!dist/**/*.tsbuildinfo",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "true",
+  "exports": {
+    "./uci/dhcp": {
+      "bun": "./src/uci/dhcp.ts",
+      "types": "./dist/uci/dhcp.d.ts",
+      "default": "./dist/uci/dhcp.js"
+    },
+    "./uci/dropbear": {
+      "bun": "./src/uci/dropbear.ts",
+      "types": "./dist/uci/dropbear.d.ts",
+      "default": "./dist/uci/dropbear.js"
+    },
+    "./uci/firewall": {
+      "bun": "./src/uci/firewall.ts",
+      "types": "./dist/uci/firewall.d.ts",
+      "default": "./dist/uci/firewall.js"
+    },
+    "./uci/network": {
+      "bun": "./src/uci/network.ts",
+      "types": "./dist/uci/network.d.ts",
+      "default": "./dist/uci/network.js"
+    },
+    "./uci/sqm": {
+      "bun": "./src/uci/sqm.ts",
+      "types": "./dist/uci/sqm.d.ts",
+      "default": "./dist/uci/sqm.js"
+    },
+    "./uci/system": {
+      "bun": "./src/uci/system.ts",
+      "types": "./dist/uci/system.d.ts",
+      "default": "./dist/uci/system.js"
+    },
+    "./uci/upnpd": {
+      "bun": "./src/uci/upnpd.ts",
+      "types": "./dist/uci/upnpd.d.ts",
+      "default": "./dist/uci/upnpd.js"
+    },
+    "./uci/wireless": {
+      "bun": "./src/uci/wireless.ts",
+      "types": "./dist/uci/wireless.d.ts",
+      "default": "./dist/uci/wireless.js"
+    },
+    "./uci": {
+      "bun": "./src/uci.ts",
+      "types": "./dist/uci.d.ts",
+      "default": "./dist/uci.js"
+    }
+  },
+  "devDependencies": {
+    "@sysopkit/test-utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "@sysopkit/linux": "workspace:^",
+    "sysopkit": "workspace:^"
+  }
+}
