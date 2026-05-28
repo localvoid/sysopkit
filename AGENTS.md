@@ -46,10 +46,10 @@ Operations are the building blocks for infrastructure automation. Each operation
 
 ```
 docs/ # Documentation (Astro+Starlight)
+tests/ # Tests
 packages/
  sysopkit/src/
     index.ts # Core exports
-    ssh-agent.ts # sshAgent(), SshAgent, SshKeyHandle
     inventory.ts # Inventory, ResolvedInventory, resolveInventory
     start.ts
     core/
@@ -79,16 +79,15 @@ packages/
     utils/
       constants.ts # ONCE, STREAM_TRUE, TEXT_ENCODER, TEXT_DECODER
       diff.ts # diff arrays
-      handlers.ts # generic event handlers oneshot()
+      handlers.ts # event handlers
       gpg.ts # GPG utilities
       process.ts # ExecOptions, ExecResult
       shell.ts # shMapExitCode, shAskPass, $_
       ssh.ts # SSH utilities
   @sysopkit/linux/
   @sysopkit/openwrt/
-  @sysopkit/experimental/
+  @sysopkit/cli/
   @sysopkit/test-utils/
-  tests/ # Tests
   package.json
 ```
 

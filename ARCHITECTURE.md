@@ -132,7 +132,7 @@ Operations emit changes via `emitChanged()`. The reporter renders these as human
 
 ### Event Propagation
 
-`emit()` notifies the reporter and propagates up the parent chain, calling registered handlers at each level. `on()` registers handlers on the current context. `onChange(handler, fn)` registers a change listener for the duration of `fn`.
+`emit()` notifies the reporter and propagates up the parent chain, calling registered handlers at each level. `on()` registers handlers on the current context.
 
 ## Inventory System
 
