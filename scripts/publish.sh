@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+cp LICENSE-APACHE "$1/"
+cp LICENSE-MIT "$1/"
+
 cd "$1"
 shift
 
