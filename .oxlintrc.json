@@ -1,10 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "unicorn",
-    "typescript",
-    "oxc"
-  ],
+  "plugins": ["unicorn", "typescript", "oxc"],
   "options": {
     "typeAware": true,
     "typeCheck": true
@@ -42,10 +38,5 @@
     "node": true
   },
   "globals": {},
-  "ignorePatterns": [
-    "packages/@sysopkit/*/dist/**",
-    "packages/*/dist/**",
-    "docs/.astro/**",
-    "docs/dist/**"
-  ]
+  "ignorePatterns": ["*/dist/**", "docs/.astro/**"]
 }

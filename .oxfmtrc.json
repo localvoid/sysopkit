@@ -27,5 +27,5 @@
     ]
   },
   "sortPackageJson": true,
-  "ignorePatterns": ["bun.lock", "packages/@sysopkit/*/dist/**", "packages/*/dist/**"]
+  "ignorePatterns": ["*/dist/**"]
 }
