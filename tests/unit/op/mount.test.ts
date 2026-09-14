@@ -19,7 +19,11 @@ const FINDMNT_JSON = JSON.stringify({
 
 function mockFindmnt(path: string, stdout: string, exitCode = 0) {
   return {
-    cmd: ['sh', '-c', `findmnt --json --target ${path};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`],
+    cmd: [
+      'sh',
+      '-c',
+      `findmnt --json --target ${path};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+    ],
     stdout,
     exitCode: exitCode === 1 ? 64 : exitCode,
   };
@@ -77,7 +81,14 @@ describe('mountInfo', () => {
 
 describe('fstab', () => {
   const entries: FstabEntry[] = [
-    { device: '/dev/sda1', mountPoint: '/', fsType: 'ext4', options: ['defaults'], dump: 0, pass: 1 },
+    {
+      device: '/dev/sda1',
+      mountPoint: '/',
+      fsType: 'ext4',
+      options: ['defaults'],
+      dump: 0,
+      pass: 1,
+    },
     {
       device: 'UUID=abc-123',
       mountPoint: '/mnt/data',
@@ -100,7 +111,14 @@ describe('fstab', () => {
 
   test('escapes spaces in fields', () => {
     const withSpace: FstabEntry[] = [
-      { device: '/dev/disk', mountPoint: '/mnt/my data', fsType: 'ext4', options: ['defaults'], dump: 0, pass: 0 },
+      {
+        device: '/dev/disk',
+        mountPoint: '/mnt/my data',
+        fsType: 'ext4',
+        options: ['defaults'],
+        dump: 0,
+        pass: 0,
+      },
     ];
     expect(parseFstab(serializeFstab(withSpace))).toEqual(withSpace);
   });

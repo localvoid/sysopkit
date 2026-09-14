@@ -16,7 +16,12 @@ import {
   PASSWD_PATH,
 } from 'sysopkit/op/users';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 
 function uniqueName(prefix: string): string {
   return `${prefix}${randomUUID().slice(0, 8)}`.toLowerCase();

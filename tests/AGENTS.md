@@ -41,7 +41,7 @@ test('...', async () => {
 | --- | --- | --- |
 | fedora | `sysopkit-test-fedora:44` | Yes — existing `podman`/`ssh` suites run here |
 | debian | `sysopkit-test-debian:13` | Yes (`sudo` group instead of `wheel`) |
-| redhat | `sysopkit-test-redhat:10` | Yes (UBI minimal + microdnf; `coreutils-single` instead of `coreutils`; `dnf`, `nc` (nmap-ncat), `ed` installed for pkg/dnf + proc-net suites) |
+| redhat | `sysopkit-test-redhat:10` | Yes (UBI minimal + microdnf; `coreutils-single` instead of `coreutils`; `dnf`, `nc` (nmap-ncat), `ed` installed for pkg/dnf4 + proc-net suites) |
 | arch | `sysopkit-test-arch:base` | Yes (rolling `archlinux:base`, pacman) |
 | openwrt | `sysopkit-test-openwrt:25.12` | **No** — busybox/musl, apk, no sudo user; only `sh` + applets |
 
@@ -50,7 +50,7 @@ Parity contract: `testuser:testpasswd` with passworded sudo, sshd host keys + `t
 Which container to use:
 
 - `redhat` — default for common ops (base-level support). If an op works here, it works everywhere parity.
-- `debian`, `fedora`, `arch` — distro-specific ops only (e.g. `pkg/apt` on debian, `pkg/dnf` on fedora, pacman quirks on arch). Do NOT duplicate common-op suites per distro.
+- `debian`, `fedora`, `arch` — distro-specific ops only (e.g. `pkg/apt` on debian, `pkg/dnf5` on fedora, pacman quirks on arch). Do NOT duplicate common-op suites per distro.
 - `fedora` — additionally the place for latest features (newest toolchain of the parity set) and the only distro for SSH-based suites.
 - `openwrt` — fully distro-specific: significantly different environment (busybox/musl, apk, no sudo user, no parity contract). Suites running on it must only rely on `sh` and busybox applets.
 
@@ -98,7 +98,8 @@ e2e/
     proc-net.test.ts # redhat: waitProcess, bash/nc waitPort, curl
     config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips
     pkg-apt.test.ts # debian: apt full install/remove of `ed`
-    pkg-dnf.test.ts # fedora+redhat: dnf full install/remove of `ed`
+    pkg-dnf5.test.ts # fedora: dnf5 full install/remove of `ed`
+    pkg-dnf4.test.ts # redhat: dnf4 full install/remove of `ed`
     pkg-pacman.test.ts # arch: pacman full install/remove of `ed`
     pkg-apk.test.ts # openwrt: apk full install/remove of `nano`
     pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip

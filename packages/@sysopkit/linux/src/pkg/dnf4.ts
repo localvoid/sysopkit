@@ -1,19 +1,20 @@
 /**
- * @module pkg/dnf
+ * @module pkg/dnf4
  *
- * DNF package and repository management for Fedora/RHEL-based systems.
+ * DNF4 package and repository management for RHEL-based systems.
  *
- * DNF (Dandified YUM) is the package manager for Fedora, RHEL 8+, and
- * CentOS Stream. It replaces yum and uses libsolv for dependency resolution.
+ * DNF4 (Python-based Dandified YUM) is the package manager for RHEL 8/9/10,
+ * CentOS Stream, and their derivatives. It uses libsolv for dependency
+ * resolution.
  *
- * @see installDnfPackages(8) - DNF package manager
- * @see installDnfPackages.conf(5) - DNF configuration file format
+ * @see installDnfPackages(8) - DNF4 package manager
+ * @see installDnfPackages.conf(5) - DNF4 configuration file format
  */
 
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
-/** DNF repository configuration in INI format (.repo files). */
+/** DNF4 repository configuration in INI format (.repo files). */
 export type DnfRepoConf = {
   [id: string]: DnfRepoConfEntry;
 };
@@ -65,7 +66,7 @@ export async function getInstalledPackages(): Promise<PackageInfo[]> {
     });
 }
 
-/** Options for installing packages with DNF. */
+/** Options for installing packages with DNF4. */
 export interface InstallPackagesOptions {
   /** Package names to install. */
   readonly packages: string[];
@@ -74,7 +75,7 @@ export interface InstallPackagesOptions {
 }
 
 /**
- * Installs packages using DNF.
+ * Installs packages using DNF4.
  *
  * Emits change events for packages that are newly installed. In dry-run mode,
  * uses `--assumeno` to preview changes without applying them.
@@ -91,7 +92,7 @@ export async function installPackages(options: InstallPackagesOptions): Promise<
       if (pkgs.length > 0) {
         emitChanged(
           pkgs.map((p) => ({
-            type: 'dnf',
+            type: 'dnf4',
             resource: p,
             property: 'state',
             to: 'installed',
@@ -109,17 +110,17 @@ export async function installPackages(options: InstallPackagesOptions): Promise<
   );
 }
 
-/** Options for removing packages with DNF. */
+/** Options for removing packages with DNF4. */
 export interface RemovePackagesOptions {
   /** Package names to remove. */
   readonly packages: string[];
 }
 
 /**
- * Removes packages using DNF.
+ * Removes packages using DNF4.
  *
  * Unused dependencies installed for the removed packages are removed as
- * well (DNF cleans requirements on remove by default). Emits change events
+ * well (DNF4 cleans requirements on remove by default). Emits change events
  * for packages that are removed.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
@@ -134,7 +135,7 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
       if (pkgs.length > 0) {
         emitChanged(
           pkgs.map((p) => ({
-            type: 'dnf',
+            type: 'dnf4',
             resource: p,
             property: 'state',
             to: 'removed',
@@ -152,26 +153,19 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
 }
 
 /**
- * Matches the "Installing:" (dnf5) or "Installed:" (dnf4) sections in DNF
- * output, including the "Installing dependencies:" subsection (dnf5 lists
- * dependencies separately from explicitly requested packages).
+ * Matches the "Installed:" section in DNF4 output.
  */
-const INSTALLING_RE = /Install(?:ing|ed)(?: dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
+const INSTALLING_RE = /Installed:\n([\s\S]*?)(?=\n\S|$)/g;
 /**
- * Matches the "Removing:" (dnf5) or "Removed:" (dnf4) sections in DNF
- * output, including the "Removing unused dependencies:" subsection (unused
- * dependencies are cleaned on remove by default).
+ * Matches the "Removed:" section in DNF4 output.
  */
-const REMOVING_RE = /Remov(?:ing|ed)(?: unused dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
+const REMOVING_RE = /Removed:\n([\s\S]*?)(?=\n\S|$)/g;
 
 /**
- * Parses the tables from dnf output to find packages.
+ * Parses the compact single-NEVRA-column tables from DNF4 output to find
+ * packages.
  *
- * Collects every matching section (dnf5 prints dependencies under separate
- * "Installing dependencies:" / "Removing unused dependencies:" headers).
- * Handles both the multi-column table of dnf5
- * (`ed x86_64 0:1.22.5-2.fc44 fedora 149.7 KiB`) and the compact
- * single-NEVRA-column format of dnf4, which packs several NEVRAs per line
+ * Collects every matching section. Each row packs several NEVRAs per line
  * (`jq-1.7.1-11.el10_2.2.x86_64 oniguruma-6.9.9-7.el10.x86_64`).
  */
 function _parseTable(output: string, re: RegExp): string[] {
@@ -187,16 +181,10 @@ function _parseTable(output: string, re: RegExp): string[] {
       if (!trimmed) {
         continue;
       }
-      const cols = trimmed.split(/\s+/);
-
-      if (cols.length >= 5) {
-        packages.push(cols[0]!);
-      } else {
-        for (const col of cols) {
-          const name = _parseNevraName(col);
-          if (name) {
-            packages.push(name);
-          }
+      for (const col of trimmed.split(/\s+/)) {
+        const name = _parseNevraName(col);
+        if (name) {
+          packages.push(name);
         }
       }
     }

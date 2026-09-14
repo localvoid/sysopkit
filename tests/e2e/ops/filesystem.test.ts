@@ -23,7 +23,12 @@ import {
 import { $_, sh } from 'sysopkit/op/sh';
 import { tar, untar } from 'sysopkit/op/tar';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 
 describe('filesystem ops', () => {
   let shared: Container;
@@ -182,7 +187,9 @@ describe('filesystem ops', () => {
       const src = remoteTempPath('fs-tar-src-');
       const archive = `${remoteTempPath('fs-tar-')}.tar.gz`;
       const dst = remoteTempPath('fs-tar-dst-');
-      await sh(`mkdir -p ${$_(src)}/sub && echo one > ${$_(src)}/a.txt && echo two > ${$_(src)}/sub/b.txt`);
+      await sh(
+        `mkdir -p ${$_(src)}/sub && echo one > ${$_(src)}/a.txt && echo two > ${$_(src)}/sub/b.txt`,
+      );
 
       await tar({ src, dst: archive });
       expect((await getPathInfo(archive))?.type).toBe('file');

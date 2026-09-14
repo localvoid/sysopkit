@@ -1,9 +1,9 @@
 ---
 title: Package Management
-description: APT, DNF, Pacman, APK, and RPM package management operations.
+description: APT, DNF4, DNF5, Pacman, APK, and RPM package management operations.
 ---
 
-Manage packages on Debian/Ubuntu (APT), Fedora/RHEL (DNF), Arch Linux (pacman), and OpenWrt 25.12+ (APK), plus GPG keys in the RPM database.
+Manage packages on Debian/Ubuntu (APT), Fedora (DNF5), RHEL (DNF4), Arch Linux (pacman), and OpenWrt 25.12+ (APK), plus GPG keys in the RPM database.
 
 ## APT (Debian/Ubuntu)
 
@@ -37,10 +37,10 @@ await removePackages({ packages: ['apache2'] });
 await removePackages({ packages: ['apache2'], autoremove: true });
 ```
 
-## DNF (Fedora/RHEL)
+## DNF5 (Fedora)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/dnf';
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/dnf5';
 ```
 
 ### getInstalledPackages()
@@ -62,7 +62,38 @@ await installPackages({ packages: ['nginx'], weakDependencies: false });
 
 ### removePackages()
 
-Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF cleans requirements on remove by default).
+Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF5 cleans requirements on remove by default).
+
+```ts
+await removePackages({ packages: ['httpd'] });
+```
+
+## DNF4 (RHEL)
+
+```ts
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/dnf4';
+```
+
+### getInstalledPackages()
+
+Lists all installed packages with detailed metadata using `dnf repoquery --installed`.
+
+```ts
+const packages = await getInstalledPackages();
+// [{ name: 'bash', epoch: '0', version: '5.2', release: '1.el10', arch: 'x86_64' }, ...]
+```
+
+### installPackages()
+
+Installs packages using `dnf install`. Supports `weakDependencies` option.
+
+```ts
+await installPackages({ packages: ['nginx'], weakDependencies: false });
+```
+
+### removePackages()
+
+Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF4 cleans requirements on remove by default).
 
 ```ts
 await removePackages({ packages: ['httpd'] });

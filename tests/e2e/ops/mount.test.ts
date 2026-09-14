@@ -4,7 +4,12 @@ import { readFile, writeFile } from 'sysopkit/op/file';
 import { mount, mountInfo, umount } from 'sysopkit/op/mount';
 import { sh } from 'sysopkit/op/sh';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 
 /**
  * Real mount/umount in an isolated privileged container. Mounts stay inside

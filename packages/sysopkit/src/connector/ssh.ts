@@ -222,7 +222,15 @@ export class SSHConnector extends ConnectorBase {
    * as a blank exit-255 failure.
    */
   private async verboseDiagnosis(signal?: AbortSignal): Promise<string> {
-    const probe = ['ssh', '-l', this.user, '-o', 'LogLevel=VERBOSE', '-o', `ConnectTimeout=${this.timeout}`];
+    const probe = [
+      'ssh',
+      '-l',
+      this.user,
+      '-o',
+      'LogLevel=VERBOSE',
+      '-o',
+      `ConnectTimeout=${this.timeout}`,
+    ];
     if (this.password) {
       probe.push('-o', 'NumberOfPasswordPrompts=1');
     } else {

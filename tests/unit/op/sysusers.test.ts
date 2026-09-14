@@ -4,7 +4,10 @@ import { parseSysusersConf, serializeSysusersConf } from '@sysopkit/linux/system
 describe('parseSysusersConf', () => {
   test('parses user, group, member, and range entries', () => {
     const result = parseSysusersConf(
-      'u appuser - "App User" /var/lib/app\n' + 'g appgroup 410\n' + 'm appuser appgroup\n' + 'r - 500-900\n',
+      'u appuser - "App User" /var/lib/app\n' +
+        'g appgroup 410\n' +
+        'm appuser appgroup\n' +
+        'r - 500-900\n',
     );
 
     expect(result).toEqual([

@@ -12,9 +12,7 @@ describe('getUnitPath', () => {
   });
 
   test('returns user path relative to home without user', () => {
-    expect(getUnitPath('app.service', { scope: 'user' })).toBe(
-      '.config/systemd/user/app.service',
-    );
+    expect(getUnitPath('app.service', { scope: 'user' })).toBe('.config/systemd/user/app.service');
   });
 
   test('returns absolute user path with user', () => {

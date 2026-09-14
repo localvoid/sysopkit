@@ -19,7 +19,8 @@ bun add @sysopkit/linux sysopkit
 | `disk` | `@sysopkit/linux/disk` | `lsblk()` — `BlockDeviceEntry[]` tree |
 | `os` | `@sysopkit/linux/os` | `getOSInfo()` — `/etc/os-release` |
 | `pkg/apt` | `@sysopkit/linux/pkg/apt` | **Idempotent** `installPackages`, `removePackages` (`autoremove?`); `getInstalledPackages()` |
-| `pkg/dnf` | `@sysopkit/linux/pkg/dnf` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
+| `pkg/dnf4` | `@sysopkit/linux/pkg/dnf4` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
+| `pkg/dnf5` | `@sysopkit/linux/pkg/dnf5` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
 | `pkg/rpm` | `@sysopkit/linux/pkg/rpm` | **Idempotent** `importRpmKey({ name, content })`; `hasRpmKey(key)`, `getRpmKeys()`, `getRpmVars(vars)` |
 | `pkg/pacman` | `@sysopkit/linux/pkg/pacman` | **Idempotent** `installPackages`, `removePackages` (`autoremove?`, dry-run previews); `getInstalledPackages()` |
 | `kernel` | `@sysopkit/linux/kernel` | `lsmod()`, `modinfo(module)`, `dmesg(opts?)`, `kexecLoad({ kernel, initrd?, cmdline? })`, `kexecExec()` |

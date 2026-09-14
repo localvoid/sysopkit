@@ -4,7 +4,12 @@ import { exec } from 'sysopkit/op/exec';
 import { getPathInfo, readFile, writeFile } from 'sysopkit/op/file';
 import { sh } from 'sysopkit/op/sh';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 
 /** OpenWrt is non-parity: only `sh` + busybox applets, no sudo user. */
 describe('openwrt ops', () => {

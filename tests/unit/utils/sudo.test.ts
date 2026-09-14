@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { mockSpawn, withMockContext, MockConnector } from '@sysopkit/test-utils';
 import { text } from 'node:stream/consumers';
+import { mockSpawn, withMockContext, MockConnector } from '@sysopkit/test-utils';
 import {
   sudo,
   SudoMiddleware,

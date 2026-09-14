@@ -50,7 +50,9 @@ export async function waitProcess({
       while (true) {
         ctx.signal.throwIfAborted();
 
-        const { exitCode } = await sh(`pidof ${process};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`);
+        const { exitCode } = await sh(
+          `pidof ${process};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+        );
         const isActive = exitCode === 0;
         if (isActive === targetActive) {
           return;

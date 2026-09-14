@@ -27,10 +27,15 @@
       "types": "./dist/pkg/apt.d.ts",
       "default": "./dist/pkg/apt.js"
     },
-    "./pkg/dnf": {
-      "bun": "./src/pkg/dnf.ts",
-      "types": "./dist/pkg/dnf.d.ts",
-      "default": "./dist/pkg/dnf.js"
+    "./pkg/dnf4": {
+      "bun": "./src/pkg/dnf4.ts",
+      "types": "./dist/pkg/dnf4.d.ts",
+      "default": "./dist/pkg/dnf4.js"
+    },
+    "./pkg/dnf5": {
+      "bun": "./src/pkg/dnf5.ts",
+      "types": "./dist/pkg/dnf5.d.ts",
+      "default": "./dist/pkg/dnf5.js"
     },
     "./pkg/pacman": {
       "bun": "./src/pkg/pacman.ts",

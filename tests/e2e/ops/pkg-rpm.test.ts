@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { randomUUID } from 'node:crypto';
-import { trackChanged } from '@sysopkit/test-utils';
 import { getRpmKeys, getRpmVars, hasRpmKey, importRpmKey } from '@sysopkit/linux/pkg/rpm';
+import { trackChanged } from '@sysopkit/test-utils';
 import { exec } from 'sysopkit/op/exec';
 import { $_, sh } from 'sysopkit/op/sh';
 import { showGpgKeys } from 'sysopkit/utils/gpg';

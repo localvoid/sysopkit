@@ -12,9 +12,9 @@
  */
 
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
+import { exec } from 'sysopkit/op/exec';
 import { createFile } from 'sysopkit/op/file';
 import { $_, sh } from 'sysopkit/op/sh';
-import { exec } from 'sysopkit/op/exec';
 import { type GpgKey, parseGpgKey, showGpgKeys } from 'sysopkit/utils/gpg';
 
 /** RPM macro: target architecture. */

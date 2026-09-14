@@ -2,10 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { parseLimitsConf, serializeLimitsConf } from '@sysopkit/linux/limits';
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
 import { parseSysctlConf, serializeSysctlConf } from '@sysopkit/linux/sysctl';
-import {
-  parseSysusersConf,
-  serializeSysusersConf,
-} from '@sysopkit/linux/systemd';
+import { parseSysusersConf, serializeSysusersConf } from '@sysopkit/linux/systemd';
 import { parseTmpFilesConf, serializeTmpFilesConf } from '@sysopkit/linux/systemd';
 import { readFile, writeFile } from 'sysopkit/op/file';
 import { serializeIni } from 'sysopkit/op/ini';
@@ -13,7 +10,12 @@ import { parseHosts, serializeHosts } from 'sysopkit/op/net';
 import { sh } from 'sysopkit/op/sh';
 import { serializeSshConf } from 'sysopkit/op/ssh';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 
 describe('config file ops', () => {
   let shared: Container;
@@ -91,7 +93,14 @@ describe('config file ops', () => {
       // Note: '-' is tmpfiles syntax for "absent" and parses back as
       // undefined, so only populated fields round-trip exactly.
       const conf = [
-        { type: 'd' as const, path: '/run/app', mode: '0755', user: 'root', group: 'root', age: '30d' },
+        {
+          type: 'd' as const,
+          path: '/run/app',
+          mode: '0755',
+          user: 'root',
+          group: 'root',
+          age: '30d',
+        },
       ];
       await writeFile(p, serializeTmpFilesConf(conf));
       expect(parseTmpFilesConf(await readFile(p))).toEqual(conf);
@@ -102,7 +111,13 @@ describe('config file ops', () => {
     await sharedPodman(shared, async () => {
       const p = remoteTempPath('cfg-sudoers-');
       const content = serializeSudoersConf([
-        { user: 'testuser', hosts: ['ALL'], runas: 'ALL', commands: ['/usr/bin/systemctl'], nopasswd: true },
+        {
+          user: 'testuser',
+          hosts: ['ALL'],
+          runas: 'ALL',
+          commands: ['/usr/bin/systemctl'],
+          nopasswd: true,
+        },
       ]);
       await writeFile(p, content);
       expect(await readFile(p)).toContain('NOPASSWD:');

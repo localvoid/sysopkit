@@ -7,7 +7,12 @@ import { waitPort as waitPortNc } from 'sysopkit/op/netcat';
 import { waitProcess } from 'sysopkit/op/proc';
 import { $_, sh } from 'sysopkit/op/sh';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 
 /** Starts a TCP server via bun (parity images have no python3). Returns pid file. */
 async function startTcpServer(port: number, body = 'ok'): Promise<string> {
