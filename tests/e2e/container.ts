@@ -291,7 +291,10 @@ export async function withSsh<R>(
 
     const conn = new SSHConnector({
       name: 'ssh',
-      host: 'localhost',
+      // IPv4 loopback, not 'localhost': the port is allocated and probed on
+      // 127.0.0.1, and on hosts where localhost prefers ::1 the SSH client
+      // can hit an accept-then-close IPv6 forward without falling back.
+      host: '127.0.0.1',
       port: sshPortFor(container),
       user: 'testuser',
       key: PRIVATE_KEY_PATH,
@@ -475,7 +478,8 @@ export async function sharedSsh<R>(
   await ensurePrivateKeyPerms();
   const conn = new SSHConnector({
     name: 'ssh',
-    host: 'localhost',
+    // IPv4 loopback, not 'localhost': see withSsh above.
+    host: '127.0.0.1',
     port: sshPortFor(container),
     user: 'testuser',
     key: PRIVATE_KEY_PATH,
