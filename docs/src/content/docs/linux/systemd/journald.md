@@ -18,7 +18,7 @@ type JournaldConf = {
     Compress?: string;
     Seal?: 'yes' | 'no';
     SplitMode?: 'uid' | 'none';
-    RateLimitIntervalSec?: number;
+    RateLimitIntervalSec?: number | string;
     RateLimitBurst?: number;
     SystemMaxUse?: string;
     SystemKeepFree?: string;
@@ -30,7 +30,7 @@ type JournaldConf = {
     RuntimeMaxFiles?: number;
     MaxFileSec?: string;
     MaxRetentionSec?: string;
-    SyncIntervalSec?: number;
+    SyncIntervalSec?: number | string;
     ForwardToSyslog?: 'yes' | 'no';
     ForwardToKMsg?: 'yes' | 'no';
     ForwardToConsole?: 'yes' | 'no';

@@ -49,23 +49,23 @@ type TmpFilesEntry = {
 
 ### Line Type Reference
 
-| Type       | Action                                          |
-| ---------- | ----------------------------------------------- |
-| `f` / `f+` | Create or truncate file                         |
-| `w` / `w+` | Write to existing file                          |
-| `d` / `D`  | Create directory (D also removes on `--remove`) |
-| `e`        | Clean existing directory contents               |
-| `L` / `L+` | Create symlink                                  |
-| `c` / `b`  | Create character/block device node              |
-| `C` / `C+` | Copy files or directory trees                   |
-| `x` / `X`  | Ignore path during cleanup                      |
-| `r` / `R`  | Remove path (R recursive)                       |
-| `z` / `Z`  | Adjust mode/ownership (Z recursive)             |
-| `t` / `T`  | Set extended attributes (T recursive)           |
-| `h` / `H`  | Set file attributes (H recursive)               |
-| `a` / `A`  | Set POSIX ACLs                                  |
+| Type              | Action                                          |
+| ----------------- | ----------------------------------------------- |
+| `f` / `f+`        | Create or truncate file                         |
+| `w` / `w+`        | Write to existing file                          |
+| `d` / `D`         | Create directory (D also removes on `--remove`) |
+| `e`               | Clean existing directory contents               |
+| `L` / `L+` / `L?` | Create symlink (`L?` skips if source missing)   |
+| `c` / `b`         | Create character/block device node              |
+| `C` / `C+`        | Copy files or directory trees                   |
+| `x` / `X`         | Ignore path during cleanup                      |
+| `r` / `R`         | Remove path (R recursive)                       |
+| `z` / `Z`         | Adjust mode/ownership (Z recursive)             |
+| `t` / `T`         | Set extended attributes (T recursive)           |
+| `h` / `H`         | Set file attributes (H recursive)               |
+| `a` / `A`         | Set POSIX ACLs                                  |
 
-Type modifiers: `!` (boot-only), `-` (ignore errors), `=` (check file type), `~` (base64 argument).
+Type modifiers may be appended to the base type (e.g., `d!`, `f-`): `!` (boot-only), `-` (ignore errors), `=` (check file type), `~` (base64 argument), `^` (credential argument), `$` (purge).
 
 ### Entry Fields
 

@@ -21,6 +21,7 @@ export type NetDevConf = Partial<NetDevMatch> &
   Partial<NetDevL2TP> &
   Partial<NetDevL2TPSession> &
   Partial<NetDevMACsec> &
+  Partial<NetDevMACsecReceiveChannel> &
   Partial<NetDevMACsecTransmitAssociation> &
   Partial<NetDevMACsecReceiveAssociation> &
   Partial<NetDevTunnel> &

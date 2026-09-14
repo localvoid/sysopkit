@@ -26,7 +26,13 @@ export type NetworkConf = Partial<NetworkMatch> &
   Partial<NetworkIPv6Prefix> &
   Partial<NetworkIPv6RoutePrefix> &
   Partial<NetworkIPv6PREF64Prefix> &
-  Partial<NetworkBridgePort>;
+  Partial<NetworkBridgePort> &
+  Partial<NetworkBridgeFDB> &
+  Partial<NetworkBridgeMDB> &
+  Partial<NetworkLLDP> &
+  Partial<NetworkCAN> &
+  Partial<NetworkIPoIB> &
+  Partial<NetworkQDisc>;
 
 /**
  * [Match] section for .network files.
@@ -294,7 +300,7 @@ export type NetworkAddress = {
     Address: string;
     /** Peer address for point-to-point connections. */
     Peer?: string;
-    /** IPv4 broadcast address, or true to derive from Address=, or false to not set. */
+    /** IPv4 broadcast address ("yes" to derive from Address=, "no" to not set). */
     Broadcast?: string;
     /** Label for the IPv4 address (1-15 ASCII characters). */
     Label?: string;
@@ -376,8 +382,10 @@ export type NetworkRoutingPolicyRule = {
     /** Source IP port or port range to match. Range specified as "lower-upper". */
     SourcePort?: string;
     /** Destination IP port or port range to match. Range specified as "lower-upper". */
-    IPProtocol?: string;
+    DestinationPort?: string;
     /** IP protocol to match (name like "tcp"/"udp" or number like "6"/"17"). */
+    IPProtocol?: string;
+    /** Whether to invert the rule match. */
     InvertRule?: 'on' | 'off';
     /** Address family. By default determined by To= or From=. */
     Family?: 'ipv4' | 'ipv6' | 'both';
@@ -966,9 +974,9 @@ export type NetworkBridgePort = {
     /** Port priority for STP. */
     Priority?: number;
     /** Enable hairpin mode (allow traffic to be reflected back). */
-    Hairpin?: 'on' | 'off';
-    /** Control multicast router port state. "auto" for automatic detection. */
-    MulticastRouter?: 'on' | 'off' | 'auto';
+    HairPin?: 'on' | 'off';
+    /** Control multicast router port state. */
+    MulticastRouter?: 'no' | 'query' | 'permanent' | 'temporary';
     /** Multicast EHT hosts to allow. */
     MulticastEHTHostsAllow?: string | string[];
     /** Multicast EHT hosts to deny. */
@@ -997,5 +1005,103 @@ export type NetworkBridgePort = {
     Locked?: 'on' | 'off';
     /** Mark this port as a multicast router. */
     MRouter?: 'on' | 'off';
+    /** Whether proxy ARP is enabled on this port. */
+    ProxyARP?: 'on' | 'off';
+    /** Whether proxy ARP for WiFi is enabled on this port. */
+    ProxyARPWiFi?: 'on' | 'off';
+    /** Whether VLAN tunnel mode is enabled on this port. */
+    VLANTunnel?: 'on' | 'off';
+    /** Whether MAC authentication bypass is enabled on this port. */
+    MACAuthenticationBypass?: 'on' | 'off';
+  };
+};
+
+/**
+ * [BridgeFDB] section for .network files.
+ * Configures static bridge forwarding database entries.
+ */
+export type NetworkBridgeFDB = {
+  BridgeFDB: {
+    /** Destination MAC address. */
+    Destination?: string;
+    /** MAC address for the entry. */
+    MACAddress?: string;
+    /** Associated outgoing interface. */
+    AssociatedWith?: string;
+    /** Outgoing interface name. */
+    OutgoingInterface?: string;
+    /** VLAN ID for the entry. */
+    VLANId?: number;
+    /** VXLAN Network Identifier for the entry. */
+    VNI?: number;
+  };
+};
+
+/**
+ * [BridgeMDB] section for .network files.
+ * Configures static bridge multicast database entries.
+ */
+export type NetworkBridgeMDB = {
+  BridgeMDB: {
+    /** Multicast group address. */
+    MulticastGroupAddress?: string;
+    /** VLAN ID for the entry. */
+    VLANId?: number;
+  };
+};
+
+/**
+ * [LLDP] section for .network files.
+ */
+export type NetworkLLDP = {
+  LLDP: {
+    /** Manufacturer Usage Description URL. */
+    MUDURL?: string;
+  };
+};
+
+/**
+ * [CAN] section for .network files.
+ * Configures Controller Area Network interfaces.
+ */
+export type NetworkCAN = {
+  CAN: {
+    /** CAN bit rate. */
+    BitRate?: number;
+    /** CAN FD data bit rate. */
+    DataBitRate?: number;
+    /** Sample point in percent. */
+    SamplePoint?: number;
+    /** Data sample point in percent. */
+    DataSamplePoint?: number;
+    /** Time quanta in nanoseconds. */
+    TimeQuantaNSec?: number;
+    /** Data time quanta in nanoseconds. */
+    DataTimeQuantaNSec?: number;
+  };
+};
+
+/**
+ * [IPoIB] section for .network files.
+ */
+export type NetworkIPoIB = {
+  IPoIB: {
+    /** IPoIB mode: "datagram" or "connected". */
+    Mode?: 'datagram' | 'connected';
+    /** Whether to ignore userspace multicast groups. */
+    IgnoreUserspaceMulticastGroups?: 'on' | 'off';
+  };
+};
+
+/**
+ * [QDisc] section for .network files.
+ * Configures queueing disciplines.
+ */
+export type NetworkQDisc = {
+  QDisc: {
+    /** QDisc handle (e.g., "1:0"). */
+    Handle?: string;
+    /** Parent QDisc (e.g., "root"). */
+    Parent?: string;
   };
 };

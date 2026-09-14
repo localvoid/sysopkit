@@ -22,9 +22,8 @@ export type CoredumpConf = {
      * - "none": Log but don't store cores
      * - "external": Store in /var/lib/systemd/coredump/ (default)
      * - "journal": Store in the journal
-     * - "auto": External with journal fallback
      */
-    Storage?: 'none' | 'external' | 'journal' | 'auto';
+    Storage?: 'none' | 'external' | 'journal';
 
     /**
      * Enable compression for externally stored cores.
@@ -34,14 +33,15 @@ export type CoredumpConf = {
 
     /**
      * Maximum size of a core to process (generate stack trace).
-     * Cores exceeding this may still be stored. Default: 2G on 64-bit.
-     * Use suffixes K, M, G, T, P, E (base 1024).
+     * Cores exceeding this may still be stored.
+     * Default: 1G on 32-bit, 32G on 64-bit.
+     * Use suffixes B, K, M, G, T, P, E.
      */
     ProcessSizeMax?: string;
 
     /**
      * Maximum size of a core to save to external storage.
-     * Default: 2G on 64-bit. Use "infinity" for unlimited.
+     * Default: 1G on 32-bit, 32G on 64-bit. Use "infinity" for unlimited.
      */
     ExternalSizeMax?: string;
 
@@ -53,13 +53,16 @@ export type CoredumpConf = {
 
     /**
      * Maximum disk space for externally stored cores.
-     * Old cores are removed when exceeded. Default: 10% of disk.
+     * Old cores are removed when exceeded.
+     * Default: 10% of disk, capped at 4GiB, minimum 1MiB.
+     * Set to 0 to turn off. Takes precedence over KeepFree=.
      */
     MaxUse?: string;
 
     /**
      * Minimum disk space to keep free.
-     * Default: 15% of disk.
+     * Default: 15% of disk, limited to maximum 4GiB.
+     * Set to 0 to turn off.
      */
     KeepFree?: string;
 

@@ -44,7 +44,7 @@ Retrieves service state information from `systemctl show`.
 ```ts
 const info = await getServiceInfo({ name: 'nginx.service' });
 // { LoadState: 'loaded', ActiveState: 'active', SubState: 'running',
-//   UnitFileState: 'enabled', MainPid: 1234 }
+//   UnitFileState: 'enabled', MainPID: 1234 }
 ```
 
 ## enableService()
@@ -89,7 +89,7 @@ await stopService({ name: 'nginx.service' });
 
 ## restartService()
 
-Restarts a running service. No-op if the service is not active.
+Restarts a loaded service (`systemctl restart`; starts it if not running).
 
 ```ts
 await restartService({ name: 'nginx.service' });
@@ -97,7 +97,7 @@ await restartService({ name: 'nginx.service' });
 
 ## reloadService()
 
-Reloads a running service's configuration. No-op if not active.
+Reloads a loaded service's configuration (`systemctl reload`).
 
 ```ts
 await reloadService({ name: 'nginx.service' });
@@ -114,7 +114,7 @@ await daemonReload({ scope: 'user' });
 
 ## journalRead()
 
-Reads journal entries. Supports cursor-based incremental reading.
+Reads journal entries. Supports cursor-based incremental reading. Output includes a trailing `-- cursor: ...` footer from `--show-cursor`.
 
 ```ts
 const output = await journalRead({ afterCursor: '...', lines: 50 });
@@ -122,7 +122,7 @@ const output = await journalRead({ afterCursor: '...', lines: 50 });
 
 ## journalVacuum()
 
-Cleans up old journal entries by size, time, or file count.
+Cleans up old journal entries by size, time, or file count. Throws if no option is given.
 
 ```ts
 await journalVacuum({ size: '500M', time: '7d' });
@@ -132,7 +132,7 @@ await journalVacuum({ size: '500M', time: '7d' });
 
 > **IDEMPOTENT**
 
-Sets the system hostname using `hostnamectl set-hostname`. No-op if already set to the desired value.
+Sets the system hostname using `hostnamectl hostname`. No-op if already set to the desired value.
 
 ```ts
 await setHostname({ name: 'web-01' });
@@ -156,13 +156,15 @@ Sets a locale variable using `localectl set-locale`.
 
 ```ts
 await setLocale({ name: 'LANG', value: 'en_US.UTF-8' });
+// bare form sets LANG:
+await setLocale({ locale: 'C.UTF-8' });
 ```
 
 ## Utility Functions
 
 ### getUnitPath(name, options?)
 
-Returns the absolute path to a systemd unit file.
+Returns the path to a systemd unit file. Absolute for system scope and for user scope when `user` is given (assumes `/home/${user}`); otherwise relative to the target user's home directory.
 
 ```ts
 const path = getUnitPath('nginx.service');
@@ -183,7 +185,7 @@ const path = getSystemdConfigPath('journald.conf');
 
 ### getSystemdConfigDropInPath(configName, dropInName)
 
-Returns the absolute path to a drop-in configuration file.
+Returns the absolute path to a daemon drop-in file (e.g., `journald.conf.d/`; not unit `foo.service.d/` drop-ins under `/etc/systemd/system/`).
 
 ```ts
 const path = getSystemdConfigDropInPath('journald.conf', 'sysops');
@@ -198,7 +200,7 @@ The systemd module also exports TypeScript types for configuration files. See th
 - [logind](./logind) — `logind.conf(5)` types
 - [resolved](./resolved) — `resolved.conf(5)` types
 - [timesyncd](./timesyncd) — `timesyncd.conf(5)` types
-- [sleep](./sleep) — `sleep.conf(5)` types
+- [sleep](./sleep) — `systemd-sleep.conf(5)` types
 - [coredump](./coredump) — `coredump.conf(5)` types
 - [sysusers](./sysusers) — `sysusers.d(5)` parsing/serialization
 - [tmpfiles](./tmpfiles) — `tmpfiles.d(5)` parsing/serialization

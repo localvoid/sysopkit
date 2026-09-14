@@ -24,10 +24,11 @@ type ResolvedConf = {
     Cache?: 'yes' | 'no' | 'no-negative';
     CacheFromLocalhost?: 'yes' | 'no';
     DNSStubListener?: 'yes' | 'no' | 'udp' | 'tcp';
+    RefuseRecordTypes?: string;
     DNSStubListenerExtra?: string;
     ReadEtcHosts?: 'yes' | 'no';
     ResolveUnicastSingleLabel?: 'yes' | 'no';
-    staleRetentionSec?: string;
+    StaleRetentionSec?: number | string;
   };
 };
 ```

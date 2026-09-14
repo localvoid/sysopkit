@@ -19,8 +19,9 @@ export type TimesyncdConf = {
     /**
      * Space-separated list of NTP server hostnames or IP addresses.
      * Combined with per-interface servers from networkd.
+     * Assign empty string to reset the list.
      */
-    NTP?: string;
+    NTP?: string | string[];
 
     /**
      * Fallback NTP servers used when no other NTP information is available.
@@ -29,35 +30,36 @@ export type TimesyncdConf = {
     FallbackNTP?: string | string[];
 
     /**
-     * Maximum acceptable root distance in seconds.
+     * Maximum acceptable root distance.
+     * Accepts a time span (e.g., "5s").
      * Timesyncd will switch servers if current server exceeds this.
      * Default: 5 seconds.
      */
-    RootDistanceMaxSec?: number;
+    RootDistanceMaxSec?: number | string;
 
     /**
      * Minimum poll interval for NTP messages.
-     * Default: 32 seconds. Minimum: 16 seconds.
+     * Accepts a time span. Default: 32 seconds. Minimum: 16 seconds.
      */
-    PollIntervalMinSec?: number;
+    PollIntervalMinSec?: number | string;
 
     /**
      * Maximum poll interval for NTP messages.
-     * Default: 2048 seconds (34 min 8 sec).
+     * Accepts a time span. Default: 2048 seconds (34 min 8 sec).
      */
-    PollIntervalMaxSec?: number;
+    PollIntervalMaxSec?: number | string;
 
     /**
      * Minimum delay before retrying to contact a new NTP server.
-     * Default: 30 seconds. Minimum: 1 second.
+     * Accepts a time span. Default: 30 seconds. Minimum: 1 second.
      */
-    ConnectionRetrySec?: number;
+    ConnectionRetrySec?: number | string;
 
     /**
      * Interval for saving current time to disk when not synchronized.
-     * Useful for offline systems without RTC to maintain clock monotonicity.
-     * Default: 60 seconds.
+     * Accepts a time span. Useful for offline systems without RTC
+     * to maintain clock monotonicity. Default: 60 seconds.
      */
-    SaveIntervalSec?: number;
+    SaveIntervalSec?: number | string;
   };
 };

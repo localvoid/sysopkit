@@ -12,10 +12,10 @@
 export const LOGIND_CONF_PATH = '/etc/systemd/logind.conf';
 
 /**
- * Action types for power/sleep key and lid switch handling.
- * @see logind.conf(5) HandlePowerKey= and related options
+ * Idle action types.
+ * @see logind.conf(5) IdleAction=
  */
-export type LogindHandleAction =
+export type LogindIdleAction =
   | 'ignore'
   | 'poweroff'
   | 'reboot'
@@ -26,8 +26,13 @@ export type LogindHandleAction =
   | 'hybrid-sleep'
   | 'suspend-then-hibernate'
   | 'sleep'
-  | 'lock'
-  | 'factory-reset';
+  | 'lock';
+
+/**
+ * Action types for power/sleep key and lid switch handling.
+ * @see logind.conf(5) HandlePowerKey= and related options
+ */
+export type LogindHandleAction = LogindIdleAction | 'factory-reset' | 'secure-attention-key';
 
 /**
  * Options for configuring systemd-logind.
@@ -52,8 +57,8 @@ export type LogindConf = {
 
     /**
      * Kill user processes when user logs out completely.
-     * - true: Kill all processes in user's session scope
-     * - false: Abandon scope, let processes continue
+     * - "yes": Kill all processes in user's session scope
+     * - "no": Abandon scope, let processes continue
      * Default: no. Note: breaks screen/tmux unless they're moved out of session.
      */
     KillUserProcesses?: 'yes' | 'no';
@@ -74,25 +79,33 @@ export type LogindConf = {
      * Action to take when system is idle.
      * Default: "ignore" (no action).
      */
-    IdleAction?: LogindHandleAction;
+    IdleAction?: LogindIdleAction;
 
     /**
      * Delay after system becomes idle before taking IdleAction.
+     * Accepts a time span.
      */
-    IdleActionSec?: number;
+    IdleActionSec?: number | string;
 
     /**
      * Maximum time to delay shutdown/sleep for inhibitor locks.
-     * Default: 5 seconds.
+     * Accepts a time span. Default: 5 seconds.
      */
-    InhibitDelayMaxSec?: number;
+    InhibitDelayMaxSec?: number | string;
 
     /**
      * How long to keep user@.service around after user logs out.
-     * Speeds up rapid logout/login cycles. Default: 10s.
-     * Set to "infinity" to never stop user service.
+     * Speeds up rapid logout/login cycles. Accepts a time span.
+     * Default: 10s. Set to "infinity" to never stop user service.
      */
-    UserStopDelaySec?: number | 'infinity';
+    UserStopDelaySec?: number | string;
+
+    /**
+     * List of sleep operations to advertise and use.
+     * Possible values: "suspend", "hibernate", "hybrid-sleep",
+     * "suspend-then-hibernate". Default: "suspend-then-hibernate suspend hibernate".
+     */
+    SleepOperation?: string;
 
     /**
      * Action when power button is pressed. Default: "poweroff".
@@ -151,6 +164,12 @@ export type LogindConf = {
     HandleLidSwitchDocked?: LogindHandleAction;
 
     /**
+     * Action when secure attention key is pressed.
+     * Default: "secure-attention-key".
+     */
+    HandleSecureAttentionKey?: LogindHandleAction;
+
+    /**
      * Ignore inhibitor locks for power key. Default: no.
      */
     PowerKeyIgnoreInhibited?: 'yes' | 'no';
@@ -177,9 +196,10 @@ export type LogindConf = {
 
     /**
      * Time to wait after boot/resume before reacting to lid events.
-     * Allows hotplugged devices to be detected. Default: 30s.
+     * Allows hotplugged devices to be detected.
+     * Accepts a time span. Default: 30s.
      */
-    HoldoffTimeoutSec?: number;
+    HoldoffTimeoutSec?: number | string;
 
     /**
      * Size limit for $XDG_RUNTIME_DIR. Accepts K, M, G, T suffixes or %.
@@ -212,8 +232,19 @@ export type LogindConf = {
     /**
      * Timeout after which idle sessions are stopped.
      * Does not apply to greeter/lock-screen sessions.
-     * Default: "infinity" (disabled).
+     * Accepts a time span. Default: "infinity" (disabled).
      */
-    StopIdleSessionSec?: number | 'infinity';
+    StopIdleSessionSec?: number | string;
+
+    /**
+     * Default calendar event for scheduled shutdowns.
+     */
+    DesignatedMaintenanceTime?: string;
+
+    /**
+     * Whether wall(1) messages are sent for shutdown/sleep actions.
+     * Default: yes.
+     */
+    WallMessages?: 'yes' | 'no';
   };
 };

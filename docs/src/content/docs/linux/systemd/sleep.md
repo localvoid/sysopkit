@@ -1,9 +1,9 @@
 ---
 title: sleep
-description: systemd-sleep configuration types.
+description: systemd sleep configuration types.
 ---
 
-Type definitions for `sleep.conf` — the systemd-sleep configuration file.
+Type definitions for `systemd-sleep.conf` — the systemd sleep configuration file.
 
 ```ts
 import type { SleepConf } from '@sysopkit/linux/systemd/sleep';
@@ -14,13 +14,15 @@ import type { SleepConf } from '@sysopkit/linux/systemd/sleep';
 ```ts
 type SleepConf = {
   Sleep: {
-    SuspendMode?: string;
-    HibernateMode?: string;
-    HybridSleepMode?: string;
+    AllowSuspend?: 'yes' | 'no';
+    AllowHibernation?: 'yes' | 'no';
+    AllowHybridSleep?: 'yes' | 'no';
+    AllowSuspendThenHibernate?: 'yes' | 'no';
     SuspendState?: string;
-    HibernateState?: string;
-    HybridSleepState?: string;
+    HibernateMode?: string;
+    MemorySleepMode?: string;
     HibernateDelaySec?: number | string;
+    HibernateOnACPower?: 'yes' | 'no';
     SuspendEstimationSec?: number | string;
   };
 };
@@ -30,7 +32,6 @@ type SleepConf = {
 
 | Option | Description |
 | --- | --- |
-| `SuspendMode` | Default sleep mode for suspend (e.g., `"freeze"`, `"mem"`, `"standby"`). |
-| `HibernateMode` | Default sleep mode for hibernate (typically `"platform"` or `"shutdown"`). |
 | `SuspendState` | Power state to enter for suspend. Common values: `"mem"`, `"standby"`, `"freeze"`. |
+| `HibernateMode` | Power state to enter for hibernate (typically `"platform"` or `"shutdown"`). |
 | `HibernateDelaySec` | Delay before hibernating in suspend-then-hibernate mode. |

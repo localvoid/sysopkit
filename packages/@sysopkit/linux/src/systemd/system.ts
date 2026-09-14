@@ -28,7 +28,7 @@ export async function setHostname(options: SetHostnameOptions): Promise<void> {
         return;
       }
 
-      if (!ctx.dryRun) await sh(`hostnamectl set-hostname ${$_(name)}`);
+      if (!ctx.dryRun) await sh(`hostnamectl hostname ${$_(name)}`);
       emitChanged({
         type: 'systemd',
         resource: 'hostname',
@@ -72,28 +72,49 @@ export async function setTimezone(options: SetTimezoneOptions): Promise<void> {
 
 const LOCALE_CONF = '/etc/locale.conf';
 
-export interface SetLocaleOptions {
-  readonly name: string;
-  readonly value: string;
-}
+export type SetLocaleOptions =
+  | {
+      /** Variable name (e.g., "LANG"). */
+      readonly name: string;
+      /** Variable value (e.g., "C.UTF-8"). */
+      readonly value: string;
+      readonly locale?: never;
+    }
+  | {
+      /** Bare locale (sets LANG), e.g., "C.UTF-8". */
+      readonly locale: string;
+      readonly name?: never;
+      readonly value?: never;
+    };
 
 export async function setLocale(options: SetLocaleOptions): Promise<void> {
-  const { name, value } = options;
+  let prop: string;
+  let value: string;
+  let arg: string;
+  if (options.locale !== undefined) {
+    prop = 'LANG';
+    value = options.locale;
+    arg = options.locale;
+  } else {
+    prop = options.name;
+    value = options.value;
+    arg = `${options.name}=${options.value}`;
+  }
 
   return task(
-    `set locale ${name}=${value}`,
+    `set locale ${arg}`,
     async (ctx) => {
       const localeConf = parseShellConf(await readFile(LOCALE_CONF));
-      const currentValue = localeConf[name];
+      const currentValue = localeConf[prop];
       if (currentValue === value) {
         return;
       }
 
-      if (!ctx.dryRun) await sh(`localectl set-locale ${$_(`${name}=${value}`)}`);
+      if (!ctx.dryRun) await sh(`localectl set-locale ${$_(arg)}`);
       emitChanged({
         type: 'systemd',
         resource: 'locale',
-        property: name,
+        property: prop,
         from: currentValue,
         to: value,
       });

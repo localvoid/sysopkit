@@ -23,7 +23,7 @@ export type TmpFilesConf = TmpFilesEntry[];
  * - e: Clean existing directory contents
  * - v/q/Q: Create btrfs subvolume (with quota handling)
  * - p/p+: Create FIFO/pipe
- * - L/L+: Create symlink (L+ replaces existing)
+ * - L/L+/L?: Create symlink (L+ replaces existing, L? skips if source missing)
  * - c/c+/b/b+: Create device node
  * - C/C+: Copy files/directories
  * - x/X: Ignore during cleaning (X doesn't ignore contents)
@@ -33,13 +33,9 @@ export type TmpFilesConf = TmpFilesEntry[];
  * - h/H: Set file attributes (H recursive)
  * - a/a+/A/A+: Set POSIX ACLs (recursive with A/A+)
  *
- * Type modifiers (suffix to type letter):
- * - !: Only safe during boot (--boot option required)
- * - -: Ignore errors during create
- * - =: Check file type, remove if mismatch
- * - ~: Base64 decode the argument field
- * - ^: Read argument from credential
- * - $: Subject to removal with --purge
+ * Type modifiers may be appended to the base type (e.g., `d!`, `r!`, `f-`,
+ * `d=`, `f~`, `f^`, `d$`, and combinations). The `type` field accepts any
+ * such combination; the union lists base types for autocomplete.
  *
  * @see tmpfiles.d(5) for complete documentation
  */
@@ -58,6 +54,7 @@ export type TmpfilesType =
   | 'p+'
   | 'L'
   | 'L+'
+  | 'L?'
   | 'c'
   | 'c+'
   | 'b'
@@ -98,22 +95,26 @@ export type TmpFilesEntry = {
   /**
    * File access mode (octal, e.g., "0755" or 0o755).
    * Use "-" for default (0755 for dirs, 0644 for files).
-   * Prefix with "~" to mask based on existing permissions.
+   * Prefix with "~" to mask based on existing permissions,
+   * or ":" to apply only when creating new inodes.
    */
   mode?: string | number;
 
   /**
    * User name or UID. Use "-" for current user.
+   * Prefix with ":" to apply only when creating new inodes.
    */
   user?: string;
 
   /**
    * Group name or GID. Use "-" for current group.
+   * Prefix with ":" to apply only when creating new inodes.
    */
   group?: string;
 
   /**
-   * Age for time-based cleanup (e.g., "10d", "1w", "30s").
+   * Age for time-based cleanup (e.g., "10d", "1w", "30s", "1h 30min").
+   * Supports "~" one-level form and "age-by:" selectors (e.g., "bmA:1h").
    * Files older than this are deleted during --clean.
    * Use "0" for unconditional cleanup.
    * Use "-" to disable cleanup.
@@ -123,12 +124,13 @@ export type TmpFilesEntry = {
   /**
    * Argument field contents. Meaning depends on type:
    * - f/w: Content to write to file
-   * - L: Symlink target path
+   * - L: Symlink target path (omitted defaults to /usr/share/factory/)
    * - c/b: Device major:minor (e.g., "1:3")
-   * - C: Source path to copy from
+   * - C: Source path to copy from (omitted defaults to factory)
    * - t/T: Extended attributes (namespace.attr=value)
    * - a/A: POSIX ACLs
    * - h/H: File attributes (+/-/= followed by letters)
+   * Supports C-style escapes, specifiers, and `~`/`^` credential forms.
    */
   argument?: string;
 };
@@ -136,25 +138,27 @@ export type TmpFilesEntry = {
 /**
  * Parse tmpfiles.d configuration content into an array of entries.
  *
- * Skips comments (lines starting with # or ;) and blank lines.
+ * Skips comments (lines starting with #) and blank lines.
  * Each valid line has the format:
  *   Type Path Mode User Group Age Argument
  *
- * Fields are whitespace-separated. Missing trailing fields are omitted.
+ * The first six fields are whitespace-separated and may be quoted;
+ * everything after them belongs to the argument field verbatim.
+ * Missing trailing fields are omitted.
  *
  * @param content Raw tmpfiles.d configuration file content
  * @returns Array of parsed TmpfilesEntry objects
  */
 export function parseTmpFilesConf(content: string): TmpFilesConf {
-  const entries = [];
+  const entries: TmpFilesConf = [];
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) {
+    if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
 
-    const parts = trimmed.split(/\s+/);
+    const parts = splitTmpfilesLine(trimmed);
     if (parts.length < 2) {
       continue;
     }
@@ -166,13 +170,61 @@ export function parseTmpFilesConf(content: string): TmpFilesConf {
       user: parts.length > 3 && parts[3] !== '-' ? parts[3] : undefined,
       group: parts.length > 4 && parts[4] !== '-' ? parts[4] : undefined,
       age: parts.length > 5 && parts[5] !== '-' ? parts[5] : undefined,
-      argument: parts.length > 6 && parts[6] !== '-' ? parts.slice(6).join(' ') : undefined,
+      argument: parts.length > 6 && parts[6] !== '-' ? parts[6] : undefined,
     } satisfies TmpFilesEntry;
 
     entries.push(entry);
   }
 
   return entries;
+}
+
+/**
+ * Split a tmpfiles.d line into up to 7 fields.
+ * The first six fields honor double quotes; the seventh (argument)
+ * is the verbatim remainder of the line.
+ */
+function splitTmpfilesLine(line: string): string[] {
+  const fields: string[] = [];
+  let i = 0;
+
+  while (i < line.length && fields.length < 6) {
+    while (i < line.length && (line[i] === ' ' || line[i] === '\t')) {
+      i++;
+    }
+    if (i >= line.length) break;
+    if (line[i] === '"') {
+      let value = '';
+      i++;
+      while (i < line.length && line[i] !== '"') {
+        if (line[i] === '\\' && i + 1 < line.length) {
+          value += line[i + 1];
+          i += 2;
+        } else {
+          value += line[i];
+          i++;
+        }
+      }
+      if (i < line.length) i++;
+      fields.push(value);
+    } else {
+      let value = '';
+      while (i < line.length && line[i] !== ' ' && line[i] !== '\t') {
+        value += line[i];
+        i++;
+      }
+      fields.push(value);
+    }
+  }
+
+  while (i < line.length && (line[i] === ' ' || line[i] === '\t')) {
+    i++;
+  }
+  if (i < line.length) {
+    fields.push(line.slice(i));
+  }
+
+  return fields;
 }
 
 /**

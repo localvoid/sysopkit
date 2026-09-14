@@ -27,12 +27,13 @@ export type UnitType =
   | 'timer'
   | 'socket'
   | 'mount'
+  | 'automount'
+  | 'swap'
   | 'device'
   | 'target'
   | 'path'
   | 'slice'
-  | 'scope'
-  | 'automount';
+  | 'scope';
 
 /**
  * Options for the [Unit] section of any systemd unit file.
@@ -63,6 +64,9 @@ export type UnitSectionOptions = {
 
   /** Continuously restarts listed units while this unit is active. */
   Upholds?: string;
+
+  /** Started continuously by the listed units while they are active. */
+  UpheldBy?: string;
 
   /** Negative dependency: starting one stops the other. */
   Conflicts?: string;
@@ -244,20 +248,119 @@ export type UnitSectionOptions = {
   /** True if the specified credential is set. */
   ConditionCredential?: string;
 
+  /** True if firmware matches. */
+  ConditionFirmware?: string;
+
+  /** True if the specified capability is available. */
+  ConditionCapability?: string;
+
+  /** True if kernel module is loaded. */
+  ConditionKernelModuleLoaded?: string;
+
+  /** True if OS release matches. */
+  ConditionOSRelease?: string;
+
+  /** True if CPU feature is available. */
+  ConditionCPUFeature?: string;
+
+  /** True if software version matches. */
+  ConditionVersion?: string;
+
+  /** True if path is encrypted. */
+  ConditionPathIsEncrypted?: string;
+
+  /** True if memory pressure matches. */
+  ConditionMemoryPressure?: string;
+
+  /** True if CPU pressure matches. */
+  ConditionCPUPressure?: string;
+
+  /** True if IO pressure matches. */
+  ConditionIOPressure?: string;
+
   /** Assert that all listed paths exist (fails unit if not). */
   AssertPathExists?: string;
 
   /** Assert that all listed paths are directories. */
   AssertPathIsDirectory?: string;
 
+  /** Assert that all listed paths are symlinks. */
+  AssertPathIsSymbolicLink?: string;
+
+  /** Assert that all listed paths are mount points. */
+  AssertPathIsMountPoint?: string;
+
+  /** Assert that all listed paths are read-write. */
+  AssertPathIsReadWrite?: string;
+
+  /** Assert that a glob pattern matches any path. */
+  AssertPathExistsGlob?: string;
+
   /** Assert that kernel command line matches patterns. */
   AssertKernelCommandLine?: string;
+
+  /** Assert kernel version matches patterns. */
+  AssertKernelVersion?: string;
 
   /** Assert running in specified virtualization. */
   AssertVirtualization?: string;
 
   /** Assert running on specified architecture. */
   AssertArchitecture?: string;
+
+  /** Assert hostname matches patterns. */
+  AssertHost?: string;
+
+  /** Assert on AC power. */
+  AssertACPower?: 'yes' | 'no';
+
+  /** Assert first boot. */
+  AssertFirstBoot?: 'yes' | 'no';
+
+  /** Assert running as the specified user(s). */
+  AssertUser?: string;
+
+  /** Assert running as the specified group(s). */
+  AssertGroup?: string;
+
+  /** Assert the specified security feature is available. */
+  AssertSecurity?: string;
+
+  /** Assert the specified capability is available. */
+  AssertCapability?: string;
+
+  /** Assert the specified credential is set. */
+  AssertCredential?: string;
+
+  /** Assert the specified environment variable is set. */
+  AssertEnvironment?: string;
+
+  /** Assert kernel module is loaded. */
+  AssertKernelModuleLoaded?: string;
+
+  /** Assert OS release matches. */
+  AssertOSRelease?: string;
+
+  /** Assert software version matches. */
+  AssertVersion?: string;
+
+  /** Assert directory is not empty. */
+  AssertDirectoryNotEmpty?: string;
+
+  /** Assert file is not empty. */
+  AssertFileNotEmpty?: string;
+
+  /** Assert file is executable. */
+  AssertFileIsExecutable?: string;
+
+  /** Assert memory size matches range. */
+  AssertMemory?: string;
+
+  /** Assert CPU count matches range. */
+  AssertCPUs?: string;
+
+  /** Assert CPU feature is available. */
+  AssertCPUFeature?: string;
 };
 
 /**
@@ -274,6 +377,9 @@ export type InstallSectionOptions = {
 
   /** Creates .requires/ symlinks from listed units when enabled. */
   RequiredBy?: string;
+
+  /** Creates .upholds/ symlinks from listed units when enabled. */
+  UpheldBy?: string;
 
   /** Enable/disable these units together with this unit. */
   Also?: string;
@@ -447,13 +553,25 @@ export type ServiceSectionOptions = {
   FileDescriptorStoreMax?: number;
 
   /** FD store preservation: "no", "yes", or "restart". */
-  FileDescriptorStorePreserve?: string;
+  FileDescriptorStorePreserve?: 'no' | 'yes' | 'restart';
 
-  /** Run service as specific UID. */
-  UID?: string;
+  /** Run service as specific user. */
+  User?: string;
+
+  /** Run service as specific group. */
+  Group?: string;
+
+  /** Working directory for executed processes. */
+  WorkingDirectory?: string;
+
+  /** Environment variables (e.g., "VAR=value"). */
+  Environment?: string;
+
+  /** Environment variables from file. */
+  EnvironmentFile?: string;
 
   /** Derive SELinux context from network peer. */
-  SELlinuxContextFromNet?: 'yes' | 'no';
+  SELinuxContextFromNet?: 'yes' | 'no';
 
   /** OOM policy: "continue", "stop", or "kill". */
   OOMPolicy?: OomPolicy;
@@ -493,6 +611,24 @@ export type ServiceSectionOptions = {
 
   /** Memory limit (legacy, use MemoryMax). */
   MemoryLimit?: string;
+
+  /** Open file descriptors to pass to the service. */
+  OpenFile?: string;
+
+  /** USB FunctionFS descriptors. */
+  USBFunctionDescriptors?: string;
+
+  /** USB FunctionFS strings. */
+  USBFunctionStrings?: string;
+
+  /** Kill mode: "control-group", "mixed", "process", or "none". */
+  KillMode?: 'control-group' | 'mixed' | 'process' | 'none';
+
+  /** Whether to send SIGKILL on stop. */
+  SendSIGKILL?: 'yes' | 'no';
+
+  /** Whether to send SIGHUP on stop. */
+  SendSIGHUP?: 'yes' | 'no';
 };
 
 /**
@@ -588,7 +724,7 @@ export type BindIPv6Only = 'default' | 'both' | 'ipv6-only';
 /**
  * Timestamping options.
  */
-export type SocketTimestamping = 'off' | 'us' | 'ns';
+export type SocketTimestamping = 'off' | 'us' | 'usec' | 'μs' | 'ns' | 'nsec';
 
 /**
  * Options for the [Socket] section of a socket unit file.
@@ -738,7 +874,7 @@ export type SocketSectionOptions = {
   SmackLabelIPOut?: string;
 
   /** Derive SELinux context from network. */
-  SElinuxContextFromNet?: 'yes' | 'no';
+  SELinuxContextFromNet?: 'yes' | 'no';
 
   /** Pipe buffer size for FIFOs. */
   PipeSize?: number;
@@ -788,8 +924,8 @@ export type SocketSectionOptions = {
   /** Polling events per interval (default: 150 or 15). */
   PollLimitBurst?: number;
 
-  /** Defer trigger: "yes", "no", or "patient". */
-  DeferTrigger?: string;
+  /** Defer trigger: "yes", "no", or "patient". Only valid with Accept=no. */
+  DeferTrigger?: 'yes' | 'no' | 'patient';
 
   /** Max defer time for DeferTrigger. */
   DeferTriggerMaxSec?: string;
@@ -854,6 +990,38 @@ export type MountSectionOptions = {
 export type MountUnitConf = {
   Unit?: UnitSectionOptions;
   Mount: MountSectionOptions;
+  Install?: InstallSectionOptions;
+};
+
+// ---------------------------------------------------------------------------
+// [Swap] section
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for the [Swap] section of a swap unit file.
+ *
+ * @see systemd.swap(5)
+ */
+export type SwapSectionOptions = {
+  /** Device/node/resource providing swap (mandatory). */
+  What: string;
+
+  /** Swap priority. */
+  Priority?: number;
+
+  /** Comma-separated swap options. */
+  Options?: string;
+
+  /** Timeout for swap command. */
+  TimeoutSec?: string;
+};
+
+/**
+ * Complete swap unit configuration.
+ */
+export type SwapUnitConf = {
+  Unit?: UnitSectionOptions;
+  Swap: SwapSectionOptions;
   Install?: InstallSectionOptions;
 };
 
@@ -949,16 +1117,16 @@ export type SliceSectionOptions = {
   IODeviceWeight?: string;
 
   /** IO read bandwidth limit for a device (device_path:bytes_per_sec). */
-  IODeviceReadBandwidth?: string;
+  IOReadBandwidthMax?: string;
 
   /** IO write bandwidth limit for a device (device_path:bytes_per_sec). */
-  IODeviceWriteBandwidth?: string;
+  IOWriteBandwidthMax?: string;
 
   /** IO read IOPS limit for a device. */
-  IODeviceReadIOPSMax?: string;
+  IOReadIOPSMax?: string;
 
   /** IO write IOPS limit for a device. */
-  IODeviceWriteIOPSMax?: string;
+  IOWriteIOPSMax?: string;
 };
 
 /**
@@ -1081,9 +1249,10 @@ export type UnitConf =
   | TimerUnitConf
   | SocketUnitConf
   | MountUnitConf
+  | AutomountUnitConf
+  | SwapUnitConf
   | DeviceUnitConf
   | TargetUnitConf
   | PathUnitConf
   | SliceUnitConf
-  | ScopeUnitConf
-  | AutomountUnitConf;
+  | ScopeUnitConf;

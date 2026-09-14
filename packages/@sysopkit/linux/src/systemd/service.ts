@@ -9,14 +9,14 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
-import { parseKeyValue, type SystemdScopeOptions } from './common.js';
+import { parseKeyValue, type SystemdScope, type SystemdScopeOptions } from './common.js';
 
 export interface ServiceInfo {
   readonly LoadState: string;
   readonly ActiveState: string;
   readonly SubState: string;
   readonly UnitFileState: string;
-  readonly MainPid: number;
+  readonly MainPID: number;
 }
 
 export interface GetServiceInfoOptions extends SystemdScopeOptions {
@@ -46,12 +46,13 @@ export async function enableService(options: ServiceOptions): Promise<void> {
       const info = await getServiceInfo(options);
       /*
        * A service is considered enabled if its UnitFileState is "enabled" or
-       * "enabled-runtime". Other states like "static", "alias", "generated",
-       * "transient" are not considered enabled here, even though systemctl
-       * is-enabled returns 0 for them, because they don't represent units
-       * that were explicitly enabled by the administrator.
+       * "enabled-runtime". Other states like "static", "alias", "indirect",
+       * "generated", "transient" are not considered enabled here, even though
+       * systemctl is-enabled returns 0 for them, because they don't represent
+       * units that were explicitly enabled by the administrator.
        *
-       * @see systemctl(1) is-enabled - for the full list of states and their meanings
+       * @see systemctl(1) is-enabled - enabled, enabled-runtime, linked,
+       * masked, static, alias, indirect, generated, transient, bad, disabled, etc.
        */
       const isEnabled = ENABLED_STATES.includes(info.UnitFileState);
       if (!isEnabled) {
@@ -106,7 +107,7 @@ export async function startService(options: ServiceOptions): Promise<boolean> {
     async (ctx) => {
       const info = await getServiceInfo(options);
       if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
-        if (info.ActiveState === 'inactive') {
+        if (info.ActiveState === 'inactive' || info.ActiveState === 'failed') {
           if (!ctx.dryRun) await sh(_systemctl('start', name, scope));
           emitChanged({
             type: 'service',
@@ -135,7 +136,7 @@ export async function stopService(options: ServiceOptions): Promise<void> {
     async (ctx) => {
       const info = await getServiceInfo(options);
       if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
-        if (info.ActiveState === 'active') {
+        if (info.ActiveState === 'active' || info.ActiveState === 'failed') {
           if (!ctx.dryRun) await sh(_systemctl('stop', name, scope));
           emitChanged({
             type: 'service',
@@ -158,10 +159,10 @@ export async function restartService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `servicectl restart ${name}`,
+    `systemctl restart ${name}`,
     async (ctx) => {
       const info = await getServiceInfo(options);
-      if (info.ActiveState === 'active') {
+      if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
         if (!ctx.dryRun) await sh(_systemctl('restart', name, scope));
         emitChanged({ type: 'service', resource: name, property: 'state', to: 'restarted' });
       }
@@ -177,10 +178,10 @@ export async function reloadService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `servicectl reload ${name}`,
+    `systemctl reload ${name}`,
     async (ctx) => {
       const info = await getServiceInfo(options);
-      if (info.ActiveState === 'active') {
+      if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
         if (!ctx.dryRun) await sh(_systemctl('reload', name, scope));
         emitChanged({ type: 'service', resource: name, property: 'state', to: 'reloaded' });
       }
@@ -200,7 +201,7 @@ export async function reloadService(options: ServiceOptions): Promise<void> {
  * @param options - Scope options
  * @returns Complete systemctl command string
  */
-export function _systemctl(action: string, unit: string, scope: string = 'system'): string {
+export function _systemctl(action: string, unit: string, scope: SystemdScope = 'system'): string {
   const userFlag = scope === 'user' ? '--user ' : '';
   return `systemctl ${userFlag}${action} ${$_(unit)}`;
 }
@@ -211,13 +212,16 @@ export function _systemctl(action: string, unit: string, scope: string = 'system
  * According to systemctl(1) is-enabled, these states return exit code 0:
  * - "enabled": Enabled via .wants/, .requires/ or Alias= symlinks
  * - "enabled-runtime": Same as enabled but in /run/systemd/system/
+ * - "linked": Made available through a symlink to the unit file
  * - "alias": The name is an alias (symlink to another unit file)
  * - "static": Not enabled, has no [Install] section provisions
+ * - "indirect": Enabled via WantedBy= in another unit's [Install] section
  * - "generated": Dynamically generated via generator tool
  * - "transient": Created dynamically with runtime API
  *
- * Note: "static", "generated", and "transient" return 0 but are not truly
- * "enabled" in the traditional sense. For the purpose of this operation,
- * we only consider "enabled" and "enabled-runtime" as enabled states.
+ * Note: "linked", "static", "alias", "indirect", "generated", and
+ * "transient" return 0 but are not truly "enabled" in the traditional
+ * sense. For the purpose of this operation, we only consider "enabled"
+ * and "enabled-runtime" as enabled states.
  */
 const ENABLED_STATES = ['enabled', 'enabled-runtime'];

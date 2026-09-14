@@ -51,10 +51,11 @@ export type JournaldConf = {
     SplitMode?: 'uid' | 'none';
 
     /**
-     * Rate limit interval in seconds. Messages exceeding RateLimitBurst
-     * within this interval are dropped. Default: 30s.
+     * Rate limit interval. Accepts a time span (e.g., "30s").
+     * Messages exceeding RateLimitBurst within this interval are dropped.
+     * Default: 30s.
      */
-    RateLimitIntervalSec?: number;
+    RateLimitIntervalSec?: number | string;
 
     /**
      * Number of messages allowed per RateLimitIntervalSec before rate limiting.
@@ -72,7 +73,7 @@ export type JournaldConf = {
      * Disk space to keep free for other uses (persistent storage).
      * Accepts size with K, M, G, T, P, E suffixes (base 1024).
      */
-    systemKeepFree?: string;
+    SystemKeepFree?: string;
 
     /**
      * Maximum size of individual journal files (persistent storage).
@@ -123,9 +124,10 @@ export type JournaldConf = {
 
     /**
      * Timeout before synchronizing journal files to disk.
-     * Default: 5min. Critical messages sync immediately.
+     * Accepts a time span (e.g., "5min"). Default: 5min.
+     * Critical messages sync immediately.
      */
-    SyncIntervalSec?: number;
+    SyncIntervalSec?: number | string;
 
     /** Forward log messages to traditional syslog daemon. */
     ForwardToSyslog?: 'yes' | 'no';
@@ -203,10 +205,10 @@ export type JournaldConf = {
 
     /**
      * Control kernel auditing.
-     * - true: Enable kernel auditing
-     * - false: Disable kernel auditing
+     * - "yes": Enable kernel auditing
+     * - "no": Disable kernel auditing
      * - "keep": Leave previous state unchanged
-     * Default: true in default namespace, "keep" in others.
+     * Default: yes in default namespace, "keep" in others.
      */
     Audit?: 'yes' | 'no' | 'keep';
   };

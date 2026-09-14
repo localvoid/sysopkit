@@ -6,13 +6,17 @@ description: systemd-logind configuration types.
 Type definitions for `logind.conf` — the systemd-logind (login manager) configuration file.
 
 ```ts
-import type { LogindConf, LogindHandleAction } from '@sysopkit/linux/systemd/logind';
+import type {
+  LogindConf,
+  LogindHandleAction,
+  LogindIdleAction,
+} from '@sysopkit/linux/systemd/logind';
 ```
 
 ## LogindConf
 
 ```ts
-type LogindHandleAction =
+type LogindIdleAction =
   | 'ignore'
   | 'poweroff'
   | 'reboot'
@@ -23,8 +27,9 @@ type LogindHandleAction =
   | 'hybrid-sleep'
   | 'suspend-then-hibernate'
   | 'sleep'
-  | 'lock'
-  | 'factory-reset';
+  | 'lock';
+
+type LogindHandleAction = LogindIdleAction | 'factory-reset' | 'secure-attention-key';
 
 type LogindConf = {
   Login: {
@@ -33,10 +38,11 @@ type LogindConf = {
     KillUserProcesses?: 'yes' | 'no';
     KillOnlyUsers?: string;
     KillExcludeUsers?: string;
-    IdleAction?: LogindHandleAction;
-    IdleActionSec?: number;
-    InhibitDelayMaxSec?: number;
-    UserStopDelaySec?: number | 'infinity';
+    IdleAction?: LogindIdleAction;
+    IdleActionSec?: number | string;
+    InhibitDelayMaxSec?: number | string;
+    UserStopDelaySec?: number | string;
+    SleepOperation?: string;
     HandlePowerKey?: LogindHandleAction;
     HandlePowerKeyLongPress?: LogindHandleAction;
     HandleRebootKey?: LogindHandleAction;
@@ -48,18 +54,21 @@ type LogindConf = {
     HandleLidSwitch?: LogindHandleAction;
     HandleLidSwitchExternalPower?: LogindHandleAction;
     HandleLidSwitchDocked?: LogindHandleAction;
+    HandleSecureAttentionKey?: LogindHandleAction;
     PowerKeyIgnoreInhibited?: 'yes' | 'no';
     SuspendKeyIgnoreInhibited?: 'yes' | 'no';
     HibernateKeyIgnoreInhibited?: 'yes' | 'no';
     LidSwitchIgnoreInhibited?: 'yes' | 'no';
     RebootKeyIgnoreInhibited?: 'yes' | 'no';
-    HoldoffTimeoutSec?: number;
+    HoldoffTimeoutSec?: number | string;
     RuntimeDirectorySize?: string;
     RuntimeDirectoryInodesMax?: number | string;
     InhibitorsMax?: number;
     SessionsMax?: number;
     RemoveIPC?: 'yes' | 'no';
-    StopIdleSessionSec?: number | 'infinity';
+    StopIdleSessionSec?: number | string;
+    DesignatedMaintenanceTime?: string;
+    WallMessages?: 'yes' | 'no';
   };
 };
 ```

@@ -54,169 +54,169 @@ export type LinkMatch = {
 export type LinkLink = {
   Link: {
     /** Description of the device. */
-    Description?: string;
+    'Description'?: string;
     /** Set udev properties. Space-separated "KEY=VALUE" pairs. Supports specifier expansion. */
-    Property?: string | string[];
+    'Property'?: string | string[];
     /** Import udev properties from the saved database. Space-separated property names. */
-    ImportProperty?: string | string[];
+    'ImportProperty'?: string | string[];
     /** Unset udev properties. Space-separated property names. Applied after ImportProperty= and Property=. */
-    UnsetProperty?: string | string[];
+    'UnsetProperty'?: string | string[];
     /** Set the ifalias interface property. */
-    Alias?: string;
+    'Alias'?: string;
     /** Policy for MAC address assignment. "persistent" uses hardware or generates stable, "random" generates new each boot, "none" keeps kernel-assigned. */
-    MACAddressPolicy?: 'persistent' | 'random' | 'none';
+    'MACAddressPolicy'?: 'persistent' | 'random' | 'none';
     /** Interface MAC address to use. Requires MACAddressPolicy=none or unset. */
-    MACAddress?: string;
+    'MACAddress'?: string;
     /** Ordered list of naming policies. First successful one is used. Disabled by net.ifnames=0. */
-    NamePolicy?: string;
+    'NamePolicy'?: string;
     /** Interface name to use. Lower precedence than NamePolicy=. 1-15 characters, no ":", "/", "%". */
-    Name?: string;
+    'Name'?: string;
     /** Space-separated list of policies for alternative interface names. All successful policies are used. */
-    AlternativeNamesPolicy?: string;
+    'AlternativeNamesPolicy'?: string;
     /** Alternative interface name to use. Can be specified multiple times. Max 127 characters. */
-    AlternativeName?: string | string[];
+    'AlternativeName'?: string | string[];
     /** Number of transmit queues (1-4096). */
-    TransmitQueues?: number;
+    'TransmitQueues'?: number;
     /** Number of receive queues (1-4096). */
-    ReceiveQueues?: number;
+    'ReceiveQueues'?: number;
     /** Transmit queue length in packets (0-4294967294). */
-    TransmitQueueLength?: number;
+    'TransmitQueueLength'?: number;
     /** Maximum transmission unit in bytes. Suffixes K, M, G supported (base 1024). */
-    MTUBytes?: string;
+    'MTUBytes'?: string;
     /** Device speed, rounded down to nearest Mbps. Suffixes K, M, G supported (base 1000). */
-    BitsPerSecond?: string;
+    'BitsPerSecond'?: string;
     /** Duplex mode. */
-    Duplex?: 'half' | 'full';
+    'Duplex'?: 'half' | 'full';
     /** Enable automatic negotiation of transmission parameters. */
-    AutoNegotiation?: boolean;
+    'AutoNegotiation'?: 'yes' | 'no';
     /** Wake-on-LAN policy. "off" or space-separated list of: phy, unicast, multicast, broadcast, arp, magic, secureon. */
-    WakeOnLan?: string;
+    'WakeOnLan'?: string;
     /** SecureOn password for MagicPacket. 6 bytes in hex format with colons, or path to file/socket. */
-    WakeOnLanPassword?: string;
+    'WakeOnLanPassword'?: string;
     /** Device port type. */
-    Port?: 'tp' | 'aui' | 'bnc' | 'mii' | 'fibre';
+    'Port'?: 'tp' | 'aui' | 'bnc' | 'mii' | 'fibre';
     /** Speeds/duplex modes advertised for auto-negotiation. Implies AutoNegotiation=yes. */
-    Advertise?: string | string[];
+    'Advertise'?: string | string[];
     /** Enable hardware offload for checksumming of ingress packets. */
-    ReceiveChecksumOffload?: boolean;
+    'ReceiveChecksumOffload'?: 'yes' | 'no';
     /** Enable hardware offload for checksumming of egress packets. */
-    TransmitChecksumOffload?: boolean;
+    'TransmitChecksumOffload'?: 'yes' | 'no';
     /** Enable scatter-gather offload (build packet from multiple non-contiguous buffers). */
-    ScatterGather?: boolean;
+    'ScatterGather'?: 'yes' | 'no';
     /** Enable scatter-gather fraglist offload (build packet from chained socket buffers). */
-    ScatterGatherFragmentList?: boolean;
+    'ScatterGatherFragmentList'?: 'yes' | 'no';
     /** Enable TCP Segmentation Offload (TSO). */
-    TCPSegmentationOffload?: boolean;
+    'TCPSegmentationOffload'?: 'yes' | 'no';
     /** Enable TSO even when ECN flags are active. */
-    TCPECNSegmentationOffload?: boolean;
+    'TCPECNSegmentationOffload'?: 'yes' | 'no';
     /** Enable TSO even if hardware can't increment IPv4 ID field. */
-    TCPMangleIdSegmentationOffload?: boolean;
+    'TCPMangleIdSegmentationOffload'?: 'yes' | 'no';
     /** Enable TCP6 Segmentation Offload. */
-    TCP6SegmentationOffload?: boolean;
+    'TCP6SegmentationOffload'?: 'yes' | 'no';
     /** Enable Generic Segmentation Offload (GSO). */
-    GenericSegmentationOffload?: boolean;
+    'GenericSegmentationOffload'?: 'yes' | 'no';
     /** Enable Partial GSO. */
-    PartialGenericSegmentationOffload?: boolean;
+    'PartialGenericSegmentationOffload'?: 'yes' | 'no';
     /** Enable Generic Receive Offload (GRO). */
-    GenericReceiveOffload?: boolean;
+    'GenericReceiveOffload'?: 'yes' | 'no';
     /** Enable hardware accelerated GRO. */
-    GenericReceiveOffloadHardware?: boolean;
+    'GenericReceiveOffloadHardware'?: 'yes' | 'no';
     /** Enable GRO List for UDP. */
-    GenericReceiveOffloadList?: boolean;
+    'GenericReceiveOffloadList'?: 'yes' | 'no';
     /** Enable GRO for aggregating incoming UDP packets. */
-    GenericReceiveOffloadUDPForwarding?: boolean;
+    'GenericReceiveOffloadUDPForwarding'?: 'yes' | 'no';
     /** Enable Large Receive Offload (LRO). */
-    LargeReceiveOffload?: boolean;
+    'LargeReceiveOffload'?: 'yes' | 'no';
     /** CPUs for Receive Packet Steering (RPS). List of indices/ranges or "all". "disable" to turn off. */
-    ReceivePacketSteeringCPUMask?: string;
+    'ReceivePacketSteeringCPUMask'?: string;
     /** Enable receive VLAN CTAG hardware acceleration. */
-    ReceiveVLANCTAGHardwareAcceleration?: boolean;
+    'ReceiveVLANCTAGHardwareAcceleration'?: 'yes' | 'no';
     /** Enable transmit VLAN CTAG hardware acceleration. */
-    TransmitVLANCTAGHardwareAcceleration?: boolean;
+    'TransmitVLANCTAGHardwareAcceleration'?: 'yes' | 'no';
     /** Enable receive filtering on VLAN CTAGs. */
-    ReceiveVLANCTAGFilter?: boolean;
+    'ReceiveVLANCTAGFilter'?: 'yes' | 'no';
     /** Enable transmit VLAN STAG hardware acceleration. */
-    TransmitVLANSTAGHardwareAcceleration?: boolean;
+    'TransmitVLANSTAGHardwareAcceleration'?: 'yes' | 'no';
     /** Enable receive N-tuple filters and actions. */
-    NTupleFilter?: boolean;
+    'NTupleFilter'?: 'yes' | 'no';
     /** Pass FCS value up the stack without trimming. */
-    ReceiveFCS?: boolean;
+    'ReceiveFCS'?: 'yes' | 'no';
     /** Allow interface to receive damaged ethernet frames. */
-    ReceiveAll?: boolean;
+    'ReceiveAll'?: 'yes' | 'no';
     /** Number of receive channels (1-4294967295) or "max" for hardware maximum. */
-    RxChannels?: number | 'max';
+    'RxChannels'?: number | 'max';
     /** Number of transmit channels (1-4294967295) or "max" for hardware maximum. */
-    TxChannels?: number | 'max';
+    'TxChannels'?: number | 'max';
     /** Number of other channels (1-4294967295) or "max" for hardware maximum. */
-    OtherChannels?: number | 'max';
+    'OtherChannels'?: number | 'max';
     /** Number of combined channels (1-4294967295) or "max" for hardware maximum. */
-    CombinedChannels?: number | 'max';
+    'CombinedChannels'?: number | 'max';
     /** Max pending packets in NIC receive buffer (1-4294967295) or "max". */
-    RxBufferSize?: number | 'max';
+    'RxBufferSize'?: number | 'max';
     /** Max pending packets in NIC mini receive buffer (1-4294967295) or "max". */
-    RxMiniBufferSize?: number | 'max';
+    'RxMiniBufferSize'?: number | 'max';
     /** Max pending packets in NIC jumbo receive buffer (1-4294967295) or "max". */
-    RxJumboBufferSize?: number | 'max';
+    'RxJumboBufferSize'?: number | 'max';
     /** Max pending packets in NIC transmit buffer (1-4294967295) or "max". */
-    TxBufferSize?: number | 'max';
+    'TxBufferSize'?: number | 'max';
     /** Enable receive flow control (generate/send PAUSE frames). */
-    RxFlowControl?: boolean;
+    'RxFlowControl'?: 'yes' | 'no';
     /** Enable transmit flow control (respond to PAUSE frames). */
-    TxFlowControl?: boolean;
+    'TxFlowControl'?: 'yes' | 'no';
     /** Enable auto-negotiation of PAUSE configuration. */
-    AutoNegotiationFlowControl?: boolean;
+    'AutoNegotiationFlowControl'?: 'yes' | 'no';
     /** Maximum GSO packet size. Suffixes K, M, G supported (1-65536). */
-    GenericSegmentOffloadMaxBytes?: string;
+    'GenericSegmentOffloadMaxBytes'?: string;
     /** Maximum number of GSO segments (1-65535). */
-    GenericSegmentOffloadMaxSegments?: number;
+    'GenericSegmentOffloadMaxSegments'?: number;
     /** Enable/disable adaptive Rx coalescing. */
-    UseAdaptiveRxCoalesce?: boolean;
+    'UseAdaptiveRxCoalesce'?: 'yes' | 'no';
     /** Enable/disable adaptive Tx coalescing. */
-    UseAdaptiveTxCoalesce?: boolean;
+    'UseAdaptiveTxCoalesce'?: 'yes' | 'no';
     /** Delay before Rx interrupt after packet received. */
-    RxCoalesceSec?: string;
+    'RxCoalesceSec'?: string;
     /** Delay before Rx IRQ interrupt after packet received. */
-    RxCoalesceIrqSec?: string;
+    'RxCoalesceIrqSec'?: string;
     /** Delay before Rx interrupt in low packet rate mode. */
-    RxCoalesceLowSec?: string;
+    'RxCoalesceLowSec'?: string;
     /** Delay before Rx interrupt in high packet rate mode. */
-    RxCoalesceHighSec?: string;
+    'RxCoalesceHighSec'?: string;
     /** Delay before Tx interrupt after packet sent. */
-    TxCoalesceSec?: string;
+    'TxCoalesceSec'?: string;
     /** Delay before Tx IRQ interrupt after packet sent. */
-    TxCoalesceIrqSec?: string;
+    'TxCoalesceIrqSec'?: string;
     /** Delay before Tx interrupt in low packet rate mode. */
-    TxCoalesceLowSec?: string;
+    'TxCoalesceLowSec'?: string;
     /** Delay before Tx interrupt in high packet rate mode. */
-    TxCoalesceHighSec?: string;
+    'TxCoalesceHighSec'?: string;
     /** Max frames before Rx interrupt is generated. */
-    RxMaxCoalescedFrames?: number;
+    'RxMaxCoalescedFrames'?: number;
     /** Max frames before Rx IRQ interrupt is generated. */
-    RxMaxCoalescedIrqFrames?: number;
+    'RxMaxCoalescedIrqFrames'?: number;
     /** Max frames before Rx interrupt in low rate mode. */
-    RxMaxCoalescedLowFrames?: number;
+    'RxMaxCoalescedLowFrames'?: number;
     /** Max frames before Rx interrupt in high rate mode. */
-    RxMaxCoalescedHighFrames?: number;
+    'RxMaxCoalescedHighFrames'?: number;
     /** Max frames before Tx interrupt is generated. */
-    TxMaxCoalescedFrames?: number;
+    'TxMaxCoalescedFrames'?: number;
     /** Max frames before Tx IRQ interrupt is generated. */
-    TxMaxCoalescedIrqFrames?: number;
+    'TxMaxCoalescedIrqFrames'?: number;
     /** Max frames before Tx interrupt in low rate mode. */
-    TxMaxCoalescedLowFrames?: number;
+    'TxMaxCoalescedLowFrames'?: number;
     /** Max frames before Tx interrupt in high rate mode. */
-    TxMaxCoalescedHighFrames?: number;
+    'TxMaxCoalescedHighFrames'?: number;
     /** Low packet rate threshold (packets/sec) for adaptive coalescing. */
-    CoalescePacketRateLow?: number;
+    'CoalescePacketRateLow'?: number;
     /** High packet rate threshold (packets/sec) for adaptive coalescing. */
-    CoalescePacketRateHigh?: number;
+    'CoalescePacketRateHigh'?: number;
     /** How often to sample packet rate for adaptive coalescing. Cannot be zero. */
-    CoalescePacketRateSampleIntervalSec?: string;
+    'CoalescePacketRateSampleIntervalSec'?: string;
     /** Delay for driver in-memory statistics block updates. Cannot be zero. */
-    StatisticsBlockCoalesceSec?: string;
+    'StatisticsBlockCoalesceSec'?: string;
     /** Medium dependent interface mode. "straight"/"mdi", "crossover"/"mdi-x"/"mdix", or "auto". */
-    MDI?: 'straight' | 'mdi' | 'crossover' | 'mdi-x' | 'mdix' | 'auto';
+    'MDI'?: 'straight' | 'mdi' | 'crossover' | 'mdi-x' | 'mdix' | 'auto';
     /** Number of SR-IOV virtual functions (0-2147483647). */
-    SRIOVVirtualFunctions?: number;
+    'SR-IOVVirtualFunctions'?: number;
   };
 };
 
@@ -235,13 +235,13 @@ export type LinkSRIOV = {
     /** VLAN protocol of the virtual function. */
     VLANProtocol?: '802.1Q' | '802.1ad';
     /** Controls MAC spoof checking. */
-    MACSpoofCheck?: boolean;
+    MACSpoofCheck?: 'yes' | 'no';
     /** Toggle ability to query RSS configuration of the VF. */
-    QueryReceiveSideScaling?: boolean;
+    QueryReceiveSideScaling?: 'yes' | 'no';
     /** Set trust mode of the VF. When set, VF users can set features impacting security/performance. */
-    Trust?: boolean;
+    Trust?: 'yes' | 'no';
     /** Link state of the VF. "auto" reflects PF state, "yes" allows VF communication even if PF is down, "no" drops VF packets. */
-    LinkState?: boolean | 'auto';
+    LinkState?: 'yes' | 'no' | 'auto';
     /** MAC address for the virtual function. */
     MACAddress?: string;
   };
@@ -254,9 +254,9 @@ export type LinkSRIOV = {
 export type LinkEnergyEfficientEthernet = {
   EnergyEfficientEthernet: {
     /** Enable Energy Efficient Ethernet feature. */
-    Enable?: boolean;
+    Enable?: 'yes' | 'no';
     /** Enable transmit Low Power Idle (Tx-LPI) mode. */
-    TxLowPowerIdle?: boolean;
+    TxLowPowerIdle?: 'yes' | 'no';
     /** How long the interface should not enter Low Power Idle mode after transmission. */
     TxLowPowerIdleSec?: string;
     /** EEE-capable connection modes to advertise. See Advertise= values table. */

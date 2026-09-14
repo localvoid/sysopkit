@@ -85,21 +85,22 @@ export type SysusersEntry = {
 /**
  * Parse sysusers.d configuration content into an array of entries.
  *
- * Skips comments (lines starting with # or ;) and blank lines.
+ * Skips comments (lines starting with #) and blank lines.
  * Each valid line has the format:
  *   Type Name [ID [GECOS [HOME [SHELL]]]]
  *
- * For "u"/"u!" types, GECOS, HOME, and SHELL may be quoted with double quotes.
+ * Only the GECOS field is quoted with double quotes per sysusers.d(5).
+ * Fields are separated by whitespace (spaces or tabs).
  *
  * @param content Raw sysusers.d configuration file content
  * @returns Array of parsed SysusersEntry objects
  */
 export function parseSysusersConf(content: string): SysusersConf {
-  const entries = [];
+  const entries: SysusersConf = [];
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) {
+    if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
 
@@ -109,6 +110,9 @@ export function parseSysusersConf(content: string): SysusersConf {
     }
 
     const [type, name, idRaw, gecos, home, shell] = parts;
+    if (type !== 'u' && type !== 'u!' && type !== 'g' && type !== 'm' && type !== 'r') {
+      continue;
+    }
 
     const entry = {
       type: type as SysusersType,
@@ -127,7 +131,8 @@ export function parseSysusersConf(content: string): SysusersConf {
 
 /**
  * Parse a single sysusers.d line into its constituent fields.
- * Handles quoted fields for GECOS, HOME, and SHELL.
+ * Only GECOS is quoted per sysusers.d(5); HOME and SHELL may also
+ * arrive quoted and are unquoted here for tolerance.
  */
 function parseSysusersLine(
   line: string,
@@ -136,7 +141,7 @@ function parseSysusersLine(
   let i = 0;
 
   while (i < line.length && parts.length < 6) {
-    while (i < line.length && line[i] === ' ') {
+    while (i < line.length && (line[i] === ' ' || line[i] === '\t')) {
       i++;
     }
     if (i >= line.length) {
@@ -156,7 +161,7 @@ function parseSysusersLine(
       parts.push(value);
     } else {
       let value = '';
-      while (i < line.length && line[i] !== ' ') {
+      while (i < line.length && line[i] !== ' ' && line[i] !== '\t') {
         value += line[i];
         i++;
       }
@@ -177,8 +182,8 @@ function parseSysusersLine(
  * Each entry is output as a space-separated line:
  *   Type Name [ID [GECOS [HOME [SHELL]]]]
  *
- * For "u"/"u!" types, GECOS, HOME, and SHELL are quoted with double quotes.
- * Optional fields that are undefined are rendered as "-".
+ * Only GECOS is quoted per sysusers.d(5). Trailing undefined fields
+ * are omitted (e.g., `u! httpd 404 "HTTP User"`).
  * A trailing newline is appended.
  *
  * @param entries Array of SysusersEntry objects
@@ -193,10 +198,17 @@ export function serializeSysusersConf(entries: SysusersConf): string {
 
     let line: string;
     if (entry.type === 'u' || entry.type === 'u!') {
-      const gecosStr = entry.gecos ?? '-';
-      const homeStr = entry.home ?? '-';
-      const shellStr = entry.shell ?? '-';
-      line = `${entry.type} ${entry.name} ${idStr} "${gecosStr}" "${homeStr}" "${shellStr}"`;
+      const fields = [entry.type, entry.name, idStr];
+      if (entry.gecos !== void 0 || entry.home !== void 0 || entry.shell !== void 0) {
+        fields.push(`"${entry.gecos ?? '-'}"`);
+      }
+      if (entry.home !== void 0 || entry.shell !== void 0) {
+        fields.push(entry.home ?? '-');
+      }
+      if (entry.shell !== void 0) {
+        fields.push(entry.shell);
+      }
+      line = fields.join(' ');
     } else if (entry.type === 'g') {
       line = `g ${entry.name} ${idStr}`;
     } else if (entry.type === 'm') {

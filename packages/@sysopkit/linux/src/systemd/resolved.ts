@@ -41,58 +41,66 @@ export type ResolvedConf = {
 
     /**
      * Link-Local Multicast Name Resolution (LLMNR) support.
-     * - true: Enable full responder and resolver
-     * - false: Disable LLMNR
+     * - "yes": Enable full responder and resolver
+     * - "no": Disable LLMNR
      * - "resolve": Enable resolver only, no responding
      */
     LLMNR?: 'yes' | 'no' | 'resolve';
 
     /**
      * Multicast DNS support.
-     * - true: Enable full responder and resolver
-     * - false: Disable Multicast DNS
+     * - "yes": Enable full responder and resolver
+     * - "no": Disable Multicast DNS
      * - "resolve": Enable resolver only, no responding
      */
     MulticastDNS?: 'yes' | 'no' | 'resolve';
 
     /**
      * DNS-over-TLS mode.
-     * - true: Require TLS for all DNS connections
-     * - false: No TLS, use UDP
+     * - "yes": Require TLS for all DNS connections
+     * - "no": No TLS, use UDP
      * - "opportunistic": Try TLS, fall back to UDP if not supported
+     * Default: no.
      */
     DNSOverTLS?: 'yes' | 'no' | 'opportunistic';
 
     /**
      * DNSSEC validation mode.
-     * - true: Require DNSSEC validation
-     * - false: Disable DNSSEC validation
+     * - "yes": Require DNSSEC validation
+     * - "no": Disable DNSSEC validation
      * - "allow-downgrade": Attempt DNSSEC, disable if server doesn't support
+     * Default: no.
      */
     DNSSEC?: 'yes' | 'no' | 'allow-downgrade';
 
     /**
      * DNS caching behavior.
-     * - true: Enable full caching (default)
-     * - false: Disable caching
+     * - "yes": Enable full caching (default)
+     * - "no": Disable caching
      * - "no-negative": Cache only positive answers
      */
     Cache?: 'yes' | 'no' | 'no-negative';
 
     /**
      * Whether to cache responses from localhost DNS servers.
-     * Default: false (don't cache localhost responses).
+     * Default: no (don't cache localhost responses).
      */
     CacheFromLocalhost?: 'yes' | 'no';
 
     /**
      * DNS stub listener mode.
-     * - true: Listen on both UDP and TCP (default)
-     * - false: Disable stub listener
+     * - "yes": Listen on both UDP and TCP (default)
+     * - "no": Disable stub listener
      * - "udp": Listen on UDP only
      * - "tcp": Listen on TCP only
      */
     DNSStubListener?: 'yes' | 'no' | 'udp' | 'tcp';
+
+    /**
+     * Space-separated list of DNS record types to refuse.
+     * Example: "AAAA SRV TXT".
+     */
+    RefuseRecordTypes?: string;
 
     /**
      * Additional addresses for the DNS stub listener.
@@ -103,31 +111,34 @@ export type ResolvedConf = {
 
     /**
      * Whether to read /etc/hosts for name resolution.
-     * Default: true.
+     * Default: yes.
      */
     ReadEtcHosts?: 'yes' | 'no';
 
     /**
      * Whether to resolve single-label names via global DNS servers.
-     * Default: false (not recommended for privacy reasons).
+     * Default: no (not recommended for privacy reasons).
      * @see https://www.iab.org/documents/correspondence-reports-documents/2013-2/iab-statement-dotless-domains-considered-harmful/
      */
     ResolveUnicastSingleLabel?: 'yes' | 'no';
 
     /**
      * How long to retain stale DNS records beyond their TTL.
-     * Useful for resilience during DNS server outages.
+     * Takes a duration value. Useful for resilience during DNS outages.
      * Default: 0 (disabled).
      */
-    staleRetentionSec?: string;
+    StaleRetentionSec?: number | string;
   };
 };
 
 /**
- * Options for per-link resolved configuration.
- * Configuration files at /etc/systemd/resolved.conf.d/{ifname}.conf
- * with per-link DNS settings. This is useful for interfaces that need
- * specific DNS servers or search domains.
+ * Options for per-link resolved configuration via systemd-networkd.
+ *
+ * Per-link DNS settings (DNS=, Domains=, LLMNR=, MulticastDNS=,
+ * DNSOverTLS=, DNSSEC=) are configured in .network files, see
+ * systemd-networkd.service(8) and systemd.network(5), not in
+ * resolved.conf.d/. This type mirrors the subset of [Resolve] keys
+ * that networkd accepts per link.
  */
 export type ResolvedLinkConf = {
   Resolve: {

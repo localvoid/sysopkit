@@ -26,6 +26,8 @@ export interface JournalVacuumOptions {
  *
  * Removes old journal entries based on size, time, or file count limits. At least one option must
  * be specified.
+ *
+ * @throws If no vacuum option is specified.
  */
 export async function journalVacuum(options: JournalVacuumOptions): Promise<void> {
   const { size, time, files } = options;
@@ -39,10 +41,10 @@ export async function journalVacuum(options: JournalVacuumOptions): Promise<void
       if (time !== void 0) args.push(`--vacuum-time=${time}`);
       if (files !== void 0) args.push(`--vacuum-files=${files}`);
       if (args.length === 0) {
-        return;
+        throw new Error('journalVacuum: at least one of size, time, or files must be specified');
       }
 
-      await sh(`journalctl ${args.map($_).join(' ')}`);
+      await sh(`journalctl --no-pager ${args.map($_).join(' ')}`);
       emitChanged({ type: 'systemd', resource: 'journal', property: 'vacuumed' });
     },
     { verbosity: VERBOSITY_TRACE },
@@ -63,6 +65,8 @@ export interface JournalRead {
  * Read journal entries
  *
  * Returns entries after the specified cursor, useful for incremental journal reading.
+ * The output includes a trailing `-- cursor: ...` footer from `--show-cursor`;
+ * callers that need only entries must strip it.
  */
 export async function journalRead(options: JournalRead): Promise<string> {
   const { afterCursor, lines } = options;
@@ -72,6 +76,6 @@ export async function journalRead(options: JournalRead): Promise<string> {
   if (afterCursor !== void 0) args.push(`--after-cursor=${afterCursor}`);
   if (lines !== void 0) args.push(`--lines=${lines}`);
 
-  const { stdout } = await sh(`journalctl ${args.map($_).join(' ')} --show-cursor`);
+  const { stdout } = await sh(`journalctl --no-pager ${args.map($_).join(' ')} --show-cursor`);
   return stdout;
 }

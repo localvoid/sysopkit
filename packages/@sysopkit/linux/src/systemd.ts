@@ -22,7 +22,12 @@ export {
   journalVacuum,
 } from './systemd/journal.js';
 export { type JournaldConf } from './systemd/journald.js';
-export { LOGIND_CONF_PATH, type LogindConf } from './systemd/logind.js';
+export {
+  LOGIND_CONF_PATH,
+  type LogindConf,
+  type LogindHandleAction,
+  type LogindIdleAction,
+} from './systemd/logind.js';
 export { daemonReload } from './systemd/manager.js';
 export {
   RESOLVED_CONF_PATH,
@@ -91,6 +96,8 @@ export type {
   SocketSectionOptions,
   SocketTimestamping,
   SocketUnitConf,
+  SwapSectionOptions,
+  SwapUnitConf,
   TargetUnitConf,
   TimeoutFailureMode,
   TimerSectionOptions,
@@ -102,12 +109,16 @@ export type {
 export type {
   NetworkConf,
   NetworkAddress,
+  NetworkBridgeFDB,
+  NetworkBridgeMDB,
   NetworkBridgePort,
+  NetworkCAN,
   NetworkDHCPPrefixDelegation,
   NetworkDHCPServer,
   NetworkDHCPServerStaticLease,
   NetworkDHCPv4,
   NetworkDHCPv6,
+  NetworkIPoIB,
   NetworkIPv6AcceptRA,
   NetworkIPv6AddressLabel,
   NetworkIPv6PREF64Prefix,
@@ -115,10 +126,12 @@ export type {
   NetworkIPv6RoutePrefix,
   NetworkIPv6SendRA,
   NetworkLink,
+  NetworkLLDP,
   NetworkMatch,
   NetworkNeighbor,
   NetworkNetwork,
   NetworkNextHop,
+  NetworkQDisc,
   NetworkRoute,
   NetworkRoutingPolicyRule,
   NetworkSRIOV,

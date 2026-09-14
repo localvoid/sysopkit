@@ -41,7 +41,10 @@ export const SYSTEMD_USER_PATH = '.config/systemd/user';
  *
  * @param name - Unit name including type suffix (e.g., "nginx.service")
  * @param options - Scope options
- * @returns Absolute path to the unit file
+ * @returns Path to the unit file. Absolute for system scope and for
+ * user scope when `user` is given (assumes `/home/${user}`; not valid
+ * for root, LDAP/AD, or custom HOME layouts). Relative to the target
+ * user's home directory otherwise (`~/.config/systemd/user/...`).
  */
 export function getUnitPath(name: string, options?: SystemdScopeOptions): string {
   const scope = options?.scope ?? 'system';
@@ -71,7 +74,9 @@ export function getSystemdConfigPath(configName: string, options?: { user?: stri
 }
 
 /**
- * Get the path to a drop-in configuration file for a daemon config.
+ * Get the path to a drop-in configuration file for a daemon config
+ * (e.g., `journald.conf`, not unit `foo.service.d/` drop-ins which live
+ * under `/etc/systemd/system/`).
  *
  * @param configName - Configuration file name (e.g., "journald.conf")
  * @param dropInName - Drop-in name (e.g., "sysops")

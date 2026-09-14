@@ -14,13 +14,13 @@ import type { TimesyncdConf } from '@sysopkit/linux/systemd/timesyncd';
 ```ts
 type TimesyncdConf = {
   Time: {
-    NTP?: string;
+    NTP?: string | string[];
     FallbackNTP?: string | string[];
-    RootDistanceMaxSec?: number;
-    PollIntervalMinSec?: number;
-    PollIntervalMaxSec?: number;
-    ConnectionRetrySec?: number;
-    SaveIntervalSec?: number;
+    RootDistanceMaxSec?: number | string;
+    PollIntervalMinSec?: number | string;
+    PollIntervalMaxSec?: number | string;
+    ConnectionRetrySec?: number | string;
+    SaveIntervalSec?: number | string;
   };
 };
 ```
