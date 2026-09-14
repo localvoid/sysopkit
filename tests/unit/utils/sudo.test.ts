@@ -223,7 +223,7 @@ describe('sudo password prompt', () => {
       const message = (e as Error).message;
       expect(message).toContain('invalid sudo password');
       expect(message).toContain('whoami');
-      expect(message).toContain('Sorry, try again.');
+      expect(message).not.toContain('Sorry, try again.');
     }
     expect(stdinReceived()).toBe('s3cret\n');
   });
