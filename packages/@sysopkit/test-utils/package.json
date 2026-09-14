@@ -1,7 +1,7 @@
 {
-  "private": true,
   "name": "@sysopkit/test-utils",
   "version": "0.0.1",
+  "private": true,
   "description": "Test Utilities for SysopKit",
   "keywords": [
     "sysopkit"
