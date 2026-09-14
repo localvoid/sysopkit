@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { tempDir } from '@sysopkit/test-utils';
@@ -8,7 +8,12 @@ import { getFileStat, getPathInfo, readFile, touchFile } from 'sysopkit/op/file'
 import { rsyncPull, rsyncPush } from 'sysopkit/op/rsync';
 import { sh } from 'sysopkit/op/sh';
 
-import { withSsh } from '../container.js';
+import {
+  remoteTempPath,
+  sharedSsh,
+  startSharedSshContainer,
+  type Container,
+} from '../container.js';
 import {
   EXPECTED_FILES,
   RSYNC_FIXTURES,
@@ -17,9 +22,19 @@ import {
 } from '../rsync.js';
 
 describe('SSHConnector', () => {
+  let shared: Container;
+
+  beforeAll(async () => {
+    shared = await startSharedSshContainer({ distro: 'fedora' });
+  });
+
+  afterAll(async () => {
+    if (shared) await shared.stop();
+  });
+
   describe('sh', () => {
     test('executes command via SSH', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const { stdout, exitCode } = await exec(['echo', 'hello']);
 
         expect(exitCode).toBe(0);
@@ -28,7 +43,7 @@ describe('SSHConnector', () => {
     });
 
     test('captures stderr via SSH', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const { stderr, exitCode } = await sh('echo error >&2');
 
         expect(exitCode).toBe(0);
@@ -37,7 +52,7 @@ describe('SSHConnector', () => {
     });
 
     test('returns non-zero exit code via SSH', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const { exitCode } = await sh('exit 64');
 
         expect(exitCode).toBe(64);
@@ -45,7 +60,7 @@ describe('SSHConnector', () => {
     });
 
     test('pipes stdin to process via SSH', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const input = 'test input data\n';
         const { stdout, exitCode } = await sh('cat', {
           stdin: new TextEncoder().encode(input),
@@ -57,14 +72,14 @@ describe('SSHConnector', () => {
     });
 
     test('unix_update command should exit with 126 exit code (NO PERM)', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const { exitCode } = await exec(['unix_update']);
         expect(exitCode).toBe(126);
       });
     });
 
     test('unknown command should exit with 127 exit code', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const { exitCode } = await exec(['unknown']);
         expect(exitCode).toBe(127);
       });
@@ -73,7 +88,7 @@ describe('SSHConnector', () => {
 
   describe('sudo operations', () => {
     test('runs command as root via sudo', async () => {
-      await withSsh(async () => {
+      await sharedSsh(shared, async () => {
         const { stdout } = await sh('whoami');
         expect(stdout.trim()).toBe('testuser');
 
@@ -90,20 +105,22 @@ describe('SSHConnector', () => {
 
   describe('file operations', () => {
     test('creates and reads file', async () => {
-      await withSsh(async () => {
-        await sh("echo 'test content' > /tmp/test.txt");
+      await sharedSsh(shared, async () => {
+        const file = `${remoteTempPath('test-file-')}.txt`;
+        await sh(`echo 'test content' > ${file}`);
 
-        const { stdout } = await sh('cat /tmp/test.txt');
+        const { stdout } = await sh(`cat ${file}`);
         expect(stdout.trim()).toBe('test content');
       });
     });
 
     test('creates directory', async () => {
-      await withSsh(async () => {
-        const { exitCode } = await sh('mkdir -p /tmp/test/nested/dir');
+      await sharedSsh(shared, async () => {
+        const dir = `${remoteTempPath('test-dir-')}/nested/dir`;
+        const { exitCode } = await sh(`mkdir -p ${dir}`);
         expect(exitCode).toBe(0);
 
-        const { exitCode: verifyCode } = await sh('test -d /tmp/test/nested/dir');
+        const { exitCode: verifyCode } = await sh(`test -d ${dir}`);
         expect(verifyCode).toBe(0);
       });
     });
@@ -111,8 +128,8 @@ describe('SSHConnector', () => {
 
   describe('rsyncPush', () => {
     test('syncs all files to remote', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-basic';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-basic-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -168,8 +185,8 @@ describe('SSHConnector', () => {
     });
 
     test('syncs nested directories', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-nested';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-nested-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -227,8 +244,8 @@ describe('SSHConnector', () => {
     });
 
     test('preserves symlinks', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-symlink';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-symlink-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -288,8 +305,8 @@ describe('SSHConnector', () => {
     });
 
     test('preserves executable permissions', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-perms';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-perms-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -347,8 +364,8 @@ describe('SSHConnector', () => {
     });
 
     test('deletes extraneous files with --delete', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-delete';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-delete-');
 
         await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
@@ -373,8 +390,8 @@ describe('SSHConnector', () => {
     });
 
     test('incremental update only transfers changed files', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-incremental';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-incremental-');
 
         const result1 = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
         expect(result1).toEqual([
@@ -432,9 +449,10 @@ describe('SSHConnector', () => {
     });
 
     test('respects dry-run mode', async () => {
-      await withSsh(
+      await sharedSsh(
+        shared,
         async () => {
-          const dst = '/tmp/rsync-push-dryrun';
+          const dst = remoteTempPath('rsync-push-dryrun-');
           const result = await rsyncPush({
             src: RSYNC_FIXTURES + '/',
             dst: dst + '/',
@@ -497,8 +515,8 @@ describe('SSHConnector', () => {
     });
 
     test('output contains itemize-changes format', async () => {
-      await withSsh(async () => {
-        const dst = '/tmp/rsync-push-output';
+      await sharedSsh(shared, async () => {
+        const dst = remoteTempPath('rsync-push-output-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -555,8 +573,8 @@ describe('SSHConnector', () => {
 
   describe('rsyncPull', () => {
     test('pulls all files from remote', async () => {
-      await withSsh(async () => {
-        const src = '/tmp/rsync-pull-src';
+      await sharedSsh(shared, async () => {
+        const src = remoteTempPath('rsync-pull-src-');
         await sh(`mkdir -p ${src}/nested`);
         await sh(`echo "content1" > ${src}/file1.txt`);
         await sh(`echo "content2" > ${src}/file2.txt`);
@@ -602,8 +620,8 @@ describe('SSHConnector', () => {
     });
 
     test('pulls symlinks from remote', async () => {
-      await withSsh(async () => {
-        const src = '/tmp/rsync-pull-symlink';
+      await sharedSsh(shared, async () => {
+        const src = remoteTempPath('rsync-pull-symlink-');
         await sh(`mkdir -p ${src}`);
         await sh(`echo "target" > ${src}/target.txt`);
         await sh(`ln -s target.txt ${src}/link.txt`);
@@ -636,9 +654,10 @@ describe('SSHConnector', () => {
     });
 
     test('respects dry-run mode', async () => {
-      await withSsh(
+      await sharedSsh(
+        shared,
         async () => {
-          const src = '/tmp/rsync-pull-dry-src';
+          const src = remoteTempPath('rsync-pull-dry-src-');
           await sh(`mkdir -p ${src}`);
           await sh(`echo "test" > ${src}/file.txt`);
 
@@ -667,8 +686,8 @@ describe('SSHConnector', () => {
     });
 
     test('output contains itemize-changes format', async () => {
-      await withSsh(async () => {
-        const src = '/tmp/rsync-pull-output';
+      await sharedSsh(shared, async () => {
+        const src = remoteTempPath('rsync-pull-output-');
         await sh(`mkdir -p ${src}`);
         await sh(`echo "content" > ${src}/file.txt`);
 

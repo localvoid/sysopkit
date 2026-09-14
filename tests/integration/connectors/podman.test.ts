@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { tempDir } from '@sysopkit/test-utils';
@@ -8,7 +8,12 @@ import { getFileStat, getPathInfo, readFile, touchFile } from 'sysopkit/op/file'
 import { rsyncPull, rsyncPush } from 'sysopkit/op/rsync';
 import { sh } from 'sysopkit/op/sh';
 
-import { withPodman } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 import {
   EXPECTED_FILES,
   RSYNC_FIXTURES,
@@ -17,9 +22,26 @@ import {
 } from '../rsync.js';
 
 describe('PodmanConnector', () => {
+  let shared: Container;
+  let sharedUser: Container;
+
+  beforeAll(async () => {
+    shared = await startSharedContainer({ distro: 'fedora', publishSsh: false });
+    sharedUser = await startSharedContainer({
+      distro: 'fedora',
+      user: 'testuser',
+      publishSsh: false,
+    });
+  });
+
+  afterAll(async () => {
+    if (shared) await shared.stop();
+    if (sharedUser) await sharedUser.stop();
+  });
+
   describe('exec', () => {
     test('captures stdout', async () => {
-      await withPodman(async () => {
+      await sharedPodman(shared, async () => {
         const { stdout, exitCode } = await exec(['echo', 'hello']);
 
         expect(exitCode).toBe(0);
@@ -28,7 +50,7 @@ describe('PodmanConnector', () => {
     });
 
     test('captures stderr', async () => {
-      await withPodman(async () => {
+      await sharedPodman(shared, async () => {
         const { stderr, exitCode } = await sh('echo error >&2');
 
         expect(exitCode).toBe(0);
@@ -37,7 +59,7 @@ describe('PodmanConnector', () => {
     });
 
     test('returns non-zero exit code for failed command', async () => {
-      await withPodman(async () => {
+      await sharedPodman(shared, async () => {
         const { exitCode } = await sh('exit 64');
 
         expect(exitCode).toBe(64);
@@ -45,7 +67,7 @@ describe('PodmanConnector', () => {
     });
 
     test('pipes stdin to process', async () => {
-      await withPodman(async () => {
+      await sharedPodman(shared, async () => {
         const stdin = 'test input data\n';
         const { stdout, exitCode } = await exec(['cat'], {
           stdin,
@@ -58,40 +80,39 @@ describe('PodmanConnector', () => {
 
   describe('sudo operations', () => {
     test('runs command as root via sudo', async () => {
-      await withPodman(
-        async () => {
-          const { stdout } = await sh('whoami');
-          expect(stdout.trim()).toBe('testuser');
+      await sharedPodman(sharedUser, async () => {
+        const { stdout } = await sh('whoami');
+        expect(stdout.trim()).toBe('testuser');
 
-          await sudo(
-            async () => {
-              const { stdout } = await sh('whoami');
-              expect(stdout.trim()).toBe('root');
-            },
-            { password: 'testpasswd' },
-          );
-        },
-        { user: 'testuser' },
-      );
+        await sudo(
+          async () => {
+            const { stdout } = await sh('whoami');
+            expect(stdout.trim()).toBe('root');
+          },
+          { password: 'testpasswd' },
+        );
+      });
     });
   });
 
   describe('file operations', () => {
     test('creates and reads file', async () => {
-      await withPodman(async () => {
-        await sh("echo 'test content' > /tmp/test.txt");
+      await sharedPodman(shared, async () => {
+        const file = `${remoteTempPath('test-file-')}.txt`;
+        await sh(`echo 'test content' > ${file}`);
 
-        const { stdout } = await exec(['cat', '/tmp/test.txt']);
+        const { stdout } = await exec(['cat', file]);
         expect(stdout.trim()).toBe('test content');
       });
     });
 
     test('creates directory', async () => {
-      await withPodman(async () => {
-        const { exitCode } = await exec(['mkdir', '-p', '/tmp/test/nested/dir']);
+      await sharedPodman(shared, async () => {
+        const dir = `${remoteTempPath('test-dir-')}/nested/dir`;
+        const { exitCode } = await exec(['mkdir', '-p', dir]);
         expect(exitCode).toBe(0);
 
-        const { exitCode: verifyCode } = await exec(['test', '-d', '/tmp/test/nested/dir']);
+        const { exitCode: verifyCode } = await exec(['test', '-d', dir]);
         expect(verifyCode).toBe(0);
       });
     });
@@ -99,8 +120,8 @@ describe('PodmanConnector', () => {
 
   describe('rsyncPush', () => {
     test('syncs all files to remote', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-basic';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-basic-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -156,8 +177,8 @@ describe('PodmanConnector', () => {
     });
 
     test('syncs nested directories', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-nested';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-nested-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -215,8 +236,8 @@ describe('PodmanConnector', () => {
     });
 
     test('preserves symlinks', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-symlink';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-symlink-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -277,8 +298,8 @@ describe('PodmanConnector', () => {
     });
 
     test('preserves executable permissions', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-perms';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-perms-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -336,8 +357,8 @@ describe('PodmanConnector', () => {
     });
 
     test('deletes extraneous files with --delete', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-delete';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-delete-');
 
         await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
@@ -362,8 +383,8 @@ describe('PodmanConnector', () => {
     });
 
     test('incremental update only transfers changed files', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-incremental';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-incremental-');
 
         const result1 = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
         expect(result1).toEqual([
@@ -421,9 +442,10 @@ describe('PodmanConnector', () => {
     });
 
     test('respects dry-run mode', async () => {
-      await withPodman(
+      await sharedPodman(
+        shared,
         async () => {
-          const dst = '/tmp/rsync-push-dryrun';
+          const dst = remoteTempPath('rsync-push-dryrun-');
           const result = await rsyncPush({
             src: RSYNC_FIXTURES + '/',
             dst: dst + '/',
@@ -486,8 +508,8 @@ describe('PodmanConnector', () => {
     });
 
     test('output contains itemize-changes format', async () => {
-      await withPodman(async () => {
-        const dst = '/tmp/rsync-push-output';
+      await sharedPodman(shared, async () => {
+        const dst = remoteTempPath('rsync-push-output-');
         const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
 
         expect(result).toEqual([
@@ -544,8 +566,8 @@ describe('PodmanConnector', () => {
 
   describe('rsyncPull', () => {
     test('pulls all files from container', async () => {
-      await withPodman(async () => {
-        const src = '/tmp/rsync-pull-src';
+      await sharedPodman(shared, async () => {
+        const src = remoteTempPath('rsync-pull-src-');
         await sh(`mkdir -p ${src}/nested`);
         await sh(`echo "content1" > ${src}/file1.txt`);
         await sh(`echo "content2" > ${src}/file2.txt`);
@@ -591,8 +613,8 @@ describe('PodmanConnector', () => {
     });
 
     test('pulls symlinks from container', async () => {
-      await withPodman(async () => {
-        const src = '/tmp/rsync-pull-symlink';
+      await sharedPodman(shared, async () => {
+        const src = remoteTempPath('rsync-pull-symlink-');
         await sh(`mkdir -p ${src}`);
         await sh(`echo "target" > ${src}/target.txt`);
         await sh(`ln -s target.txt ${src}/link.txt`);
@@ -625,9 +647,10 @@ describe('PodmanConnector', () => {
     });
 
     test('respects dry-run mode', async () => {
-      await withPodman(
+      await sharedPodman(
+        shared,
         async () => {
-          const src = '/tmp/rsync-pull-dry-src';
+          const src = remoteTempPath('rsync-pull-dry-src-');
           await exec(['mkdir', '-p', src]);
           await sh(`echo "test" > ${src}/file.txt`);
 
@@ -656,8 +679,8 @@ describe('PodmanConnector', () => {
     });
 
     test('output contains itemize-changes format', async () => {
-      await withPodman(async () => {
-        const src = '/tmp/rsync-pull-output';
+      await sharedPodman(shared, async () => {
+        const src = remoteTempPath('rsync-pull-output-');
         await exec(['mkdir', '-p', src]);
         await sh(`echo "content" > ${src}/file.txt`);
 

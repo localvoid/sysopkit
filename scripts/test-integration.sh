@@ -2,21 +2,24 @@
 
 set -euo pipefail
 
-IMAGE="sysopkit-test-fedora:43"
-ARCHIVE="tests/fixtures/container/cache/sysopkit-test-fedora-43.tar"
+shopt -s nullglob
+ARCHIVES=(tests/fixtures/container/cache/sysopkit-test-*.tar)
 FILTER=${1:-$(find tests/integration -name '*.test.ts')}
 
-if [[ ! -f "$ARCHIVE" ]]; then
-  echo "Error: Image archive not found. Run 'bun run test:container:init' first."
+if [[ ${#ARCHIVES[@]} -eq 0 ]]; then
+  echo "Error: No test image archives found. Run 'bun run test:container:init [fedora|debian|openwrt]' first."
   exit 1
 fi
 
-echo "Loading test image..."
-podman load -i "$ARCHIVE" >/dev/null
+echo "Loading test images..."
+for archive in "${ARCHIVES[@]}"; do
+  echo "  ${archive}"
+  podman load -i "$archive" >/dev/null
+done
 
 cleanup() {
-  echo "Removing test image..."
-  podman rmi -f "$IMAGE" 2>/dev/null || true
+  echo "Removing test images..."
+  podman images --format '{{.Repository}}:{{.Tag}}' | grep 'sysopkit-test-' | xargs -r podman rmi -f 2>/dev/null || true
 }
 trap cleanup EXIT
 bun test ${FILTER}
