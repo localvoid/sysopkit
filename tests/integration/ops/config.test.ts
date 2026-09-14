@@ -2,6 +2,10 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { parseLimitsConf, serializeLimitsConf } from '@sysopkit/linux/limits';
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
 import { parseSysctlConf, serializeSysctlConf } from '@sysopkit/linux/sysctl';
+import {
+  parseSysusersConf,
+  serializeSysusersConf,
+} from '@sysopkit/linux/systemd';
 import { parseTmpFilesConf, serializeTmpFilesConf } from '@sysopkit/linux/systemd';
 import { readFile, writeFile } from 'sysopkit/op/file';
 import { serializeIni } from 'sysopkit/op/ini';
@@ -104,6 +108,21 @@ describe('config file ops', () => {
       expect(await readFile(p)).toContain('NOPASSWD:');
       const { exitCode } = await sh(`visudo -c -f ${p}`);
       expect(exitCode).toBe(0);
+    });
+  });
+
+  test('sysusers serialize → write → read → parse round-trip', async () => {
+    await sharedPodman(shared, async () => {
+      const p = remoteTempPath('cfg-sysusers-');
+      // Note: '-' is sysusers syntax for "automatic/absent" and parses back
+      // as undefined, so only populated fields round-trip exactly.
+      const conf = [
+        { type: 'u' as const, name: 'appuser', gecos: 'App User', home: '/var/lib/app' },
+        { type: 'g' as const, name: 'appgroup', id: '410' },
+        { type: 'm' as const, name: 'appuser', id: 'appgroup' },
+      ];
+      await writeFile(p, serializeSysusersConf(conf));
+      expect(parseSysusersConf(await readFile(p))).toEqual(conf);
     });
   });
 

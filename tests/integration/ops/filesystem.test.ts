@@ -11,9 +11,11 @@ import {
   getFileStat,
   getPathInfo,
   readFile,
+  readFileBuffer,
   sha256,
   touchFile,
   tryReadFile,
+  tryReadFileBuffer,
   waitFileContent,
   waitFilePath,
   writeFile,
@@ -71,6 +73,17 @@ describe('filesystem ops', () => {
       await writeFile(p, 'data-123\n');
       expect(await tryReadFile(p)).toBe('data-123\n');
       expect((await getPathInfo(p))?.type).toBe('file');
+    });
+  });
+
+  test('writeFile / readFileBuffer round-trip preserves binary content', async () => {
+    await sharedPodman(shared, async () => {
+      const p = remoteTempPath('fs-rwbuf-');
+      expect(await tryReadFileBuffer(p)).toBeUndefined();
+      const bytes = new Uint8Array([0, 1, 2, 127, 128, 200, 255, 10]);
+      await writeFile(p, bytes);
+      expect(await readFileBuffer(p)).toEqual(bytes);
+      expect(await tryReadFileBuffer(p)).toEqual(bytes);
     });
   });
 

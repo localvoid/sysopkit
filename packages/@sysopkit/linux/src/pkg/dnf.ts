@@ -149,13 +149,17 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
-/** Matches the "Installing:" section in DNF output. */
-const INSTALLING_RE = /Installing:\n([\s\S]*?)(?=\n\S|$)/;
-/** Matches the "Removing:" section in DNF output. */
-const REMOVING_RE = /Removing:\n([\s\S]*?)(?=\n\S|$)/;
+/** Matches the "Installing:" (dnf5) or "Installed:" (dnf4) section in DNF output. */
+const INSTALLING_RE = /Install(?:ing|ed):\n([\s\S]*?)(?=\n\S|$)/;
+/** Matches the "Removing:" (dnf5) or "Removed:" (dnf4) section in DNF output. */
+const REMOVING_RE = /Remov(?:ing|ed):\n([\s\S]*?)(?=\n\S|$)/;
 
 /**
  * Parses the table from dnf output to find packages.
+ *
+ * Handles both the multi-column table of dnf5
+ * (`ed x86_64 0:1.22.5-2.fc44 fedora 149.7 KiB`) and the compact
+ * single-NEVRA-column format of dnf4 (`ed-1.20-5.el10.x86_64`).
  */
 function _parseTable(output: string, re: RegExp): string[] {
   const match = re.exec(output);
@@ -165,12 +169,39 @@ function _parseTable(output: string, re: RegExp): string[] {
   const packages: string[] = [];
 
   for (const line of lines) {
-    const cols = line.trim().split(/\s+/);
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const cols = trimmed.split(/\s+/);
 
     if (cols.length >= 5) {
       packages.push(cols[0]);
+    } else {
+      const name = _parseNevraName(cols[0]);
+      if (name) {
+        packages.push(name);
+      }
     }
   }
 
   return packages;
+}
+
+/**
+ * Extracts the package name from a NEVRA string (`name-version-release.arch`).
+ *
+ * The name runs up to the first dash followed by a digit; an optional
+ * leading `epoch:` is stripped.
+ */
+function _parseNevraName(nevra: string): string | undefined {
+  const withoutEpoch = nevra.replace(/^\d+:/, '');
+  const dot = withoutEpoch.lastIndexOf('.');
+  const withoutArch = dot === -1 ? withoutEpoch : withoutEpoch.slice(0, dot);
+  for (let i = 0; i < withoutArch.length; i++) {
+    if (withoutArch[i] === '-' && i + 1 < withoutArch.length && /\d/.test(withoutArch[i + 1]!)) {
+      return withoutArch.slice(0, i) || undefined;
+    }
+  }
+  return undefined;
 }

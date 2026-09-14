@@ -14,6 +14,7 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { createFile } from 'sysopkit/op/file';
 import { $_, sh } from 'sysopkit/op/sh';
+import { exec } from 'sysopkit/op/exec';
 import { type GpgKey, parseGpgKey, showGpgKeys } from 'sysopkit/utils/gpg';
 
 /** RPM macro: target architecture. */
@@ -43,14 +44,35 @@ export async function getRpmVars(vars: string[]): Promise<string[]> {
 /**
  * Lists all GPG keys installed in the RPM database.
  *
- * Queries the `gpg-pubkey` pseudo-package and parses the key descriptions
- * using GPG to extract key IDs and other metadata.
+ * Queries each `gpg-pubkey` pseudo-package individually and parses its key
+ * description using GPG. Keys that the system GPG cannot parse (e.g. OpenPGP
+ * v6 packets on older GPG releases) are skipped instead of failing the
+ * whole query.
  */
 export async function getRpmKeys(): Promise<GpgKey[]> {
-  const { stdout } = await sh(
-    "rpm -qa gpg-pubkey --qf '%{DESCRIPTION}' | gpg --show-keys --with-colons",
-  );
-  return stdout.trim().split('\n').map(parseGpgKey);
+  const { stdout: list } = await sh(`rpm -qa gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\n'`);
+  const names = list
+    .trim()
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const keys: GpgKey[] = [];
+  for (const name of names) {
+    const { exitCode, stdout } = await exec([
+      'sh',
+      '-c',
+      `rpm -q ${$_(name)} --qf '%{DESCRIPTION}' | gpg --show-keys --with-colons`,
+    ]);
+    if (exitCode !== 0) {
+      continue;
+    }
+    for (const line of stdout.trim().split('\n')) {
+      if (line.length > 0) {
+        keys.push(parseGpgKey(line));
+      }
+    }
+  }
+  return keys;
 }
 
 /**

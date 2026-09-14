@@ -29,6 +29,9 @@ set -euo pipefail
 echo "Installing required packages..."
 # Note: no `coreutils` — ubi-minimal ships coreutils-single which conflicts
 # with it. The parity check below verifies `stat` is still available.
+# `dnf` (full package manager for pkg/dnf ops), `nmap-ncat` (provides `nc`
+# for netcat waitPort ops), and `ed` (tiny package used by pkg/dnf tests)
+# are installed via microdnf.
 microdnf install -y \
   sudo \
   openssh \
@@ -47,7 +50,10 @@ microdnf install -y \
   less \
   rsync \
   curl \
-  unzip
+  unzip \
+  dnf \
+  nmap-ncat \
+  ed
 microdnf clean all
 
 echo "Configuring sudo with passwords for wheel group..."
@@ -94,7 +100,7 @@ id testuser
 groups testuser | grep -qw wheel
 test -f /etc/ssh/ssh_host_ed25519_key
 test -f /home/testuser/.ssh/authorized_keys
-for cmd in sshd sudo rsync pgrep stat bun gpg; do command -v "$cmd" >/dev/null; done
+for cmd in sshd sudo rsync pgrep stat bun gpg dnf nc ed; do command -v "$cmd" >/dev/null; done
 echo "Parity contract OK."
 '
 

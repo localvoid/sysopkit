@@ -2,6 +2,8 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import { Readable, Writable } from 'node:stream';
 import { buffer, text } from 'node:stream/consumers';
 
+import { TEXT_ENCODER } from './constants.js';
+
 /** A spawned process with web stream interfaces. */
 export interface Process {
   /** Writable stream for process stdin. */
@@ -103,6 +105,18 @@ export async function processExec<Out extends ExecOutput = 'text', Err extends E
   env?: NodeJS.ProcessEnv,
 ): Promise<ExecResult<Out, Err>> {
   const proc = processSpawn(cmd, options?.signal, env);
+  let stdin: Promise<void> | undefined;
+  if (options?.stdin) {
+    const content = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          typeof options.stdin === 'string' ? TEXT_ENCODER.encode(options.stdin) : options.stdin,
+        );
+        controller.close();
+      },
+    });
+    stdin = content.pipeTo(proc.stdin);
+  }
   const [exitCode, stdout, stderr] = await Promise.all([
     proc.exited,
     (options?.stdout === 'buffer' ? buffer(proc.stdout) : text(proc.stdout)) as Promise<
@@ -111,6 +125,7 @@ export async function processExec<Out extends ExecOutput = 'text', Err extends E
     (options?.stderr === 'buffer' ? buffer(proc.stderr) : text(proc.stderr)) as Promise<
       ExecOutputResult<Err>
     >,
+    stdin,
   ]);
   return {
     exitCode,

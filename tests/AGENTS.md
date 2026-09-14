@@ -53,7 +53,7 @@ test('...', async () => {
 | --- | --- | --- |
 | fedora | `sysopkit-test-fedora:44` | Yes — existing `podman`/`ssh` suites run here |
 | debian | `sysopkit-test-debian:13` | Yes (`sudo` group instead of `wheel`) |
-| redhat | `sysopkit-test-redhat:10` | Yes (UBI minimal + microdnf; `coreutils-single` instead of `coreutils`) |
+| redhat | `sysopkit-test-redhat:10` | Yes (UBI minimal + microdnf; `coreutils-single` instead of `coreutils`; `dnf`, `nc` (nmap-ncat), `ed` installed for pkg/dnf + proc-net suites) |
 | arch | `sysopkit-test-arch:base` | Yes (rolling `archlinux:base`, pacman) |
 | openwrt | `sysopkit-test-openwrt:24.10` | **No** — busybox/musl, dropbear, opkg, no sudo user; only `sh` + applets |
 
@@ -90,6 +90,8 @@ unit/
   ops/
     ini.test.ts # serializeIni (pure)
     mount.test.ts # mountInfo JSON parsing + fstab parse/serialize (pure)
+    sysusers.test.ts # sysusers parse/serialize round-trip (pure)
+    systemd-common.test.ts # systemd paths + systemctl show parsing (pure)
     wait.test.ts # polling/retry logic (mock stimulus) + TimeoutError
   reporters/
     console.test.ts
@@ -104,11 +106,12 @@ integration/
   ops/ # grouped by area, assert final remote state (no cmd-string checks)
     filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke
     accounts.test.ts # redhat: users/groups incl. idempotency + dry-run
-    proc-net.test.ts # fedora: waitProcess, bash/nc waitPort, curl
-    config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sudoers/sshd round-trips
+    proc-net.test.ts # redhat: waitProcess, bash/nc waitPort, curl
+    config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips
     pkg-apt.test.ts # debian: apt full install/remove of `ed`
-    pkg-dnf.test.ts # fedora: dnf full install/remove of `ed`
-    pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries
+    pkg-dnf.test.ts # fedora+redhat: dnf full install/remove of `ed`
+    pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip
+    rsync.test.ts # redhat: rsync push/pull incl. idempotency + dry-run
     system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops
     mount.test.ts # redhat privileged: tmpfs mount/umount round-trip
     openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
@@ -116,7 +119,8 @@ integration/
 
 Excluded from live testing (unit mocks + file-content assertions only):
 `systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` /
-`setTimezone` / `setLocale`, kernel module / `kexec`, `tuned` (needs daemon),
+`setTimezone` / `setLocale`, `journal` read/vacuum (needs a running journal),
+kernel module / `kexec`, `tuned` (needs daemon),
 `arch` pacman (no op module). Rationale: no systemd PID1 / host kernel in
 containers; mutating host identity from tests is out of scope.
 

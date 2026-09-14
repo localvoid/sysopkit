@@ -13,6 +13,7 @@ export {
   getSystemdConfigDropInPath,
   getSystemdConfigPath,
   getUnitPath,
+  parseKeyValue,
 } from './systemd/common.js';
 export { type CoredumpConf } from './systemd/coredump.js';
 export {

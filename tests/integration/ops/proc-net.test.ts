@@ -25,7 +25,7 @@ async function stopTcpServer(pidFile: string): Promise<void> {
 describe('proc/net ops', () => {
   let shared: Container;
   beforeAll(async () => {
-    shared = await startSharedContainer({ distro: 'fedora', publishSsh: false });
+    shared = await startSharedContainer({ distro: 'redhat', publishSsh: false });
   });
   afterAll(async () => {
     if (shared) await shared.stop();
@@ -39,11 +39,13 @@ describe('proc/net ops', () => {
 
   test('waitProcess resolves when process appears and terminates', async () => {
     await sharedPodman(shared, async () => {
-      const pidFile = remoteTempPath('sleep-pid-');
-      await sh(`sleep 60 & echo $! > ${$_(pidFile)}`);
-      await waitProcess({ process: 'sleep', delay: 50 });
+      // Note: redhat ships coreutils-single (multicall binary, comm is
+      // `coreutils`), so `pidof sleep` never matches; use bun instead.
+      const pidFile = remoteTempPath('bun-pid-');
+      await sh(`bun -e ${$_('await Bun.sleep(60000)')} >/dev/null 2>&1 & echo $! > ${$_(pidFile)}`);
+      await waitProcess({ process: 'bun', delay: 50 });
       await sh(`kill $(cat ${$_(pidFile)})`);
-      await waitProcess({ process: 'sleep', state: 'terminated', delay: 50 });
+      await waitProcess({ process: 'bun', state: 'terminated', delay: 50 });
     });
   });
 
@@ -62,7 +64,7 @@ describe('proc/net ops', () => {
     });
   });
 
-  test('netcat waitPort detects open port', async () => {
+  test('netcat waitPort detects open and closed ports', async () => {
     await sharedPodman(shared, async () => {
       const port = 18711;
       const pidFile = await startTcpServer(port);
@@ -71,6 +73,7 @@ describe('proc/net ops', () => {
       } finally {
         await stopTcpServer(pidFile);
       }
+      await waitPortNc({ port, state: 'close', delay: 50 });
     });
   });
 
