@@ -26,7 +26,6 @@ env:
     ~/.bun/install/cache
     node_modules/
   E2E_CONTAINERS_PATH: |
-    ~/.local/share/containers
     tests/fixtures/container/cache
 
 concurrency:

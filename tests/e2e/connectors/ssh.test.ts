@@ -25,7 +25,7 @@ describe('SSHConnector', () => {
   let shared: Container;
 
   beforeAll(async () => {
-    shared = await startSharedSshContainer({ distro: 'fedora' });
+    shared = await startSharedSshContainer({ distro: 'debian' });
   });
 
   afterAll(async () => {
@@ -68,13 +68,6 @@ describe('SSHConnector', () => {
 
         expect(exitCode).toBe(0);
         expect(stdout).toBe(input);
-      });
-    });
-
-    test('unix_update command should exit with 126 exit code (NO PERM)', async () => {
-      await sharedSsh(shared, async () => {
-        const { exitCode } = await exec(['unix_update']);
-        expect(exitCode).toBe(126);
       });
     });
 

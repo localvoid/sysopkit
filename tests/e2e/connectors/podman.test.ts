@@ -27,9 +27,9 @@ describe('PodmanConnector', () => {
   let sharedUser: Container;
 
   beforeAll(async () => {
-    shared = await startSharedContainer({ distro: 'fedora', publishSsh: false });
+    shared = await startSharedContainer({ distro: 'debian', publishSsh: false });
     sharedUser = await startSharedContainer({
-      distro: 'fedora',
+      distro: 'debian',
       user: 'testuser',
       publishSsh: false,
     });

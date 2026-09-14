@@ -52,6 +52,25 @@ async function ensurePrivateKeyPerms(): Promise<void> {
   }
 }
 
+/** Cached host AppArmor detection for {@link hasAppArmor}. */
+let apparmorCache: boolean | undefined;
+
+/**
+ * Whether the host enforces AppArmor. Best-effort: any read failure means
+ * no AppArmor (e.g. Fedora/Arch hosts without the kernel module).
+ */
+async function hasAppArmor(): Promise<boolean> {
+  if (apparmorCache === undefined) {
+    try {
+      apparmorCache =
+        (await Bun.file('/sys/module/apparmor/parameters/enabled').text()).trim() === 'Y';
+    } catch {
+      apparmorCache = false;
+    }
+  }
+  return apparmorCache;
+}
+
 /** Allocates a free loopback TCP port for SSH publishing. */
 function allocateFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -140,6 +159,16 @@ export class Container {
         args.push('--privileged');
       }
 
+      // On hosts with enforcing AppArmor (e.g. Ubuntu), the default container
+      // profile denies cap_dac_override to the unix_chkpwd PAM helper (which
+      // drops to the target uid, then needs the capability to read the
+      // mode-000 /etc/shadow), breaking all password verification and PAM
+      // account checks in CI. Opt out where AppArmor is present; elsewhere
+      // this flag is skipped entirely.
+      if (await hasAppArmor()) {
+        args.push('--security-opt', 'apparmor=unconfined');
+      }
+
       if (this.ports) {
         for (const [hostPort, containerPort] of Object.entries(this.ports)) {
           args.push('-p', `${hostPort}:${containerPort}`);
@@ -158,7 +187,9 @@ export class Container {
       if (
         this.publishSsh &&
         attempt < 4 &&
-        /address already in use|port is already allocated|binding.*failed|addr.*in use/i.test(stderr)
+        /address already in use|port is already allocated|binding.*failed|addr.*in use/i.test(
+          stderr,
+        )
       ) {
         this.sshPort = await allocateFreePort();
         continue;
@@ -307,62 +338,31 @@ export async function withSsh<R>(
 }
 
 async function waitForSsh(port: number): Promise<void> {
-  // The loop must report failure via its exit code: a trailing `sleep`
-  // always succeeds, so `exit 1` after the loop is required — otherwise a
-  // never-listening sshd would silently pass as ready.
+  // Probe the SSH handshake, not just TCP: a port forwarder can accept a
+  // connection and immediately close it without a working sshd behind it,
+  // which a bare /dev/tcp open cannot distinguish (false ready). The loop
+  // must report failure via its exit code: a trailing `sleep` always
+  // succeeds, so `exit 1` after the loop is required.
   const exitCode = await Bun.spawn([
     'bash',
     '-c',
-    `for i in {1..20}; do (echo > /dev/tcp/127.0.0.1/${port}) >/dev/null 2>&1 && exit 0 || sleep 0.1; done; exit 1`,
+    `for i in {1..24}; do if exec 3<>/dev/tcp/127.0.0.1/${port} 2>/dev/null; then if read -t 2 -r banner <&3 2>/dev/null && [[ "$banner" == SSH-* ]]; then exit 0; fi; exec 3<&- 3>&- 2>/dev/null; fi; sleep 0.25; done; exit 1`,
   ]).exited;
   if (exitCode !== 0) {
     throw Error('SSH server launch timeout');
   }
 }
 
-/**
- * Resets the `testuser` credentials at test time (as root) instead of
- * relying on image bake state: password, sudo group membership, and the
- * passworded-sudo drop-in. Makes sudo-based suites immune to stale or
- * drifted container images (e.g. CI podman-storage cache restores).
- */
-export async function ensureTestUser(container: Container): Promise<void> {
-  const group = container.distro === 'debian' ? 'sudo' : 'wheel';
-  const sudoersLine = `%${group} ALL=(ALL) PASSWD: ALL`;
-  const script = [
-    `id testuser >/dev/null 2>&1 || useradd -m -G ${group} -s /bin/bash testuser`,
-    `echo "testuser:testpasswd" | chpasswd`,
-    `printf '%s\\n' '${sudoersLine}' > /etc/sudoers.d/02-${group}-passwd`,
-    `chmod 440 /etc/sudoers.d/02-${group}-passwd`,
-  ].join(' && ');
-  // NB: containers started with `--user testuser` make plain `podman exec`
-  // run as testuser too — credential setup needs root explicitly.
-  const result = await container.exec(['sh', '-c', script], { user: 'root' });
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to ensure testuser credentials: ${result.stderr.trim()}`);
-  }
-}
-
-/**
- * Reinstalls `testuser`'s `authorized_keys` from the repo private key at
- * test time (as root), so SSH suites don't depend on the baked-in key
- * matching (e.g. after key rotation with a stale cached image).
- */
-async function ensureAuthorizedKeys(container: Container): Promise<void> {
-  const keygen = Bun.spawn(['ssh-keygen', '-y', '-f', PRIVATE_KEY_PATH], { stderr: 'pipe' });
-  const [keygenExit, pubkey, keygenStderr] = await Promise.all([
-    keygen.exited,
-    keygen.stdout.text(),
-    keygen.stderr.text(),
-  ]);
-  const key = pubkey.trim();
-  if (keygenExit !== 0 || key.length === 0 || !/^[A-Za-z0-9+/=._:@ -]+$/.test(key)) {
-    throw new Error(`Failed to derive public key from test private key: ${keygenStderr.trim()}`);
-  }
-  const setup = `mkdir -p /home/testuser/.ssh && printf '%s\\n' '${key}' > /home/testuser/.ssh/authorized_keys && chmod 700 /home/testuser/.ssh && chmod 600 /home/testuser/.ssh/authorized_keys && chown -R testuser:testuser /home/testuser/.ssh`;
-  const result = await container.exec(['sh', '-c', setup], { user: 'root' });
-  if (result.exitCode !== 0) {
-    throw new Error(`Failed to install test authorized_keys: ${result.stderr.trim()}`);
+/** Verifies sshd listens on container port 22 from inside the container. */
+async function ensureSshListener(container: Container): Promise<void> {
+  // Open-only check (no banner write) to avoid "invalid format" noise in the
+  // sshd log; the banner itself is verified from the host by waitForSsh.
+  const inside = await container.exec(
+    ['bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/22 && echo LISTENING'],
+    { user: 'root' },
+  );
+  if (inside.exitCode !== 0 || !inside.stdout.includes('LISTENING')) {
+    throw new Error(`sshd is not listening on container port 22.`);
   }
 }
 
@@ -371,25 +371,37 @@ async function ensureAuthorizedKeys(container: Container): Promise<void> {
  * the host port to accept connections. Idempotent: safe to call once per
  * shared container (in `beforeAll`) instead of once per test.
  *
- * SSH-based suites only run on fedora; other distros are rejected.
+ * SSH-based suites only run on debian; other distros are rejected.
  * Defaults to the container's dynamically allocated {@link Container.sshPort}
  * so parallel e2e files (`bun test --parallel`) don't collide.
  */
 export async function ensureSshd(container: Container, port?: number): Promise<void> {
-  if (container.distro !== 'fedora') {
+  if (container.distro !== 'debian') {
     throw new Error(
-      `SSH test containers are only supported on fedora (got '${container.distro}').`,
+      `SSH test containers are only supported on debian (got '${container.distro}').`,
     );
   }
-  await ensureTestUser(container);
+  // No systemd-tmpfiles in containers: the privilege separation directory
+  // may be missing, in which case sshd refuses to start.
+  const runDir = await container.exec(['sh', '-c', 'mkdir -p /run/sshd && chmod 755 /run/sshd'], {
+    user: 'root',
+  });
+  if (runDir.exitCode !== 0) {
+    throw new Error(`Failed to prepare sshd run directory: ${runDir.stderr.trim()}`);
+  }
   const check = await container.exec(['sh', '-c', 'pgrep -x sshd > /dev/null 2>&1']);
   if (check.exitCode !== 0) {
-    const started = await container.exec(['sh', '-c', 'nohup /usr/sbin/sshd > /dev/null 2>&1 &']);
+    // -E captures startup failures for diagnostics instead of /dev/null.
+    const started = await container.exec([
+      'sh',
+      '-c',
+      'nohup /usr/sbin/sshd -E /tmp/sshd-init.log > /dev/null 2>&1 &',
+    ]);
     if (started.exitCode !== 0) {
       throw new Error(`Failed to start sshd: ${started.stderr.trim()}`);
     }
   }
-  await ensureAuthorizedKeys(container);
+  await ensureSshListener(container);
   await waitForSsh(sshPortFor(container, port));
 }
 
