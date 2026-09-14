@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/openwrt/pkg/apk';
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apk';
 import { trackChanged } from '@sysopkit/test-utils';
 import { onChange, type ChangeEntry } from 'sysopkit';
 import { sh } from 'sysopkit/op/sh';
@@ -21,7 +21,7 @@ async function installedNames(): Promise<Set<string>> {
 }
 
 /** OpenWrt is non-parity: only `sh` + busybox applets, no sudo user. */
-describe('pkg/apk (openwrt)', () => {
+describe('pkg/apk (alpine-based, on openwrt)', () => {
   let shared: Container;
   beforeAll(async () => {
     shared = await startSharedContainer({ distro: 'openwrt', publishSsh: false });

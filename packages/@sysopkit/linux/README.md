@@ -19,6 +19,7 @@ bun add @sysopkit/linux sysopkit
 | `disk` | `@sysopkit/linux/disk` | `lsblk()` — `BlockDeviceEntry[]` tree |
 | `os` | `@sysopkit/linux/os` | `getOSInfo()` — `/etc/os-release` |
 | `pkg/apt` | `@sysopkit/linux/pkg/apt` | **Idempotent** `installPackages`, `removePackages` (`autoremove?`); `getInstalledPackages()` |
+| `pkg/apk` | `@sysopkit/linux/pkg/apk` | **Idempotent** `installPackages`, `removePackages` (dry-run via `--simulate`); `getInstalledPackages()` |
 | `pkg/dnf4` | `@sysopkit/linux/pkg/dnf4` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
 | `pkg/dnf5` | `@sysopkit/linux/pkg/dnf5` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
 | `pkg/rpm` | `@sysopkit/linux/pkg/rpm` | **Idempotent** `importRpmKey({ name, content })`; `hasRpmKey(key)`, `getRpmKeys()`, `getRpmVars(vars)` |

@@ -27,6 +27,11 @@
       "types": "./dist/pkg/apt.d.ts",
       "default": "./dist/pkg/apt.js"
     },
+    "./pkg/apk": {
+      "bun": "./src/pkg/apk.ts",
+      "types": "./dist/pkg/apk.d.ts",
+      "default": "./dist/pkg/apk.js"
+    },
     "./pkg/dnf4": {
       "bun": "./src/pkg/dnf4.ts",
       "types": "./dist/pkg/dnf4.d.ts",

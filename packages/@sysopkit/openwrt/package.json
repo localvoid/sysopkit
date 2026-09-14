@@ -22,11 +22,6 @@
   "sideEffects": false,
   "module": "true",
   "exports": {
-    "./pkg/apk": {
-      "bun": "./src/pkg/apk.ts",
-      "types": "./dist/pkg/apk.d.ts",
-      "default": "./dist/pkg/apk.js"
-    },
     "./uci/dhcp": {
       "bun": "./src/uci/dhcp.ts",
       "types": "./dist/uci/dhcp.d.ts",

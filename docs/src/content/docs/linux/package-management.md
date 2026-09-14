@@ -3,7 +3,7 @@ title: Package Management
 description: APT, DNF4, DNF5, Pacman, APK, and RPM package management operations.
 ---
 
-Manage packages on Debian/Ubuntu (APT), Fedora (DNF5), RHEL (DNF4), Arch Linux (pacman), and OpenWrt 25.12+ (APK), plus GPG keys in the RPM database.
+Manage packages on Debian/Ubuntu (APT), Fedora (DNF5), RHEL (DNF4), Arch Linux (pacman), and Alpine-based distros (APK), plus GPG keys in the RPM database.
 
 ## APT (Debian/Ubuntu)
 
@@ -131,10 +131,10 @@ await removePackages({ packages: ['nginx'] });
 await removePackages({ packages: ['nginx'], autoremove: true });
 ```
 
-## APK (OpenWrt 25.12+)
+## APK (Alpine-based)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/openwrt/pkg/apk';
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apk';
 ```
 
 ### getInstalledPackages()

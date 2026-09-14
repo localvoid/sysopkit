@@ -1,14 +1,16 @@
 /**
  * @module pkg/apk
  *
- * APK package management for OpenWrt 25.12 and newer.
+ * APK package management for Alpine-based distributions.
  *
- * APK (Alpine Package Keeper) replaced opkg as the package manager in
- * OpenWrt 25.12. This module provides operations for package management
- * using only `sh` and busybox applets (OpenWrt images carry no parity
- * contract: no sudo user, no bash).
+ * APK (Alpine Package Keeper) is the package manager for Alpine Linux and
+ * Alpine-based distributions, including OpenWrt 25.12 and newer (where it
+ * replaced opkg). This module provides operations for package management
+ * using only `sh`, so it also works on minimal/busybox environments like
+ * OpenWrt (no sudo user, no bash assumptions).
  *
- * @see https://openwrt.org/docs/guide-user/additional-software/apk - APK package manager
+ * @see https://wiki.alpinelinux.org/wiki/Alpine_Package_Keeper - APK package manager
+ * @see https://openwrt.org/docs/guide-user/additional-software/apk - APK on OpenWrt
  */
 
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
