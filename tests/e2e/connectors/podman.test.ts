@@ -9,7 +9,6 @@ import { rsyncPull, rsyncPush } from 'sysopkit/op/rsync';
 import { sh } from 'sysopkit/op/sh';
 
 import {
-  ensureTestUser,
   remoteTempPath,
   sharedPodman,
   startSharedContainer,
@@ -33,9 +32,6 @@ describe('PodmanConnector', () => {
       user: 'testuser',
       publishSsh: false,
     });
-    // Reset testuser credentials at test time so the sudo suite doesn't
-    // depend on image bake state (stale CI image caches).
-    await ensureTestUser(sharedUser);
   });
 
   afterAll(async () => {
