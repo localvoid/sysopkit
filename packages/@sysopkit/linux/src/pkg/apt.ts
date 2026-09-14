@@ -92,6 +92,11 @@ export async function installPackages(options: InstallPackagesOptions): Promise<
 export interface RemovePackagesOptions {
   /** Package names to remove. */
   readonly packages: string[];
+  /**
+   * Remove dependencies that were installed for these packages and are no
+   * longer needed (`--auto-remove`). Defaults to false.
+   */
+  readonly autoremove?: boolean;
 }
 
 /**
@@ -101,12 +106,12 @@ export interface RemovePackagesOptions {
  * preserved; use purge to remove them as well.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
-  const { packages } = options;
+  const { packages, autoremove = false } = options;
   return task(
     'apt remove',
     async (ctx) => {
       const { stdout } = await sh(
-        `LANG=en_US.UTF-8 apt-get remove ${ctx.dryRun ? '-s' : '-y'} ${packages.map($_).join(' ')}`,
+        `LANG=en_US.UTF-8 apt-get remove ${ctx.dryRun ? '-s' : '-y'}${autoremove ? ' --auto-remove' : ''} ${packages.map($_).join(' ')}`,
       );
       const pkgs = _parseList(stdout, REMOVED_RE);
       if (pkgs.length > 0) {
@@ -122,7 +127,8 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
     },
     {
       details: () => ({
-        packages: packages.join(' '),
+        'packages': packages.join(' '),
+        'auto-remove': autoremove === void 0 ? void 0 : autoremove ? 'on' : 'off',
       }),
       verbosity: VERBOSITY_TRACE,
     },

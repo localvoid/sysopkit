@@ -32,6 +32,11 @@
       "types": "./dist/pkg/dnf.d.ts",
       "default": "./dist/pkg/dnf.js"
     },
+    "./pkg/pacman": {
+      "bun": "./src/pkg/pacman.ts",
+      "types": "./dist/pkg/pacman.d.ts",
+      "default": "./dist/pkg/pacman.js"
+    },
     "./pkg/rpm": {
       "bun": "./src/pkg/rpm.ts",
       "types": "./dist/pkg/rpm.d.ts",

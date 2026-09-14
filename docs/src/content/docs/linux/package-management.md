@@ -1,9 +1,9 @@
 ---
 title: Package Management
-description: APT, DNF, and RPM package management operations.
+description: APT, DNF, Pacman, APK, and RPM package management operations.
 ---
 
-Manage packages on Debian/Ubuntu (APT) and Fedora/RHEL (DNF), plus GPG keys in the RPM database.
+Manage packages on Debian/Ubuntu (APT), Fedora/RHEL (DNF), Arch Linux (pacman), and OpenWrt 25.12+ (APK), plus GPG keys in the RPM database.
 
 ## APT (Debian/Ubuntu)
 
@@ -30,10 +30,11 @@ await installPackages({ packages: ['nginx', 'postgresql'] });
 
 ### removePackages()
 
-Removes packages using `apt-get remove`. Preserves configuration files.
+Removes packages using `apt-get remove`. Preserves configuration files. Pass `autoremove: true` to also remove dependencies that are no longer needed (`--auto-remove`).
 
 ```ts
 await removePackages({ packages: ['apache2'] });
+await removePackages({ packages: ['apache2'], autoremove: true });
 ```
 
 ## DNF (Fedora/RHEL)
@@ -61,10 +62,73 @@ await installPackages({ packages: ['nginx'], weakDependencies: false });
 
 ### removePackages()
 
-Removes packages using `dnf remove`.
+Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF cleans requirements on remove by default).
 
 ```ts
 await removePackages({ packages: ['httpd'] });
+```
+
+## Pacman (Arch Linux)
+
+```ts
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/pacman';
+```
+
+### getInstalledPackages()
+
+Lists all installed packages with versions using `pacman -Q`.
+
+```ts
+const packages = await getInstalledPackages();
+// [{ name: 'bash', version: '5.3.3-1' }, ...]
+```
+
+### installPackages()
+
+Installs packages using `pacman -Sy --needed`. Refreshes the package databases as part of the install; already up-to-date packages are skipped (`--needed`), so re-running is a no-op. Dry-run aware (print-only preview in dry-run mode).
+
+```ts
+await installPackages({ packages: ['nginx'] });
+```
+
+### removePackages()
+
+Removes packages using `pacman -R` (dependencies are left behind, matching `apt-get remove` semantics). Pass `autoremove: true` to also remove dependencies that are no longer needed (`-Rs`).
+
+```ts
+await removePackages({ packages: ['nginx'] });
+await removePackages({ packages: ['nginx'], autoremove: true });
+```
+
+## APK (OpenWrt 25.12+)
+
+```ts
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/openwrt/pkg/apk';
+```
+
+### getInstalledPackages()
+
+Lists all installed packages with versions using `apk list -I`.
+
+```ts
+const packages = await getInstalledPackages();
+// [{ name: 'busybox', version: '1.37.0-r6' }, ...]
+```
+
+### installPackages()
+
+Installs packages using `apk add -U` (refreshes the package indexes as part of the install). Re-running for installed packages is a no-op. Dry-run aware (`--simulate` in dry-run mode).
+
+```ts
+await installPackages({ packages: ['nano'] });
+```
+
+### removePackages()
+
+Removes packages using `apk del`. Dependencies that are no longer needed are purged as well.
+
+```ts
+await removePackages({ packages: ['nano'] });
 ```
 
 ## RPM

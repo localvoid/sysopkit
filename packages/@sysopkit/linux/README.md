@@ -18,9 +18,10 @@ bun add @sysopkit/linux sysopkit
 | `mem` | `@sysopkit/linux/mem` | `getMemInfo()` — total/available/used/free from `/proc/meminfo` |
 | `disk` | `@sysopkit/linux/disk` | `lsblk()` — `BlockDeviceEntry[]` tree |
 | `os` | `@sysopkit/linux/os` | `getOSInfo()` — `/etc/os-release` |
-| `pkg/apt` | `@sysopkit/linux/pkg/apt` | **Idempotent** `installPackages`, `removePackages`; `getInstalledPackages()` |
-| `pkg/dnf` | `@sysopkit/linux/pkg/dnf` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages`; `getInstalledPackages()` |
+| `pkg/apt` | `@sysopkit/linux/pkg/apt` | **Idempotent** `installPackages`, `removePackages` (`autoremove?`); `getInstalledPackages()` |
+| `pkg/dnf` | `@sysopkit/linux/pkg/dnf` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
 | `pkg/rpm` | `@sysopkit/linux/pkg/rpm` | **Idempotent** `importRpmKey({ name, content })`; `hasRpmKey(key)`, `getRpmKeys()`, `getRpmVars(vars)` |
+| `pkg/pacman` | `@sysopkit/linux/pkg/pacman` | **Idempotent** `installPackages`, `removePackages` (`autoremove?`, dry-run previews); `getInstalledPackages()` |
 | `kernel` | `@sysopkit/linux/kernel` | `lsmod()`, `modinfo(module)`, `dmesg(opts?)`, `kexecLoad({ kernel, initrd?, cmdline? })`, `kexecExec()` |
 | `sysctl` | `@sysopkit/linux/sysctl` | `parseSysctlConf`, `serializeSysctlConf` |
 | `limits` | `@sysopkit/linux/limits` | `parseLimitsConf`, `serializeLimitsConf` (`/etc/security/limits.conf`) |

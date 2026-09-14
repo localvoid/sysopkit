@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apt';
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/openwrt/pkg/apk';
 import { trackChanged } from '@sysopkit/test-utils';
 import { onChange, type ChangeEntry } from 'sysopkit';
 import { sh } from 'sysopkit/op/sh';
@@ -20,10 +20,11 @@ async function installedNames(): Promise<Set<string>> {
   return new Set((await getInstalledPackages()).map((p) => p.name));
 }
 
-describe('pkg/apt (debian)', () => {
+/** OpenWrt is non-parity: only `sh` + busybox applets, no sudo user. */
+describe('pkg/apk (openwrt)', () => {
   let shared: Container;
   beforeAll(async () => {
-    shared = await startSharedContainer({ distro: 'debian', publishSsh: false });
+    shared = await startSharedContainer({ distro: 'openwrt', publishSsh: false });
   });
   afterAll(async () => {
     if (shared) await shared.stop();
@@ -33,49 +34,60 @@ describe('pkg/apt (debian)', () => {
     'installs and removes a tiny package',
     async () => {
       await sharedPodman(shared, async () => {
-        await sh('apt-get update -qq');
-        await removePackages({ packages: ['ed'] }).catch(() => {});
+        await removePackages({ packages: ['nano'] }).catch(() => {});
 
         const t1 = trackChanged();
-        await installPackages({ packages: ['ed'] });
+        await installPackages({ packages: ['nano'] });
         expect(t1.changed).toBe(true);
-        expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(true);
-        expect((await sh('command -v ed')).exitCode).toBe(0);
+        expect((await getInstalledPackages()).some((p) => p.name === 'nano')).toBe(true);
+        expect((await sh('command -v nano')).exitCode).toBe(0);
 
         const t2 = trackChanged();
-        await installPackages({ packages: ['ed'] });
+        await installPackages({ packages: ['nano'] });
         expect(t2.changed).toBe(false);
 
-        await removePackages({ packages: ['ed'] });
-        expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(false);
+        const t3 = trackChanged();
+        await removePackages({ packages: ['nano'] });
+        expect(t3.changed).toBe(true);
+        expect((await getInstalledPackages()).some((p) => p.name === 'nano')).toBe(false);
       });
     },
     { timeout: 300000 },
   );
 
   test(
-    'autoremove removes dependencies, plain remove keeps them',
+    'install reports change in dry-run without installing',
     async () => {
       await sharedPodman(shared, async () => {
-        await sh('apt-get update -qq');
-        await removePackages({ packages: ['jq'] }).catch(() => {});
+        await removePackages({ packages: ['nano'] }).catch(() => {});
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await installPackages({ packages: ['nano'] });
+          expect(t.changed).toBe(true);
+          expect((await getInstalledPackages()).some((p) => p.name === 'nano')).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'remove purges unused dependencies natively',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await removePackages({ packages: ['nano'] }).catch(() => {});
         const before = await installedNames();
 
-        await installPackages({ packages: ['jq'] });
+        await installPackages({ packages: ['nano'] });
         const added = [...(await installedNames())].filter((n) => !before.has(n));
-        expect(added).toContain('jq');
-        const deps = added.filter((n) => n !== 'jq');
-        expect(deps.length).toBeGreaterThan(0);
+        expect(added).toContain('nano');
+        expect(added.length).toBeGreaterThan(1);
 
-        await removePackages({ packages: ['jq'] });
-        const kept = await installedNames();
-        expect(kept.has('jq')).toBe(false);
-        for (const d of deps) expect(kept.has(d)).toBe(true);
-
-        await installPackages({ packages: ['jq'] });
-        const entries = await collectChanges(() =>
-          removePackages({ packages: ['jq'], autoremove: true }),
-        );
+        const entries = await collectChanges(() => removePackages({ packages: ['nano'] }));
         const removed = entries.filter((c) => c.to === 'removed').map((c) => c.resource);
         for (const n of added) expect(removed).toContain(n);
         const gone = await installedNames();
@@ -89,7 +101,7 @@ describe('pkg/apt (debian)', () => {
     await sharedPodman(shared, async () => {
       const pkgs = await getInstalledPackages();
       expect(pkgs.length).toBeGreaterThan(10);
-      expect(pkgs.some((p) => p.name === 'bash' || p.name === 'coreutils')).toBe(true);
+      expect(pkgs.some((p) => p.name === 'busybox')).toBe(true);
     });
   });
 });

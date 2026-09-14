@@ -43,7 +43,7 @@ test('...', async () => {
 | debian | `sysopkit-test-debian:13` | Yes (`sudo` group instead of `wheel`) |
 | redhat | `sysopkit-test-redhat:10` | Yes (UBI minimal + microdnf; `coreutils-single` instead of `coreutils`; `dnf`, `nc` (nmap-ncat), `ed` installed for pkg/dnf + proc-net suites) |
 | arch | `sysopkit-test-arch:base` | Yes (rolling `archlinux:base`, pacman) |
-| openwrt | `sysopkit-test-openwrt:24.10` | **No** — busybox/musl, dropbear, opkg, no sudo user; only `sh` + applets |
+| openwrt | `sysopkit-test-openwrt:25.12` | **No** — busybox/musl, apk, no sudo user; only `sh` + applets |
 
 Parity contract: `testuser:testpasswd` with passworded sudo, sshd host keys + `testuser` authorized_keys, plus `rsync`, `pgrep`, GNU `stat`, `gpg`, `bun`.
 
@@ -52,7 +52,7 @@ Which container to use:
 - `redhat` — default for common ops (base-level support). If an op works here, it works everywhere parity.
 - `debian`, `fedora`, `arch` — distro-specific ops only (e.g. `pkg/apt` on debian, `pkg/dnf` on fedora, pacman quirks on arch). Do NOT duplicate common-op suites per distro.
 - `fedora` — additionally the place for latest features (newest toolchain of the parity set) and the only distro for SSH-based suites.
-- `openwrt` — fully distro-specific: significantly different environment (busybox/musl, dropbear, opkg, no sudo user, no parity contract). Suites running on it must only rely on `sh` and busybox applets.
+- `openwrt` — fully distro-specific: significantly different environment (busybox/musl, apk, no sudo user, no parity contract). Suites running on it must only rely on `sh` and busybox applets.
 
 Rules:
 
@@ -99,6 +99,8 @@ e2e/
     config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips
     pkg-apt.test.ts # debian: apt full install/remove of `ed`
     pkg-dnf.test.ts # fedora+redhat: dnf full install/remove of `ed`
+    pkg-pacman.test.ts # arch: pacman full install/remove of `ed`
+    pkg-apk.test.ts # openwrt: apk full install/remove of `nano`
     pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip
     rsync.test.ts # redhat: rsync push/pull incl. idempotency + dry-run
     system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops
@@ -106,7 +108,7 @@ e2e/
     openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
 ```
 
-Excluded from live testing (unit mocks + file-content assertions only): `systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` / `setTimezone` / `setLocale`, `journal` read/vacuum (needs a running journal), kernel module / `kexec`, `tuned` (needs daemon), `arch` pacman (no op module). Rationale: no systemd PID1 / host kernel in containers; mutating host identity from tests is out of scope.
+Excluded from live testing (unit mocks + file-content assertions only): `systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` / `setTimezone` / `setLocale`, `journal` read/vacuum (needs a running journal), kernel module / `kexec`, `tuned` (needs daemon). Rationale: no systemd PID1 / host kernel in containers; mutating host identity from tests is out of scope.
 
 ### Mock Helpers
 

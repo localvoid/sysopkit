@@ -51,6 +51,7 @@ Write `text` to the target with `createFile`, then reload with `sh('service netw
 | `@sysopkit/openwrt/uci/system` | `system` | `UciSystemSystem`, `UciSystemTimeserver`, `UciSystemLed`, `UciSystemRDNSSD` |
 | `@sysopkit/openwrt/uci/sqm` | `sqm` | `UciSqmQueue` |
 | `@sysopkit/openwrt/uci/upnpd` | `upnpd` | `UciUpnpdConfig`, `UciUpnpdPermRule` |
+| `@sysopkit/openwrt/pkg/apk` | — | **Idempotent** `installPackages`, `removePackages` (dry-run via `--simulate`); `getInstalledPackages()` |
 
 See the [docs site](https://www.sysopkit.com) for field-level details.
 

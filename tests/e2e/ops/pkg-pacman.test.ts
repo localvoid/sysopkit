@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apt';
+import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/pacman';
 import { trackChanged } from '@sysopkit/test-utils';
 import { onChange, type ChangeEntry } from 'sysopkit';
 import { sh } from 'sysopkit/op/sh';
@@ -20,10 +20,10 @@ async function installedNames(): Promise<Set<string>> {
   return new Set((await getInstalledPackages()).map((p) => p.name));
 }
 
-describe('pkg/apt (debian)', () => {
+describe('pkg/pacman (arch)', () => {
   let shared: Container;
   beforeAll(async () => {
-    shared = await startSharedContainer({ distro: 'debian', publishSsh: false });
+    shared = await startSharedContainer({ distro: 'arch', publishSsh: false });
   });
   afterAll(async () => {
     if (shared) await shared.stop();
@@ -33,7 +33,6 @@ describe('pkg/apt (debian)', () => {
     'installs and removes a tiny package',
     async () => {
       await sharedPodman(shared, async () => {
-        await sh('apt-get update -qq');
         await removePackages({ packages: ['ed'] }).catch(() => {});
 
         const t1 = trackChanged();
@@ -46,9 +45,31 @@ describe('pkg/apt (debian)', () => {
         await installPackages({ packages: ['ed'] });
         expect(t2.changed).toBe(false);
 
+        const t3 = trackChanged();
         await removePackages({ packages: ['ed'] });
+        expect(t3.changed).toBe(true);
         expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(false);
       });
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'install reports change in dry-run without installing',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await removePackages({ packages: ['ed'] }).catch(() => {});
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await installPackages({ packages: ['ed'] });
+          expect(t.changed).toBe(true);
+          expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(false);
+        },
+        { dryRun: true },
+      );
     },
     { timeout: 300000 },
   );
@@ -57,7 +78,6 @@ describe('pkg/apt (debian)', () => {
     'autoremove removes dependencies, plain remove keeps them',
     async () => {
       await sharedPodman(shared, async () => {
-        await sh('apt-get update -qq');
         await removePackages({ packages: ['jq'] }).catch(() => {});
         const before = await installedNames();
 
@@ -89,7 +109,7 @@ describe('pkg/apt (debian)', () => {
     await sharedPodman(shared, async () => {
       const pkgs = await getInstalledPackages();
       expect(pkgs.length).toBeGreaterThan(10);
-      expect(pkgs.some((p) => p.name === 'bash' || p.name === 'coreutils')).toBe(true);
+      expect(pkgs.some((p) => p.name === 'bash')).toBe(true);
     });
   });
 });

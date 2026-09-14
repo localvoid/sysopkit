@@ -52,8 +52,8 @@ export const TEST_IMAGES: Record<TestDistro, TestImage> = {
   },
   openwrt: {
     distro: 'openwrt',
-    image: 'sysopkit-test-openwrt:24.10',
-    archive: 'sysopkit-test-openwrt-24.10.tar',
+    image: 'sysopkit-test-openwrt:25.12',
+    archive: 'sysopkit-test-openwrt-25.12.tar',
     parity: false,
   },
 };

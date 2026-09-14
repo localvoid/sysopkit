@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 # OpenWRT test image. Deliberately NOT parity with the fedora/debian images:
-# busybox/musl rootfs, dropbear instead of openssh-server, opkg instead of a
-# system package manager with our toolset, no sudo user, no bun. Suites
-# running on it must only rely on `sh` and busybox applets.
+# busybox/musl rootfs, apk instead of a system package manager with our
+# toolset, no sudo user, no bun. Suites running on it must only rely on `sh`
+# and busybox applets.
 
 set -euo pipefail
 
-OPENWRT_VERSION="24.10"
-OPENWRT_PATCH="24.10.8"
+OPENWRT_VERSION="25.12"
+OPENWRT_PATCH="25.12.4"
 BASE_IMAGE="docker.io/openwrt/rootfs:x86-64-${OPENWRT_PATCH}"
 IMAGE_NAME="sysopkit-test-openwrt"
 IMAGE_TAG="${OPENWRT_VERSION}"
@@ -46,8 +46,8 @@ podman rm openwrt-bootstrap
 echo "Saving image to archive (OCI format)..."
 podman save --format oci-archive -o "${ARCHIVE}" "${FULL_IMAGE_NAME}"
 
-echo "Verifying minimal contract (sh + os-release)..."
-podman run --rm "${FULL_IMAGE_NAME}" sh -c 'grep -q "ID=\"openwrt\"" /etc/os-release && echo "OpenWrt contract OK."'
+echo "Verifying minimal contract (sh + os-release + apk)..."
+podman run --rm "${FULL_IMAGE_NAME}" sh -c 'grep -q "ID=\"openwrt\"" /etc/os-release && grep -q "VERSION_ID=\"25.12" /etc/os-release && command -v apk >/dev/null && echo "OpenWrt contract OK."'
 
 echo "Removing image from local store..."
 podman rmi "${FULL_IMAGE_NAME}" "${BASE_IMAGE}" 2>/dev/null || true

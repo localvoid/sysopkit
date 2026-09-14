@@ -118,7 +118,9 @@ export interface RemovePackagesOptions {
 /**
  * Removes packages using DNF.
  *
- * Emits change events for packages that are removed.
+ * Unused dependencies installed for the removed packages are removed as
+ * well (DNF cleans requirements on remove by default). Emits change events
+ * for packages that are removed.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
   const { packages } = options;
@@ -149,38 +151,53 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
-/** Matches the "Installing:" (dnf5) or "Installed:" (dnf4) section in DNF output. */
-const INSTALLING_RE = /Install(?:ing|ed):\n([\s\S]*?)(?=\n\S|$)/;
-/** Matches the "Removing:" (dnf5) or "Removed:" (dnf4) section in DNF output. */
-const REMOVING_RE = /Remov(?:ing|ed):\n([\s\S]*?)(?=\n\S|$)/;
+/**
+ * Matches the "Installing:" (dnf5) or "Installed:" (dnf4) sections in DNF
+ * output, including the "Installing dependencies:" subsection (dnf5 lists
+ * dependencies separately from explicitly requested packages).
+ */
+const INSTALLING_RE = /Install(?:ing|ed)(?: dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
+/**
+ * Matches the "Removing:" (dnf5) or "Removed:" (dnf4) sections in DNF
+ * output, including the "Removing unused dependencies:" subsection (unused
+ * dependencies are cleaned on remove by default).
+ */
+const REMOVING_RE = /Remov(?:ing|ed)(?: unused dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
 
 /**
- * Parses the table from dnf output to find packages.
+ * Parses the tables from dnf output to find packages.
  *
+ * Collects every matching section (dnf5 prints dependencies under separate
+ * "Installing dependencies:" / "Removing unused dependencies:" headers).
  * Handles both the multi-column table of dnf5
  * (`ed x86_64 0:1.22.5-2.fc44 fedora 149.7 KiB`) and the compact
- * single-NEVRA-column format of dnf4 (`ed-1.20-5.el10.x86_64`).
+ * single-NEVRA-column format of dnf4, which packs several NEVRAs per line
+ * (`jq-1.7.1-11.el10_2.2.x86_64 oniguruma-6.9.9-7.el10.x86_64`).
  */
 function _parseTable(output: string, re: RegExp): string[] {
-  const match = re.exec(output);
-  if (!match || !match[1]) return [];
-
-  const lines = match[1].split('\n');
   const packages: string[] = [];
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
+  for (const match of output.matchAll(re)) {
+    const body = match[1];
+    if (!body) {
       continue;
     }
-    const cols = trimmed.split(/\s+/);
+    for (const line of body.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const cols = trimmed.split(/\s+/);
 
-    if (cols.length >= 5) {
-      packages.push(cols[0]);
-    } else {
-      const name = _parseNevraName(cols[0]);
-      if (name) {
-        packages.push(name);
+      if (cols.length >= 5) {
+        packages.push(cols[0]!);
+      } else {
+        for (const col of cols) {
+          const name = _parseNevraName(col);
+          if (name) {
+            packages.push(name);
+          }
+        }
       }
     }
   }
