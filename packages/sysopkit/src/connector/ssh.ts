@@ -139,6 +139,25 @@ export class SSHConnector extends ConnectorBase {
 
   override async connect(signal?: AbortSignal): Promise<void> {
     if (!this.connected) {
+      if (this.key) {
+        let mode: number;
+        try {
+          mode = (await stat(this.key)).mode & 0o777;
+        } catch {
+          this.connectionError = new ConnectorError(
+            `SSH connection '${this.user}@${this.host}' key file '${this.key}' is not accessible.`,
+            this,
+          );
+          throw this.connectionError;
+        }
+        if (mode & 0o077) {
+          this.connectionError = new ConnectorError(
+            `SSH connection '${this.user}@${this.host}' private key '${this.key}' has mode ${mode.toString(8).padStart(3, '0')} (group/other-readable); OpenSSH ignores such keys and the connection fails. Run: chmod 600 '${this.key}'.`,
+            this,
+          );
+          throw this.connectionError;
+        }
+      }
       this.tmpPath = await mkdtemp(join(tmpdir(), `sysopkit-ssh-${this.host}_`));
       if (this.controlMaster) {
         this.controlPath = join(this.tmpPath, 'connection');

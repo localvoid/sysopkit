@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { chmod } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { apply, type ApplyResult, type Connector, type ExecutionContext } from 'sysopkit';
@@ -36,6 +37,20 @@ export interface ContainerOptions {
 
 export const CONTAINER_FIXTURES_DIR: string = join(import.meta.dirname, '../fixtures/container');
 const PRIVATE_KEY_PATH = join(CONTAINER_FIXTURES_DIR, 'private_key');
+
+/**
+ * Git checkouts restore the test private key as 0644 (git has no 0600
+ * mode), and OpenSSH with BatchMode ignores group/other-readable keys.
+ * The bootstrap scripts chmod it, but they are skipped when CI reuses a
+ * cached image — so ensure 0600 here, at test time.
+ */
+async function ensurePrivateKeyPerms(): Promise<void> {
+  try {
+    await chmod(PRIVATE_KEY_PATH, 0o600);
+  } catch {
+    // A missing/unreadable key surfaces as a clear SSH auth failure below.
+  }
+}
 
 /** Allocates a free loopback TCP port for SSH publishing. */
 function allocateFreePort(): Promise<number> {
@@ -272,6 +287,7 @@ export async function withSsh<R>(
 ): Promise<ApplyResult<R>> {
   return await withContainer(async ({ container }) => {
     await ensureSshd(container);
+    await ensurePrivateKeyPerms();
 
     const conn = new SSHConnector({
       name: 'ssh',
@@ -402,6 +418,7 @@ export async function sharedSsh<R>(
   fn: (ctx: ExecutionContext) => Promise<R>,
   options?: SharedRunOptions,
 ): Promise<ApplyResult<R>> {
+  await ensurePrivateKeyPerms();
   const conn = new SSHConnector({
     name: 'ssh',
     host: 'localhost',

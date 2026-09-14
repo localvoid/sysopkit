@@ -69,6 +69,8 @@ jobs:
             e2e-containers-${{ runner.os }}-
       - run: bun install
       - run: bun run build
+      - name: Fix SSH test key permissions
+        run: chmod 600 tests/fixtures/container/private_key
       - name: Bootstrap missing test images
         run: |
           declare -A IMAGES=(

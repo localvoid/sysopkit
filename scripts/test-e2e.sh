@@ -37,6 +37,14 @@ if ! podman images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -q 'sy
   exit 1
 fi
 
+# Git checkouts restore the SSH test private key as 0644 (git has no 0600
+# mode); OpenSSH with BatchMode ignores group/other-readable keys. The
+# bootstrap scripts chmod it, but they are skipped when the image is already
+# in storage — so ensure 0600 here, at test time.
+if [[ -f tests/fixtures/container/private_key ]]; then
+  chmod 600 tests/fixtures/container/private_key
+fi
+
 # Files run in parallel workers; tests within a file stay serial on their
 # shared container. Workers are bounded (4): unbounded parallelism bursts
 # ~15 simultaneous rootless container startups, which starves podman and
