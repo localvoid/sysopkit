@@ -1,29 +1,34 @@
-import { describe, expect, test } from 'bun:test';
-import { fakeTimers, withMockContext } from '@sysopkit/test-utils';
+import { afterEach, describe, expect, jest, test } from 'bun:test';
+import { withMockContext } from '@sysopkit/test-utils';
 import { sleep, timeout, TimeoutError } from 'sysopkit';
 
+import { drainFakeTimers } from '../timers.js';
+
 describe('timeout', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
   test('basics', async () => {
-    using t = fakeTimers();
+    jest.useFakeTimers({ now: 0 });
     await withMockContext(async () => {
       const result = timeout(100, async () => {
         return 'success';
       });
-      await t.advanceAll();
+      await drainFakeTimers();
 
       expect(await result).toBe('success');
     });
   });
 
   test('aborts after timeoutMs', async () => {
-    using t = fakeTimers();
+    jest.useFakeTimers({ now: 0 });
     await withMockContext(async () => {
       try {
         const r = timeout(10, async () => {
           await sleep(100);
           expect.unreachable();
         });
-        await t.advanceByTime(10);
+        jest.advanceTimersByTime(10);
         await r;
         expect.unreachable();
       } catch (e) {

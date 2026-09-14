@@ -2,21 +2,9 @@
 
 ## Policy
 
-- **Unit** (`tests/unit/`): pure parsing/serialization (`parse*/serialize*`, no
-  connector) and sysopkit internals (`core/*`, `start`, `inventory`,
-  reporters, middleware arg-merging/stream logic, `retry`/`timeout`/`sleep`).
-  Mock-based command-string assertions (`mockSpawn` `cmd` arrays,
-  `getSpawnCalls` counts) are NOT used to verify op behavior.
-- **E2E** (`tests/e2e/ops/`): everything that executes commands
-  on a target. Assert **final remote state** via read-back ops (`readFile`,
-  `getPathInfo`, `getFileStat`, `exec(['test', ...])`, `id`/`getent`,
-  re-running the op for idempotency, `trackChanged()`), never generated shell
-  strings. `wait*` polling logic stays unit-tested (slow/flaky live) with one
-  e2e smoke per waiter.
-- Daemon/privileged ops that cannot run in unprivileged containers without
-  affecting the host (`systemctl` daemon control, `hostname`/`timezone`,
-  kernel modules, `tuned`) stay as unit mocks + file-content assertions and
-  are documented as excluded below.
+- **Unit** (`tests/unit/`): pure parsing/serialization (`parse*/serialize*`, no connector) and sysopkit internals (`core/*`, `start`, `inventory`, reporters, middleware arg-merging/stream logic, `retry`/`timeout`/`sleep`). Mock-based command-string assertions (`mockSpawn` `cmd` arrays, `getSpawnCalls` counts) are NOT used to verify op behavior.
+- **E2E** (`tests/e2e/ops/`): everything that executes commands on a target. Assert **final remote state** via read-back ops (`readFile`, `getPathInfo`, `getFileStat`, `exec(['test', ...])`, `id`/`getent`, re-running the op for idempotency, `trackChanged()`), never generated shell strings. `wait*` polling logic stays unit-tested (slow/flaky live) with one e2e smoke per waiter.
+- Daemon/privileged ops that cannot run in unprivileged containers without affecting the host (`systemctl` daemon control, `hostname`/`timezone`, kernel modules, `tuned`) stay as unit mocks + file-content assertions and are documented as excluded below.
 
 ## E2E (`tests/e2e/`)
 
@@ -81,6 +69,7 @@ Rules:
 
 ```
 unit/
+  timers.ts # drainFakeTimers helper (native jest fake timers)
   api/
     inventory.test.ts
     start.test.ts
@@ -117,12 +106,7 @@ e2e/
     openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
 ```
 
-Excluded from live testing (unit mocks + file-content assertions only):
-`systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` /
-`setTimezone` / `setLocale`, `journal` read/vacuum (needs a running journal),
-kernel module / `kexec`, `tuned` (needs daemon),
-`arch` pacman (no op module). Rationale: no systemd PID1 / host kernel in
-containers; mutating host identity from tests is out of scope.
+Excluded from live testing (unit mocks + file-content assertions only): `systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` / `setTimezone` / `setLocale`, `journal` read/vacuum (needs a running journal), kernel module / `kexec`, `tuned` (needs daemon), `arch` pacman (no op module). Rationale: no systemd PID1 / host kernel in containers; mutating host identity from tests is out of scope.
 
 ### Mock Helpers
 
@@ -174,31 +158,35 @@ interface MockSpawnSpec {
 }
 ```
 
-### Temp Directory Helper
+### Temp Directories
+
+Use the native `mkdtempDisposable` — it auto-cleans on block exit. No helper needed.
 
 ```typescript
-import { TempDir, tempDir, withTempDir } from 'sysopkit/test-utils';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import { join } from 'node:path';
 
-await withTempDir(async (tmpDir) => {
-  // use tmpDir...
-}); // cleanup guaranteed
-
-const tmp = await tempDir({ prefix: 'my-test-' });
+// Automatically unlinked when this block exits
+await using tmp = await fs.mkdtempDisposable(join(os.tmpdir(), 'sysopkit-test-'));
 // use tmp.path...
-await tmp[Symbol.asyncDispose](); // cleanup
 ```
 
 ### Fake Timers
 
+Use `jest.useFakeTimers()` from `bun:test` directly. Restore real timers in `afterEach` so a failing test can't leak fake time into other tests. To drain timers scheduled from promise continuations (retry delays, polling loops), use the shared `drainFakeTimers()` helper in `tests/unit/timers.ts` — the synchronous `jest.runAllTimers()` returns early when no timer is pending yet at call time.
+
 ```typescript
-import { fakeTimers, FakeTimers } from 'sysopkit/test-utils';
+import { afterEach, jest } from 'bun:test';
+import { drainFakeTimers } from '../timers.js';
 
-using timers = fakeTimers();
-// or
-using timers = fakeTimers(Date.now());
+afterEach(() => {
+  jest.useRealTimers();
+});
 
-await timers.advanceAll(); // advance all pending timers
-await timers.advanceByTime(1000); // advance by ms
+jest.useFakeTimers({ now: 0 });
+await drainFakeTimers(); // advance all pending timers
+jest.advanceTimersByTime(1000); // advance by ms
 ```
 
 ## Testing Utilities

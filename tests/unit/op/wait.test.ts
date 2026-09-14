@@ -1,12 +1,18 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, jest, test } from 'bun:test';
 import { Readable } from 'node:stream';
-import { fakeTimers, mockSpawn, withMockContext } from '@sysopkit/test-utils';
+import { mockSpawn, withMockContext } from '@sysopkit/test-utils';
 import { timeout, TimeoutError } from 'sysopkit';
 import { _pathInfoCmd, waitFileContent, waitFilePath } from 'sysopkit/op/file';
 import { waitProcess } from 'sysopkit/op/proc';
 
+import { drainFakeTimers } from '../timers.js';
+
 const PATH_INFO_EXISTS = '12';
 const PATH_INFO_NOT_EXISTS = '0';
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 function mockPathNotExists() {
   return {
@@ -50,7 +56,7 @@ describe('waitPath', () => {
   });
 
   test('throws on timeout', async () => {
-    using t = fakeTimers();
+    jest.useFakeTimers({ now: 0 });
 
     await withMockContext(async ({ conn }) => {
       conn.spawn.mockImplementation(async () => mockPathNotExists());
@@ -58,7 +64,7 @@ describe('waitPath', () => {
         await waitFilePath({ path: '/tmp/file', delay: 10 });
       });
       try {
-        await t.advanceAll();
+        await drainFakeTimers();
         await promise;
         expect.unreachable();
       } catch (e) {
@@ -133,7 +139,7 @@ describe('waitProcess', () => {
   });
 
   test('throws on timeout', async () => {
-    using t = fakeTimers();
+    jest.useFakeTimers({ now: 0 });
 
     await withMockContext(async ({ conn }) => {
       conn.spawn.mockImplementation(async () => mockProcessNotFound());
@@ -142,7 +148,7 @@ describe('waitProcess', () => {
         await waitProcess({ process: 'nginx', delay: 10 });
       });
       try {
-        await t.advanceAll();
+        await drainFakeTimers();
         await promise;
         expect.unreachable();
       } catch (e) {

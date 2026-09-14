@@ -1,8 +1,13 @@
-import { describe, expect, test } from 'bun:test';
-import { fakeTimers, withMockContext } from '@sysopkit/test-utils';
+import { afterEach, describe, expect, jest, test } from 'bun:test';
+import { withMockContext } from '@sysopkit/test-utils';
 import { AbortError, retry } from 'sysopkit';
 
+import { drainFakeTimers } from '../timers.js';
+
 describe('retry()', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
   describe('basic functionality', () => {
     test('returns result on success', async () => {
       await withMockContext(async () => {
@@ -12,7 +17,7 @@ describe('retry()', () => {
     });
 
     test('retries on error up to attempts', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -24,7 +29,7 @@ describe('retry()', () => {
           return 'done';
         });
 
-        await t.advanceAll();
+        await drainFakeTimers();
         const result = await promise;
 
         expect(result).toBe('done');
@@ -33,7 +38,7 @@ describe('retry()', () => {
     });
 
     test('throws after max attempts', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -42,7 +47,7 @@ describe('retry()', () => {
           throw new Error('always fails');
         });
         try {
-          await t.advanceAll();
+          await drainFakeTimers();
           await promise;
           expect.unreachable();
         } catch (e) {
@@ -68,7 +73,7 @@ describe('retry()', () => {
 
   describe('retryOn predicate', () => {
     test('retries when predicate returns true', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -87,7 +92,7 @@ describe('retry()', () => {
           },
         );
 
-        await t.advanceAll();
+        await drainFakeTimers();
         const result = await promise;
 
         expect(result).toBe('done');
@@ -123,7 +128,7 @@ describe('retry()', () => {
 
   describe('backoff strategies', () => {
     test('fixed delay between retries', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -132,7 +137,7 @@ describe('retry()', () => {
           throw new Error('fail');
         });
         try {
-          await t.advanceAll();
+          await drainFakeTimers();
           await promise;
           expect.unreachable();
         } catch (e) {
@@ -146,7 +151,7 @@ describe('retry()', () => {
     });
 
     test('exponential backoff', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -155,7 +160,7 @@ describe('retry()', () => {
           throw new Error('fail');
         });
         try {
-          await t.advanceAll();
+          await drainFakeTimers();
           await promise;
           expect.unreachable();
         } catch (e) {
@@ -169,7 +174,7 @@ describe('retry()', () => {
     });
 
     test('maxDelay caps exponential backoff', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -181,7 +186,7 @@ describe('retry()', () => {
           },
         );
         try {
-          await t.advanceAll();
+          await drainFakeTimers();
           await promise;
           expect.unreachable();
         } catch (e) {
@@ -197,13 +202,13 @@ describe('retry()', () => {
 
   describe('reporter integration', () => {
     test('calls reporter.retryAttempt with correct args', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async ({ reporter }) => {
         const promise = retry({ attempts: 1, delay: 10 }, async () => {
           throw new Error('connection refused');
         });
         try {
-          await t.advanceAll();
+          await drainFakeTimers();
           await promise;
           expect.unreachable();
         } catch (e) {
@@ -220,7 +225,7 @@ describe('retry()', () => {
 
   describe('abort handling', () => {
     test('stops retrying when context is aborted', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async ({ ctx }) => {
         let attempts = 0;
         const promise = retry({ attempts: 5, delay: 100 }, async () => {
@@ -231,7 +236,7 @@ describe('retry()', () => {
           expect.unreachable();
         });
         try {
-          await t.advanceAll();
+          await drainFakeTimers();
           await promise;
           expect.unreachable();
         } catch (e) {
@@ -263,7 +268,7 @@ describe('retry()', () => {
     });
 
     test('retries Error', async () => {
-      using t = fakeTimers();
+      jest.useFakeTimers({ now: 0 });
       await withMockContext(async () => {
         let attempts = 0;
 
@@ -275,7 +280,7 @@ describe('retry()', () => {
           return 'done';
         });
 
-        await t.advanceAll();
+        await drainFakeTimers();
         const result = await promise;
 
         expect(result).toBe('done');

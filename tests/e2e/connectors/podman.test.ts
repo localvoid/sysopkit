@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import { join } from 'node:path';
-import { tempDir } from '@sysopkit/test-utils';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { exec } from 'sysopkit/op/exec';
 import { getFileStat, getPathInfo, readFile, touchFile } from 'sysopkit/op/file';
@@ -346,7 +346,7 @@ describe('PodmanConnector', () => {
         await sh(`echo "content2" > ${src}/file2.txt`);
         await sh(`echo "nested content" > ${src}/nested/deep.txt`);
 
-        await using tmp = await tempDir();
+        await using tmp = await fs.mkdtempDisposable(join(os.tmpdir(), 'sysopkit-test-'));
         const result = await rsyncPull({ src: src + '/', dst: tmp.path + '/' });
 
         expect(result).toEqual([
@@ -392,7 +392,7 @@ describe('PodmanConnector', () => {
         await sh(`echo "target" > ${src}/target.txt`);
         await sh(`ln -s target.txt ${src}/link.txt`);
 
-        await using tmp = await tempDir();
+        await using tmp = await fs.mkdtempDisposable(join(os.tmpdir(), 'sysopkit-test-'));
         const result = await rsyncPull({ src: src + '/', dst: tmp.path + '/' });
 
         expect(result).toEqual([
@@ -427,7 +427,7 @@ describe('PodmanConnector', () => {
           await exec(['mkdir', '-p', src]);
           await sh(`echo "test" > ${src}/file.txt`);
 
-          await using tmp = await tempDir();
+          await using tmp = await fs.mkdtempDisposable(join(os.tmpdir(), 'sysopkit-test-'));
           const result = await rsyncPull({ src: src + '/', dst: tmp.path + '/' });
 
           expect(result).toEqual([
@@ -450,6 +450,5 @@ describe('PodmanConnector', () => {
         { dryRun: true },
       );
     });
-
   });
 });

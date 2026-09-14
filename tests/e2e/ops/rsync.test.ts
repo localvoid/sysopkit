@@ -1,12 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import { join } from 'node:path';
-import { tempDir, trackChanged } from '@sysopkit/test-utils';
+import { trackChanged } from '@sysopkit/test-utils';
 import { readFile, tryReadFile } from 'sysopkit/op/file';
 import { rsyncPull, rsyncPush } from 'sysopkit/op/rsync';
 import { sh } from 'sysopkit/op/sh';
 
-import { remoteTempPath, sharedPodman, startSharedContainer, type Container } from '../container.js';
+import {
+  remoteTempPath,
+  sharedPodman,
+  startSharedContainer,
+  type Container,
+} from '../container.js';
 import { EXPECTED_FILES, RSYNC_FIXTURES, verifyRemoteFiles } from '../rsync.js';
 
 describe('rsync ops', () => {
@@ -58,16 +64,14 @@ describe('rsync ops', () => {
       await sh(`echo "content1" > ${src}/file1.txt`);
       await sh(`echo "nested content" > ${src}/nested/deep.txt`);
 
-      await using tmp = await tempDir();
+      await using tmp = await fs.mkdtempDisposable(join(os.tmpdir(), 'sysopkit-test-'));
       const t = trackChanged();
       const result = await rsyncPull({ src: src + '/', dst: tmp.path + '/' });
       expect(t.changed).toBe(true);
       expect(result.length).toBeGreaterThan(0);
 
       expect(await fs.readFile(join(tmp.path, 'file1.txt'), 'utf8')).toBe('content1\n');
-      expect(await fs.readFile(join(tmp.path, 'nested/deep.txt'), 'utf8')).toBe(
-        'nested content\n',
-      );
+      expect(await fs.readFile(join(tmp.path, 'nested/deep.txt'), 'utf8')).toBe('nested content\n');
     });
   });
 });
