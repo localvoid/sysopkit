@@ -1,6 +1,7 @@
 import { docsLoader } from '@astrojs/starlight/loaders';
 import { docsSchema } from '@astrojs/starlight/schema';
 import { defineCollection } from 'astro/content/config';
+import { blogSchema } from 'starlight-blog/schema';
 
 export const collections = {
   // The 'docs' key is required by Starlight to build the sidebar and pages
@@ -9,6 +10,8 @@ export const collections = {
     loader: docsLoader(),
 
     // 2. Pass Starlight's validated frontmatter schema
-    schema: docsSchema(),
+    schema: docsSchema({
+      extend: (context) => blogSchema(context),
+    }),
   }),
 };
