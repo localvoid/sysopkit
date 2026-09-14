@@ -304,13 +304,62 @@ export async function withSsh<R>(
 }
 
 async function waitForSsh(port: number): Promise<void> {
+  // The loop must report failure via its exit code: a trailing `sleep`
+  // always succeeds, so `exit 1` after the loop is required — otherwise a
+  // never-listening sshd would silently pass as ready.
   const exitCode = await Bun.spawn([
     'bash',
     '-c',
-    `for i in {1..20}; do (echo > /dev/tcp/127.0.0.1/${port}) >/dev/null 2>&1 && break || sleep 0.1; done`,
+    `for i in {1..20}; do (echo > /dev/tcp/127.0.0.1/${port}) >/dev/null 2>&1 && exit 0 || sleep 0.1; done; exit 1`,
   ]).exited;
   if (exitCode !== 0) {
     throw Error('SSH server launch timeout');
+  }
+}
+
+/**
+ * Resets the `testuser` credentials at test time (as root) instead of
+ * relying on image bake state: password, sudo group membership, and the
+ * passworded-sudo drop-in. Makes sudo-based suites immune to stale or
+ * drifted container images (e.g. CI podman-storage cache restores).
+ */
+export async function ensureTestUser(container: Container): Promise<void> {
+  const group = container.distro === 'debian' ? 'sudo' : 'wheel';
+  const sudoersLine = `%${group} ALL=(ALL) PASSWD: ALL`;
+  const script = [
+    `id testuser >/dev/null 2>&1 || useradd -m -G ${group} -s /bin/bash testuser`,
+    `echo "testuser:testpasswd" | chpasswd`,
+    `printf '%s\\n' '${sudoersLine}' > /etc/sudoers.d/02-${group}-passwd`,
+    `chmod 440 /etc/sudoers.d/02-${group}-passwd`,
+  ].join(' && ');
+  // NB: containers started with `--user testuser` make plain `podman exec`
+  // run as testuser too — credential setup needs root explicitly.
+  const result = await container.exec(['sh', '-c', script], { user: 'root' });
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to ensure testuser credentials: ${result.stderr.trim()}`);
+  }
+}
+
+/**
+ * Reinstalls `testuser`'s `authorized_keys` from the repo private key at
+ * test time (as root), so SSH suites don't depend on the baked-in key
+ * matching (e.g. after key rotation with a stale cached image).
+ */
+async function ensureAuthorizedKeys(container: Container): Promise<void> {
+  const keygen = Bun.spawn(['ssh-keygen', '-y', '-f', PRIVATE_KEY_PATH], { stderr: 'pipe' });
+  const [keygenExit, pubkey, keygenStderr] = await Promise.all([
+    keygen.exited,
+    keygen.stdout.text(),
+    keygen.stderr.text(),
+  ]);
+  const key = pubkey.trim();
+  if (keygenExit !== 0 || key.length === 0 || !/^[A-Za-z0-9+/=._:@ -]+$/.test(key)) {
+    throw new Error(`Failed to derive public key from test private key: ${keygenStderr.trim()}`);
+  }
+  const setup = `mkdir -p /home/testuser/.ssh && printf '%s\\n' '${key}' > /home/testuser/.ssh/authorized_keys && chmod 700 /home/testuser/.ssh && chmod 600 /home/testuser/.ssh/authorized_keys && chown -R testuser:testuser /home/testuser/.ssh`;
+  const result = await container.exec(['sh', '-c', setup], { user: 'root' });
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to install test authorized_keys: ${result.stderr.trim()}`);
   }
 }
 
@@ -329,10 +378,15 @@ export async function ensureSshd(container: Container, port?: number): Promise<v
       `SSH test containers are only supported on fedora (got '${container.distro}').`,
     );
   }
+  await ensureTestUser(container);
   const check = await container.exec(['sh', '-c', 'pgrep -x sshd > /dev/null 2>&1']);
   if (check.exitCode !== 0) {
-    await container.exec(['sh', '-c', 'nohup /usr/sbin/sshd > /dev/null 2>&1 &']);
+    const started = await container.exec(['sh', '-c', 'nohup /usr/sbin/sshd > /dev/null 2>&1 &']);
+    if (started.exitCode !== 0) {
+      throw new Error(`Failed to start sshd: ${started.stderr.trim()}`);
+    }
   }
+  await ensureAuthorizedKeys(container);
   await waitForSsh(sshPortFor(container, port));
 }
 

@@ -93,14 +93,21 @@ export class ExpectPromptMiddleware extends ConnectorMiddleware {
 
     // Intercepts stderr to detect the prompt pattern. On match, writes the response
     // to stdin, strips the matched text from stderr, and releases deferred stdin operations.
+    // Decoded output is buffered across chunks (retaining a trailing window) so a
+    // prompt split over a chunk boundary is still detected; the emitted head is
+    // forwarded immediately to avoid stalling output.
     const decoder = new TextDecoder();
+    let pending = '';
+    const windowSize =
+      typeof this.pattern === 'string' ? Math.max(this.pattern.length - 1, 0) : 256;
     const stderrTransform = new TransformStream<Uint8Array, Uint8Array>({
       transform: async (chunk, controller) => {
         if (responded === false) {
-          const text = decoder.decode(chunk, STREAM_TRUE);
+          const text = pending + decoder.decode(chunk, STREAM_TRUE);
           if (text.match(this.pattern)) {
             await procStdin.write(TEXT_ENCODER.encode(this.response));
             responded = true;
+            pending = '';
             stdinPromise.resolve(void 0);
             if (stdinAborted) {
               await procStdin.abort(stdinAbortedReason);
@@ -113,9 +120,25 @@ export class ExpectPromptMiddleware extends ConnectorMiddleware {
             if (chunk.length === 0) {
               return;
             }
+          } else {
+            pending = windowSize > 0 ? text.slice(-windowSize) : '';
+            chunk = TEXT_ENCODER.encode(text.slice(0, text.length - pending.length));
+            if (chunk.length === 0) {
+              return;
+            }
           }
         }
         controller.enqueue(chunk);
+      },
+      flush(controller) {
+        if (pending.length > 0) {
+          controller.enqueue(TEXT_ENCODER.encode(pending));
+          pending = '';
+        }
+        const rest = decoder.decode();
+        if (rest) {
+          controller.enqueue(TEXT_ENCODER.encode(rest));
+        }
       },
     });
 

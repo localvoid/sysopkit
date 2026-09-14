@@ -146,14 +146,21 @@ export class SudoMiddleware extends ConnectorMiddleware {
 
       // Intercepts stderr to detect the prompt pattern. On match, writes the response
       // to stdin, strips the matched text from stderr, and releases deferred stdin operations.
+      // Decoded output is buffered across chunks (retaining a trailing window) so a
+      // prompt split over a chunk boundary is still detected; the emitted head is
+      // forwarded immediately to avoid stalling output.
       const decoder = new TextDecoder();
+      let pending = '';
+      const windowSize = Math.max(prompt.length - 1, 0);
       const stderrTransform = new TransformStream<Uint8Array, Uint8Array>({
         transform: async (chunk, controller) => {
-          const text = decoder.decode(chunk, STREAM_TRUE);
+          const text = pending + decoder.decode(chunk, STREAM_TRUE);
           if (responded === false) {
-            if (text.includes(prompt)) {
+            const index = text.indexOf(prompt);
+            if (index !== -1) {
               await procStdin.write(this.password);
               responded = true;
+              pending = '';
               stdinPromise.resolve(void 0);
               if (stdinAborted) {
                 await procStdin.abort(stdinAbortedReason);
@@ -162,17 +169,37 @@ export class SudoMiddleware extends ConnectorMiddleware {
                 await procStdin.close();
               }
 
-              chunk = TEXT_ENCODER.encode(text.replace(prompt, ''));
+              chunk = TEXT_ENCODER.encode(text.slice(0, index) + text.slice(index + prompt.length));
+              if (chunk.length === 0) {
+                return;
+              }
+            } else {
+              pending = windowSize > 0 ? text.slice(-windowSize) : '';
+              chunk = TEXT_ENCODER.encode(text.slice(0, text.length - pending.length));
               if (chunk.length === 0) {
                 return;
               }
             }
           } else {
+            pending = '';
             if (text.includes(prompt)) {
-              throw new Error(`invalid sudo password`);
+              const tail = text.trim().slice(-500);
+              throw new Error(
+                `invalid sudo password for user '${this.user ?? 'root'}' running '${cmd.join(' ')}': sudo re-prompted for a password. Check the password and the sudoers configuration.${tail ? ` Stderr tail: ${tail}` : ''}`,
+              );
             }
           }
           controller.enqueue(chunk);
+        },
+        flush(controller) {
+          if (pending.length > 0) {
+            controller.enqueue(TEXT_ENCODER.encode(pending));
+            pending = '';
+          }
+          const rest = decoder.decode();
+          if (rest) {
+            controller.enqueue(TEXT_ENCODER.encode(rest));
+          }
         },
       });
 

@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, open, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { text } from 'node:stream/consumers';
@@ -157,6 +157,16 @@ export class SSHConnector extends ConnectorBase {
           );
           throw this.connectionError;
         }
+        try {
+          const handle = await open(this.key, 'r');
+          await handle.close();
+        } catch {
+          this.connectionError = new ConnectorError(
+            `SSH connection '${this.user}@${this.host}' key file '${this.key}' is not readable by the current user.`,
+            this,
+          );
+          throw this.connectionError;
+        }
       }
       this.tmpPath = await mkdtemp(join(tmpdir(), `sysopkit-ssh-${this.host}_`));
       if (this.controlMaster) {
@@ -185,8 +195,13 @@ export class SSHConnector extends ConnectorBase {
       if (exitCode === 0) {
         this.connected = true;
       } else {
+        // Always capture a verbose retry: some OpenSSH versions suppress
+        // auth diagnostics (e.g. key rejection) at LogLevel=ERROR, which
+        // otherwise surfaces as a blank exit-255 failure.
+        const verbose = await this.verboseDiagnosis(signal);
+        const detail = [stderr.trim(), verbose.trim()].filter((part) => part.length > 0).join('\n');
         this.connectionError = new ConnectorError(
-          `SSH connection '${this.user}@${this.host}' connect failed with exit code '${exitCode}'.${stderr ? `\n${stderr}` : ''}`,
+          `SSH connection '${this.user}@${this.host}' connect failed with exit code '${exitCode}'.${detail ? `\n${detail}` : ''}`,
           this,
         );
       }
@@ -198,6 +213,42 @@ export class SSHConnector extends ConnectorBase {
 
   async spawn(cmd: string[], signal?: AbortSignal): Promise<Process> {
     return processSpawn([...this.rsh, this.host, cmd.map($_).join(' ')], signal, this.env);
+  }
+
+  /**
+   * Re-runs the failed probe once with verbose logging and without connection
+   * multiplexing to capture the underlying client-side error. `LogLevel=ERROR`
+   * suppresses auth diagnostics (e.g. key rejection), which otherwise surfaces
+   * as a blank exit-255 failure.
+   */
+  private async verboseDiagnosis(signal?: AbortSignal): Promise<string> {
+    const probe = ['ssh', '-l', this.user, '-o', 'LogLevel=VERBOSE', '-o', `ConnectTimeout=${this.timeout}`];
+    if (this.password) {
+      probe.push('-o', 'NumberOfPasswordPrompts=1');
+    } else {
+      probe.push('-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes');
+    }
+    if (this.strictHostKeyChecking === false) {
+      probe.push('-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null');
+    }
+    if (this.port !== 22) {
+      probe.push('-p', String(this.port));
+    }
+    if (this.key) {
+      probe.push('-i', this.key);
+    }
+    try {
+      const proc = processSpawn([...probe, this.host, 'exit'], signal, this.env);
+      const [verboseExit, _stdout, verboseStderr] = await Promise.all([
+        proc.exited,
+        text(proc.stdout),
+        text(proc.stderr),
+      ]);
+      const trimmed = verboseStderr.trim().slice(-2000);
+      return trimmed ? `\n[verbose retry exit ${verboseExit}]\n${trimmed}` : '';
+    } catch {
+      return '';
+    }
   }
 
   /**

@@ -25,7 +25,9 @@ env:
   ACTION_CACHE_PATH: |
     ~/.bun/install/cache
     node_modules/
-  E2E_CONTAINERS_PATH: ~/.local/share/containers
+  E2E_CONTAINERS_PATH: |
+    ~/.local/share/containers
+    tests/fixtures/container/cache
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
