@@ -6,6 +6,8 @@
     "clean": "rm -rf ./node_modules"
   },
   "devDependencies": {
+    "@sysopkit/linux": "workspace:*",
+    "@sysopkit/openwrt": "workspace:*",
     "@sysopkit/test-utils": "workspace:*",
     "sysopkit": "workspace:*"
   }

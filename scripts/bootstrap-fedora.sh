@@ -37,6 +37,7 @@ dnf install -y --setopt=install_weak_deps=false \
   grep \
   sed \
   gawk \
+  gnupg2 \
   coreutils \
   diffutils \
   tar \

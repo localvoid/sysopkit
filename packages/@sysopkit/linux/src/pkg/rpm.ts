@@ -36,7 +36,7 @@ export const RPM_FEDORA_VERSION = '%fedora';
  * @returns Array of expanded macro values, one per input
  */
 export async function getRpmVars(vars: string[]): Promise<string[]> {
-  const { stdout } = await sh(`rpm -e ${$_(vars.join('\n'))}`);
+  const { stdout } = await sh(`rpm -E ${$_(vars.join('\n'))}`);
   return stdout.trim().split('\n');
 }
 

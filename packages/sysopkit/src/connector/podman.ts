@@ -14,6 +14,7 @@ export interface PodmanConnectorOptions extends ConnectorOptions {
  */
 export class PodmanConnector extends ConnectorBase {
   private _rsh: string[];
+  private verified = false;
 
   constructor(options: PodmanConnectorOptions) {
     super(options.host, options.name ?? options.host, options.vars);
@@ -25,6 +26,9 @@ export class PodmanConnector extends ConnectorBase {
   }
 
   override async connect(signal?: AbortSignal): Promise<void> {
+    if (this.verified) {
+      return;
+    }
     const state = (await inspect(this, this.host, '{{.State.Status}}', signal)) as PodmanState;
     if (state !== 'running') {
       throw new ConnectorError(
@@ -32,6 +36,7 @@ export class PodmanConnector extends ConnectorBase {
         this,
       );
     }
+    this.verified = true;
   }
 
   async spawn(cmd: string[], signal?: AbortSignal): Promise<Process> {

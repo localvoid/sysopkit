@@ -101,7 +101,10 @@ describe('waitProcess', () => {
   test('resolves when process is present', async () => {
     await withMockContext(async ({ conn }) => {
       mockSpawn(conn, [
-        { cmd: ['sh', '-c', 'pidof nginx;[ $? -eq 1 ]&&exit 64||exit $?'], exitCode: 0 },
+        {
+          cmd: ['sh', '-c', 'pidof nginx;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi'],
+          exitCode: 0,
+        },
       ]);
 
       await waitProcess({ process: 'nginx' });
@@ -111,9 +114,18 @@ describe('waitProcess', () => {
   test('resolves when process becomes present', async () => {
     await withMockContext(async ({ conn }) => {
       mockSpawn(conn, [
-        { cmd: ['sh', '-c', 'pidof nginx;[ $? -eq 1 ]&&exit 64||exit $?'], exitCode: 64 },
-        { cmd: ['sh', '-c', 'pidof nginx;[ $? -eq 1 ]&&exit 64||exit $?'], exitCode: 64 },
-        { cmd: ['sh', '-c', 'pidof nginx;[ $? -eq 1 ]&&exit 64||exit $?'], exitCode: 0 },
+        {
+          cmd: ['sh', '-c', 'pidof nginx;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi'],
+          exitCode: 64,
+        },
+        {
+          cmd: ['sh', '-c', 'pidof nginx;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi'],
+          exitCode: 64,
+        },
+        {
+          cmd: ['sh', '-c', 'pidof nginx;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi'],
+          exitCode: 0,
+        },
       ]);
 
       await waitProcess({ process: 'nginx', delay: 10 });
@@ -142,11 +154,17 @@ describe('waitProcess', () => {
   test('waits for process to be absent', async () => {
     await withMockContext(async ({ conn }) => {
       mockSpawn(conn, [
-        { cmd: ['sh', '-c', 'pidof nginx;[ $? -eq 1 ]&&exit 64||exit $?'], exitCode: 0 },
-        { cmd: ['sh', '-c', 'pidof nginx;[ $? -eq 1 ]&&exit 64||exit $?'], exitCode: 64 },
+        {
+          cmd: ['sh', '-c', 'pidof nginx;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi'],
+          exitCode: 0,
+        },
+        {
+          cmd: ['sh', '-c', 'pidof nginx;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi'],
+          exitCode: 64,
+        },
       ]);
 
-      await waitProcess({ process: 'nginx', state: 'absent', delay: 10 });
+      await waitProcess({ process: 'nginx', state: 'terminated', delay: 10 });
     });
   });
 });

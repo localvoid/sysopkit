@@ -1,5 +1,23 @@
 # Tests
 
+## Policy
+
+- **Unit** (`tests/unit/`): pure parsing/serialization (`parse*/serialize*`, no
+  connector) and sysopkit internals (`core/*`, `start`, `inventory`,
+  reporters, middleware arg-merging/stream logic, `retry`/`timeout`/`sleep`).
+  Mock-based command-string assertions (`mockSpawn` `cmd` arrays,
+  `getSpawnCalls` counts) are NOT used to verify op behavior.
+- **Integration** (`tests/integration/ops/`): everything that executes commands
+  on a target. Assert **final remote state** via read-back ops (`readFile`,
+  `getPathInfo`, `getFileStat`, `exec(['test', ...])`, `id`/`getent`,
+  re-running the op for idempotency, `trackChanged()`), never generated shell
+  strings. `wait*` polling logic stays unit-tested (slow/flaky live) with one
+  e2e smoke per waiter.
+- Daemon/privileged ops that cannot run in unprivileged containers without
+  affecting the host (`systemctl` daemon control, `hostname`/`timezone`,
+  kernel modules, `tuned`) stay as unit mocks + file-content assertions and
+  are documented as excluded below.
+
 ## Integration (`tests/integration/`)
 
 Each test file shares long-lived containers via `beforeAll`/`afterAll` — do NOT start a fresh container per test (`withPodman`/`withSsh` are kept only for one-offs). Serial execution is assumed.
@@ -39,7 +57,7 @@ test('...', async () => {
 | arch | `sysopkit-test-arch:base` | Yes (rolling `archlinux:base`, pacman) |
 | openwrt | `sysopkit-test-openwrt:24.10` | **No** — busybox/musl, dropbear, opkg, no sudo user; only `sh` + applets |
 
-Parity contract: `testuser:testpasswd` with passworded sudo, sshd host keys + `testuser` authorized_keys, plus `rsync`, `pgrep`, GNU `stat`, `bun`.
+Parity contract: `testuser:testpasswd` with passworded sudo, sshd host keys + `testuser` authorized_keys, plus `rsync`, `pgrep`, GNU `stat`, `gpg`, `bun`.
 
 Which container to use:
 
@@ -51,11 +69,13 @@ Which container to use:
 Rules:
 
 - Remote paths must be unique per test via `remoteTempPath()` — no fixed `/tmp/...` paths (shared container = shared filesystem).
+- `sharedPodman` reuses a single connected `PodmanConnector` per `Container` (`podman inspect` runs once, in `beforeAll` order on first use). Each test still gets a fresh `start()`/`apply()` context (so `dryRun` and event handlers stay per-test); do NOT create connectors per test.
 - Only containers that use SSH publish host port 2222 (`publishSsh: false` otherwise), so coexisting containers don't collide.
 - SSH: start via `startSharedSshContainer({ distro: 'fedora' })` once per file (idempotent `ensureSshd` rejects non-fedora), then `sharedSsh(shared, ...)` per test with a fresh connector.
 - The shared container is discarded in `afterAll`, so no per-test cleanup of remote temp paths is needed.
 - Images: build with `bun run test:container:init [fedora|debian|redhat|arch|openwrt]` (see `scripts/bootstrap-<distro>.sh`); `test-integration.sh` loads every archive present in `tests/fixtures/container/cache/`.
 - Adding a distro: pin the major in `images.ts`, add `scripts/bootstrap-<distro>.sh` (+ parity smoke check if parity), add the `case` entry (automatic via dispatcher), document it in the table above.
+- Privileged: only `ops/mount.test.ts` uses `startSharedContainer({ privileged: true })` for real `tmpfs` mounts. Mounts stay inside the container's mount namespace on unique `remoteTempPath()` targets — never host paths.
 
 ## Structure
 
@@ -68,18 +88,37 @@ unit/
     apply.test.ts
     context.test.ts
   ops/
-    hash.test.ts
-    ini.test.ts
-    mount.test.ts
-    users.test.ts
-    wait.test.ts
+    ini.test.ts # serializeIni (pure)
+    mount.test.ts # mountInfo JSON parsing + fstab parse/serialize (pure)
+    wait.test.ts # polling/retry logic (mock stimulus) + TimeoutError
   reporters/
     console.test.ts
   utils/
     retry.test.ts
-    sudo.test.ts
+    sudo.test.ts # sudo argv merging (pure command generation)
     timeout.test.ts
+integration/
+  connectors/
+    podman.test.ts
+    ssh.test.ts
+  ops/ # grouped by area, assert final remote state (no cmd-string checks)
+    filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke
+    accounts.test.ts # redhat: users/groups incl. idempotency + dry-run
+    proc-net.test.ts # fedora: waitProcess, bash/nc waitPort, curl
+    config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sudoers/sshd round-trips
+    pkg-apt.test.ts # debian: apt full install/remove of `ed`
+    pkg-dnf.test.ts # fedora: dnf full install/remove of `ed`
+    pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries
+    system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops
+    mount.test.ts # redhat privileged: tmpfs mount/umount round-trip
+    openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
 ```
+
+Excluded from live testing (unit mocks + file-content assertions only):
+`systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` /
+`setTimezone` / `setLocale`, kernel module / `kexec`, `tuned` (needs daemon),
+`arch` pacman (no op module). Rationale: no systemd PID1 / host kernel in
+containers; mutating host identity from tests is out of scope.
 
 ### Mock Helpers
 

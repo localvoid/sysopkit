@@ -698,7 +698,9 @@ export async function waitFileContent({
 
 /** Gets file attributes using `lsattr`. Returns empty array on failure. */
 async function _getAttr(path: string): Promise<string[]> {
-  const { stdout, exitCode } = await sh(`lsattr -d ${$_(path)};[ $? -eq 1 ]&&exit 64||exit $?`);
+  const { stdout, exitCode } = await sh(
+    `lsattr -d ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+  );
   if (exitCode !== 0) return [];
   const line = stdout.trim().split('\n')[0];
   if (!line) return [];

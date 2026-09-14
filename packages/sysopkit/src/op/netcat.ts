@@ -52,7 +52,7 @@ export async function waitPort({
         ctx.signal.throwIfAborted();
 
         const { exitCode } = await sh(
-          `nc -z -w 1' ${$_(host)} ${port};[ $? -eq 1 ]&&exit 64||exit $?`,
+          `nc -z -w 1 ${$_(host)} ${port};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
         );
         const isOpen = exitCode === 0;
         if (isOpen === targetState) return;

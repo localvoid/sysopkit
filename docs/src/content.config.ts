@@ -1,6 +1,6 @@
 import { docsLoader } from '@astrojs/starlight/loaders';
 import { docsSchema } from '@astrojs/starlight/schema';
-import { defineCollection } from 'astro:content';
+import { defineCollection } from 'astro/content/config';
 
 export const collections = {
   // The 'docs' key is required by Starlight to build the sidebar and pages

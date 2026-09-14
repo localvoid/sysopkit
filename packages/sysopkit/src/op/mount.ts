@@ -187,10 +187,14 @@ export interface MountInfoOptions {
 
 /**
  * Gets mount information for a path using findmnt. Returns null if not mounted.
+ *
+ * `findmnt --target` reports the containing filesystem for existing paths
+ * that are not mount points themselves, so the result is only returned when
+ * the reported target matches the requested path exactly.
  */
 export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo | null> {
   const { stdout, exitCode } = await sh(
-    `findmnt --json --target ${$_(path)};[ $? -eq 1 ]&&exit 64||exit $?`,
+    `findmnt --json --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
   );
   if (exitCode !== 0) {
     return null;
@@ -200,6 +204,9 @@ export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo |
     const parsed = JSON.parse(stdout) as FindmntOutput;
     if (parsed.filesystems && parsed.filesystems.length > 0) {
       const fs = parsed.filesystems[0];
+      if (fs.target !== path) {
+        return null;
+      }
       return {
         target: fs.target,
         source: fs.source,

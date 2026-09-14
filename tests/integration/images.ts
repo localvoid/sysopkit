@@ -16,7 +16,7 @@ export interface TestImage {
   /**
    * Whether the image provides the parity contract: `testuser:testpasswd`
    * with passworded sudo, sshd host keys + `testuser` authorized_keys, plus
-   * `rsync`, `pgrep`, GNU `stat`, and `bun`.
+   * `rsync`, `pgrep`, GNU `stat`, `gpg`, and `bun`.
    *
    * OpenWRT is explicitly non-parity (busybox/musl, dropbear, opkg, no sudo
    * user): suites running on it must only rely on `sh` and preinstalled

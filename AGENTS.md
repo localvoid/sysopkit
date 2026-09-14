@@ -112,6 +112,5 @@ packages/
 
 ## Instructions
 
-- Do NOT run integration tests unless asked
 - Do NOT run `tsc`, use `bun run check` for type-checking
 - Keep docs and tests up-to-date

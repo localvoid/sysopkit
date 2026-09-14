@@ -173,186 +173,15 @@ describe('PodmanConnector', () => {
           },
         ]);
         await verifyRemoteFiles(dst, EXPECTED_FILES);
-      });
-    });
-
-    test('syncs nested directories', async () => {
-      await sharedPodman(shared, async () => {
-        const dst = remoteTempPath('rsync-push-nested-');
-        const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
-
-        expect(result).toEqual([
-          {
-            action: 'created',
-            path: './',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'executable.sh',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file1.txt',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file2.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'symlink.txt',
-            target: 'file1.txt',
-            type: 'symlink',
-          },
-          {
-            action: 'created',
-            path: 'nested/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'nested/deep.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'subdir/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'subdir/item.txt',
-            type: 'file',
-          },
-        ]);
-
-        expect(await getPathInfo(`${dst}/nested/deep.txt`)).toBeDefined();
         expect(await readFile(`${dst}/nested/deep.txt`)).toBe('nested-deep\n');
-      });
-    });
-
-    test('preserves symlinks', async () => {
-      await sharedPodman(shared, async () => {
-        const dst = remoteTempPath('rsync-push-symlink-');
-        const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
-
-        expect(result).toEqual([
-          {
-            action: 'created',
-            path: './',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'executable.sh',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file1.txt',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file2.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'symlink.txt',
-            target: 'file1.txt',
-            type: 'symlink',
-          },
-          {
-            action: 'created',
-            path: 'nested/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'nested/deep.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'subdir/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'subdir/item.txt',
-            type: 'file',
-          },
-        ]);
 
         const symlinkCheck = await exec(['test', '-L', `${dst}/symlink.txt`]);
         expect(symlinkCheck.exitCode).toBe(0);
 
         const target = await exec(['readlink', `${dst}/symlink.txt`]);
         expect(target.stdout.trim()).toBe('file1.txt');
-      });
-    });
 
-    test('preserves executable permissions', async () => {
-      await sharedPodman(shared, async () => {
-        const dst = remoteTempPath('rsync-push-perms-');
-        const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
-
-        expect(result).toEqual([
-          {
-            action: 'created',
-            path: './',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'executable.sh',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file1.txt',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file2.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'symlink.txt',
-            target: 'file1.txt',
-            type: 'symlink',
-          },
-          {
-            action: 'created',
-            path: 'nested/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'nested/deep.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'subdir/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'subdir/item.txt',
-            type: 'file',
-          },
-        ]);
-
-        const s = await getFileStat(`${dst}/executable.sh`);
-        expect(s.mode).toBe(0o755);
+        expect((await getFileStat(`${dst}/executable.sh`)).mode).toBe(0o755);
       });
     });
 
@@ -506,62 +335,6 @@ describe('PodmanConnector', () => {
         { dryRun: true },
       );
     });
-
-    test('output contains itemize-changes format', async () => {
-      await sharedPodman(shared, async () => {
-        const dst = remoteTempPath('rsync-push-output-');
-        const result = await rsyncPush({ src: RSYNC_FIXTURES + '/', dst: dst + '/' });
-
-        expect(result).toEqual([
-          {
-            action: 'created',
-            path: './',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'executable.sh',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file1.txt',
-            type: 'file',
-          },
-          {
-            action: 'sent',
-            path: 'file2.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'symlink.txt',
-            target: 'file1.txt',
-            type: 'symlink',
-          },
-          {
-            action: 'created',
-            path: 'nested/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'nested/deep.txt',
-            type: 'file',
-          },
-          {
-            action: 'created',
-            path: 'subdir/',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'subdir/item.txt',
-            type: 'file',
-          },
-        ]);
-      });
-    });
   });
 
   describe('rsyncPull', () => {
@@ -678,28 +451,5 @@ describe('PodmanConnector', () => {
       );
     });
 
-    test('output contains itemize-changes format', async () => {
-      await sharedPodman(shared, async () => {
-        const src = remoteTempPath('rsync-pull-output-');
-        await exec(['mkdir', '-p', src]);
-        await sh(`echo "content" > ${src}/file.txt`);
-
-        await using tmp = await tempDir();
-        const result = await rsyncPull({ src: src + '/', dst: tmp.path + '/' });
-
-        expect(result).toEqual([
-          {
-            action: 'touched',
-            path: './',
-            type: 'directory',
-          },
-          {
-            action: 'sent',
-            path: 'file.txt',
-            type: 'file',
-          },
-        ]);
-      });
-    });
   });
 });

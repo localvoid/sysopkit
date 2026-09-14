@@ -261,17 +261,20 @@ export interface GroupInfo {
 
 /** Parses /etc/group content into an array of group entries. */
 export function parseGroupFile(data: string): GroupInfo[] {
-  return data.split('\n').map((line, i) => {
-    const parts = line.split(':');
-    if (parts.length < 4) {
-      throw new Error(`invalid group entry on line ${i + 1}`);
-    }
-    return {
-      name: parts[0],
-      gid: parseInt(parts[2], 10),
-      members: parts[3].split(',').filter(Boolean),
-    };
-  });
+  return data
+    .trim()
+    .split('\n')
+    .map((line, i) => {
+      const parts = line.split(':');
+      if (parts.length < 4) {
+        throw new Error(`invalid group entry on line ${i + 1}`);
+      }
+      return {
+        name: parts[0],
+        gid: parseInt(parts[2], 10),
+        members: parts[3].split(',').filter(Boolean),
+      };
+    });
 }
 
 /** Configuration for createGroup operation. */

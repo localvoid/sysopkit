@@ -40,6 +40,7 @@ microdnf install -y \
   grep \
   sed \
   gawk \
+  gnupg2 \
   diffutils \
   tar \
   gzip \
@@ -93,7 +94,7 @@ id testuser
 groups testuser | grep -qw wheel
 test -f /etc/ssh/ssh_host_ed25519_key
 test -f /home/testuser/.ssh/authorized_keys
-for cmd in sshd sudo rsync pgrep stat bun; do command -v "$cmd" >/dev/null; done
+for cmd in sshd sudo rsync pgrep stat bun gpg; do command -v "$cmd" >/dev/null; done
 echo "Parity contract OK."
 '
 

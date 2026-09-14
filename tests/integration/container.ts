@@ -22,6 +22,13 @@ export interface ContainerOptions {
    * coexist without host port collisions.
    */
   readonly publishSsh?: boolean;
+  /**
+   * Run the container with `--privileged` (adds all capabilities, e.g.
+   * `CAP_SYS_ADMIN` for `mount(2)`). Only for suites that need real
+   * mount/umount; mounts stay inside the container's mount namespace and
+   * must use unique `remoteTempPath()` targets — never host paths.
+   */
+  readonly privileged?: boolean;
 }
 
 export const CONTAINER_FIXTURES_DIR: string = join(import.meta.dirname, '../fixtures/container');
@@ -44,6 +51,7 @@ export class Container {
   readonly image: string;
   readonly user: string | undefined;
   readonly ports: Record<number, number> | undefined;
+  readonly privileged: boolean;
   private started = false;
 
   constructor(options: ContainerOptions) {
@@ -52,6 +60,7 @@ export class Container {
     this.image = TEST_IMAGES[options.distro].image;
     this.user = options.user;
     this.ports = options.publishSsh === false ? undefined : { [SSH_PORT]: 22 };
+    this.privileged = options.privileged === true;
   }
 
   async start(): Promise<void> {
@@ -73,6 +82,10 @@ export class Container {
     ];
     if (this.user) {
       args.push('--user', this.user);
+    }
+
+    if (this.privileged) {
+      args.push('--privileged');
     }
 
     if (this.ports) {
@@ -292,19 +305,32 @@ async function runShared<R>(
 
 /**
  * Runs `fn` against a shared container via PodmanConnector.
- * Creates a fresh connector per test (cheap `podman inspect`) while reusing
- * the running container, so per-test cost is ~0 container boots.
+ * Reuses a single connected PodmanConnector per container (the
+ * `podman inspect` state check runs once), while every test still gets a
+ * fresh `start()`/`apply()` context — so per-test cost is ~0 container boots
+ * and ~0 reconnects. `dryRun` stays per-test since it lives on the context,
+ * not the connector.
  */
+const podmanConnectors = new WeakMap<Container, PodmanConnector>();
+
+function podmanConnectorFor(container: Container): PodmanConnector {
+  let conn = podmanConnectors.get(container);
+  if (!conn) {
+    conn = new PodmanConnector({
+      name: `podman-${container.name}`,
+      host: container.name,
+    });
+    podmanConnectors.set(container, conn);
+  }
+  return conn;
+}
+
 export async function sharedPodman<R>(
   container: Container,
   fn: (ctx: ExecutionContext) => Promise<R>,
   options?: SharedRunOptions,
 ): Promise<ApplyResult<R>> {
-  const conn = new PodmanConnector({
-    name: `podman-${container.name}`,
-    host: container.name,
-  });
-  return await runShared(container, conn, fn, options);
+  return await runShared(container, podmanConnectorFor(container), fn, options);
 }
 
 /**

@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { getSpawnCalls, mockSpawn, trackChanged, withMockContext } from '@sysopkit/test-utils';
-import { mount, mountInfo, umount } from 'sysopkit/op/mount';
+import { mockSpawn, withMockContext } from '@sysopkit/test-utils';
+import { mountInfo, parseFstab, serializeFstab, type FstabEntry } from 'sysopkit/op/mount';
+
+// Unit scope: findmnt JSON parsing and fstab serialization only.
+// Real mount/umount behavior (idempotency, dry-run, round-trip) is covered
+// in tests/integration/ops/mount.test.ts with actual tmpfs mounts.
 
 const FINDMNT_JSON = JSON.stringify({
   filesystems: [
@@ -15,7 +19,7 @@ const FINDMNT_JSON = JSON.stringify({
 
 function mockFindmnt(path: string, stdout: string, exitCode = 0) {
   return {
-    cmd: ['sh', '-c', `findmnt --json --target ${path};[ $? -eq 1 ]&&exit 64||exit $?`],
+    cmd: ['sh', '-c', `findmnt --json --target ${path};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`],
     stdout,
     exitCode: exitCode === 1 ? 64 : exitCode,
   };
@@ -56,81 +60,48 @@ describe('mountInfo', () => {
       expect(result).toBeNull();
     });
   });
+
+  test('returns null when findmnt reports the parent filesystem', async () => {
+    await withMockContext(async ({ conn }) => {
+      const parentJson = JSON.stringify({
+        filesystems: [{ target: '/', source: 'overlay', fstype: 'overlay', options: 'rw' }],
+      });
+      mockSpawn(conn, [mockFindmnt('/mnt/data', parentJson)]);
+
+      const result = await mountInfo({ path: '/mnt/data' });
+
+      expect(result).toBeNull();
+    });
+  });
 });
 
-describe('mount', () => {
-  test('mounts when not mounted', async () => {
-    await withMockContext(async ({ conn }) => {
-      const tracker = trackChanged();
-      mockSpawn(conn, [
-        mockFindmnt('/mnt/data', '', 64),
-        { cmd: ['sh', '-c', 'mount -t ext4 -o defaults /dev/sda1 /mnt/data'], exitCode: 0 },
-      ]);
+describe('fstab', () => {
+  const entries: FstabEntry[] = [
+    { device: '/dev/sda1', mountPoint: '/', fsType: 'ext4', options: ['defaults'], dump: 0, pass: 1 },
+    {
+      device: 'UUID=abc-123',
+      mountPoint: '/mnt/data',
+      fsType: 'ext4',
+      options: ['defaults', 'noatime'],
+      dump: 0,
+      pass: 2,
+    },
+  ];
 
-      await mount({
-        src: '/dev/sda1',
-        path: '/mnt/data',
-        fstype: 'ext4',
-      });
-
-      expect(tracker.changed).toBe(true);
-      const calls = getSpawnCalls(conn);
-      expect(calls.length).toBe(2);
-    });
+  test('serialize/parse round-trip', () => {
+    expect(parseFstab(serializeFstab(entries))).toEqual(entries);
   });
 
-  test('is idempotent when already mounted with same options', async () => {
-    await withMockContext(async ({ conn }) => {
-      const tracker = trackChanged();
-      mockSpawn(conn, [mockFindmnt('/mnt/data', FINDMNT_JSON)]);
-
-      await mount({
-        src: '/dev/sda1',
-        path: '/mnt/data',
-        fstype: 'ext4',
-      });
-
-      expect(tracker.changed).toBe(false);
-      const calls = getSpawnCalls(conn);
-      expect(calls.length).toBe(1);
-    });
+  test('parse skips comments and blank lines', () => {
+    const parsed = parseFstab('# comment\n\n/dev/sda1 / ext4 defaults 0 1\n');
+    expect(parsed.length).toBe(1);
+    expect(parsed[0].mountPoint).toBe('/');
   });
 
-  test('unmounts when mounted and state is unmounted', async () => {
-    await withMockContext(async ({ conn }) => {
-      const tracker = trackChanged();
-      mockSpawn(conn, [
-        mockFindmnt('/mnt/data', FINDMNT_JSON),
-        { cmd: ['sh', '-c', 'umount /mnt/data'], exitCode: 0 },
-      ]);
-
-      await umount({
-        path: '/mnt/data',
-      });
-
-      expect(tracker.changed).toBe(true);
-      const calls = getSpawnCalls(conn);
-      expect(calls.length).toBe(2);
-    });
-  });
-
-  test('reports change in dryRun', async () => {
-    await withMockContext(
-      async ({ conn }) => {
-        const tracker = trackChanged();
-        mockSpawn(conn, [mockFindmnt('/mnt/data', '', 64)]);
-
-        await mount({
-          src: '/dev/sda1',
-          path: '/mnt/data',
-          fstype: 'ext4',
-        });
-
-        expect(tracker.changed).toBe(true);
-        const calls = getSpawnCalls(conn);
-        expect(calls.length).toBe(1);
-      },
-      { dryRun: true },
-    );
+  test('escapes spaces in fields', () => {
+    const withSpace: FstabEntry[] = [
+      { device: '/dev/disk', mountPoint: '/mnt/my data', fsType: 'ext4', options: ['defaults'], dump: 0, pass: 0 },
+    ];
+    expect(parseFstab(serializeFstab(withSpace))).toEqual(withSpace);
   });
 });

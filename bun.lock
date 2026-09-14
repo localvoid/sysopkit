@@ -51,6 +51,8 @@
     "tests": {
       "name": "sysopkit-tests",
       "devDependencies": {
+        "@sysopkit/linux": "workspace:*",
+        "@sysopkit/openwrt": "workspace:*",
         "@sysopkit/test-utils": "workspace:*",
         "sysopkit": "workspace:*",
       },

@@ -35,7 +35,7 @@ export function $_(arg: string): string {
  * @returns Wrapped command that remaps exit codes
  */
 export function shMapExitCode(cmd: string, from: number, to: number): string {
-  return `${cmd};[ $? -eq ${from} ]&&exit ${to}||exit $?`;
+  return `${cmd};o=$?;if [ $o -eq ${from} ];then exit ${to};else exit $o;fi`;
 }
 
 /** Mapping of exit code(s) to a replacement value. */
