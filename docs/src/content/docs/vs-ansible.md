@@ -15,13 +15,13 @@ Replaces Ansible's `register` directive. The result of any operation is simply r
 
 ## Typed Configs
 
-Replace string templates with structured data. Instead of generating config files through string interpolation, operations accept typed objects that are serialized correctly.
+Replaces string templates with structured data. Instead of generating config files through string interpolation, operations accept typed objects that are serialized correctly.
 
 This eliminates template syntax errors, provides IDE autocomplete, and catches type mismatches at compile time rather than at deployment.
 
 ## Templates
 
-Use TypeScript template literals or any templating library you prefer.
+Uses TypeScript template literals or any templating library you prefer.
 
 ## Error Handling
 
@@ -33,7 +33,7 @@ Is just code. Instead of configuring plugins in YAML, you can fetch data from an
 
 ## Roles and Reuse
 
-Work through npm packages and ES modules. Instead of Ansible's role directory structure, you can publish reusable automation as npm packages and import them with standard `import` statements. Version management comes from npm, and you can use any package in the TypeScript ecosystem.
+Works through npm packages and ES modules. Instead of Ansible's role directory structure, you can publish reusable automation as npm packages and import them with standard `import` statements. Version management comes from npm, and you can use any package in the TypeScript ecosystem.
 
 ## LSP and IDE Support
 

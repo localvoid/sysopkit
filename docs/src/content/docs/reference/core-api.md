@@ -17,7 +17,7 @@ interface Connector extends AsyncDisposable {
 }
 ```
 
-Abstract command transport. Implementations: `LocalConnector`, `SSHConnector`, `PodmanConnector`.
+Abstract command transport with `LocalConnector`, `SSHConnector`, and `PodmanConnector` implementations.
 
 ## ConnectorBase
 
@@ -33,7 +33,7 @@ abstract class ConnectorBase implements Connector {
 }
 ```
 
-Base class implementing common connector parts.
+Base class that implements the shared connector behavior.
 
 ## ConnectorMiddleware
 
@@ -45,7 +45,7 @@ abstract class ConnectorMiddleware implements Connector {
 }
 ```
 
-Decorator pattern base class. Subclasses override methods to intercept or transform behavior.
+Base class for the decorator pattern. Subclasses override methods to intercept or transform behavior.
 
 ## ExecutionContext
 
@@ -97,7 +97,7 @@ type Event<T> = symbol & {
 };
 ```
 
-Branded symbol type for type-safe events.
+A branded symbol type for type-safe events.
 
 ## ChangeEntry
 
@@ -120,7 +120,7 @@ type Var<T> = symbol & {
 };
 ```
 
-Branded symbol type for typed context variables.
+A branded symbol type for typed context variables.
 
 ## Process
 

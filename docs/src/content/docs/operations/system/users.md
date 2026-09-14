@@ -1,6 +1,6 @@
 ---
 title: users
-description: User and group management operations.
+description: Create and remove system users and groups.
 ---
 
 ```ts
@@ -11,7 +11,7 @@ import { createUser, deleteUser, createGroup, deleteGroup } from 'sysopkit/op/us
 
 > **IDEMPOTENT**
 
-Creates a system user:
+Creates a system user.
 
 ```ts
 await createUser({
@@ -28,7 +28,7 @@ await createUser({
 
 > **IDEMPOTENT**
 
-Removes a user:
+Removes a user.
 
 ```ts
 await deleteUser({ name: 'app', removeHome: true });
@@ -38,7 +38,7 @@ await deleteUser({ name: 'app', removeHome: true });
 
 > **IDEMPOTENT**
 
-Creates or removes a group:
+Creates or removes a group.
 
 ```ts
 await createGroup({ name: 'app', gid: 1001 });

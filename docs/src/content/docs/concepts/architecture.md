@@ -3,7 +3,7 @@ title: Architecture
 description: How SysopKit's subsystems connect — context propagation, connectors, middleware, operations.
 ---
 
-SysopKit is a TypeScript infrastructure automation framework. Its architecture is built around a few core abstractions: contexts, connectors, middleware, operations and reporters.
+SysopKit's architecture is built around a few core abstractions: contexts, connectors, middleware, operations, and reporters.
 
 ## Core Design Principles
 
@@ -24,19 +24,19 @@ Each context carries a reporter, connector, abort signal, typed variables, verbo
 
 ## Connectors
 
-The `Connector` interface abstracts command transport — local processes, SSH or podman containers. Every implementation provides `connect()`, `spawn()` methods. See [Connectors](/concepts/connectors/) for the guide.
+The `Connector` interface abstracts command transport — local processes, SSH or podman containers. Every implementation provides `connect()`, `spawn()` methods. See [Connectors](/concepts/connectors/) for details.
 
 ## Middleware
 
-`ConnectorMiddleware` wraps a connector using decorator pattern. Built-in middlewares add sudo, command tracing, prompt handling and command transformation. See [Middleware](/concepts/middleware/) for the guide.
+`ConnectorMiddleware` wraps a connector using decorator pattern. Built-in middlewares add sudo, command tracing, prompt handling and command transformation. See [Middleware](/concepts/middleware/) for details.
 
 ## Apply Engine
 
-`apply()` orchestrates operations across one or more hosts. Single-host mode connects and runs a function; multi-host mode processes hosts in parallel batches with configurable failure thresholds. See [Apply](/concepts/apply/) for the guide.
+`apply()` orchestrates operations across one or more hosts. Single-host mode connects and runs a function; multi-host mode processes hosts in parallel batches with configurable failure thresholds. See [Apply](/concepts/apply/) for details.
 
 ## Inventory System
 
-The inventory system provides host management with typed variables, tags, and lazy connector creation. Variables merge with precedence: inventory → group → host. See [Inventory](/concepts/inventory/) for the guide.
+The inventory system provides host management with typed variables, tags, and lazy connector creation. Variables merge with precedence: inventory → group → host. See [Inventory](/concepts/inventory/) for details.
 
 ## Events & Changes
 

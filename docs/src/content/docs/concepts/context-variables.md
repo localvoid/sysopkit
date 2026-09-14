@@ -3,11 +3,11 @@ title: Context Variables
 description: Typed, scope-safe context variables with parent-chain lookup.
 ---
 
-Context variables use branded symbols (`Var<T>`) to provide type-safe access to variables.
+Context variables are branded symbols (`Var<T>`) that provide type-safe access to scoped values.
 
 ## Var Type
 
-```typescript
+```ts
 type Var<T> = symbol & {
   readonly __value?: T;
   readonly __type?: 'sysopkit.var';
@@ -18,7 +18,7 @@ Variables are looked up via parent-chain traversal. A child context can access v
 
 ## Using Variables
 
-```typescript
+```ts
 import { task } from 'sysopkit';
 
 task('inner', async (ctx) => {
@@ -41,7 +41,7 @@ task('inner', async (ctx) => {
 
 Variables are typically set when creating a context:
 
-```typescript
+```ts
 import { start } from 'sysopkit/start';
 import { SUDO_PASSWORD } from 'sysopkit/middleware/sudo';
 

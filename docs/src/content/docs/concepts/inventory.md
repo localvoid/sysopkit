@@ -3,7 +3,7 @@ title: Inventory
 description: Define hosts and groups with typed variables.
 ---
 
-SysopKit inventory system provides Ansible-like host management.
+SysopKit's inventory system manages hosts and groups with typed variables.
 
 ## Structure
 

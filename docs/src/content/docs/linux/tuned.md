@@ -3,7 +3,7 @@ title: Tuned
 description: Tuned profile management operations.
 ---
 
-Tuned is a daemon that dynamically tunes system settings for different workloads (throughput, latency, powersave, etc.).
+Tuned is a daemon that dynamically adjusts system settings for different workloads (throughput, latency, powersave, etc.).
 
 ```ts
 import { setTuneProfile } from '@sysopkit/linux/tuned';

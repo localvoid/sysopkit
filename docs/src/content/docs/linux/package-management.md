@@ -3,7 +3,7 @@ title: Package Management
 description: APT, DNF, and RPM package management operations.
 ---
 
-Operations for managing packages on Debian/Ubuntu (APT), Fedora/RHEL (DNF), and RPM GPG key management.
+Manage packages on Debian/Ubuntu (APT) and Fedora/RHEL (DNF), plus GPG keys in the RPM database.
 
 ## APT (Debian/Ubuntu)
 

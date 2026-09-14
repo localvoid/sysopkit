@@ -39,7 +39,7 @@ Context variables control sudo behavior:
 
 ## TraceMiddleware
 
-Pipes stdout and stderr through `TransformStream`s and reports output via the reporter.
+Pipes stdout and stderr through TransformStreams and reports each chunk via the reporter.
 
 ```ts
 import { trace } from 'sysopkit/middleware/trace';

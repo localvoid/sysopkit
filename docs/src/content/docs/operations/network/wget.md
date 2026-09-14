@@ -1,6 +1,6 @@
 ---
 title: wget
-description: File download via wget.
+description: Download files via wget.
 ---
 
 ```ts
@@ -9,15 +9,15 @@ import { wget } from 'sysopkit/op/wget';
 
 ## wget()
 
-Downloads a file via `wget`:
+Downloads a file via `wget`.
 
 ```ts
 await wget('https://example.com/file.tar.gz', '/tmp/file.tar.gz');
 ```
 
-Supports additional wget flags:
+Pass additional wget flags via the `flags` option.
 
-```typescript
+```ts
 await wget('https://example.com/file.tar.gz', '/tmp/file.tar.gz', {
   flags: ['--no-check-certificate'],
 });

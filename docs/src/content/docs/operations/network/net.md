@@ -1,6 +1,6 @@
 ---
 title: net
-description: Network configuration — hosts file management.
+description: Parse and serialize `/etc/hosts` files.
 ---
 
 ```ts
@@ -9,7 +9,7 @@ import { parseHosts, serializeHosts } from 'sysopkit/op/net';
 
 ## parseHosts()
 
-Parses `/etc/hosts` format:
+Parses `/etc/hosts` content into structured entries.
 
 ```ts
 const entries = parseHosts(existingContent);
@@ -17,7 +17,7 @@ const entries = parseHosts(existingContent);
 
 ## serializeHosts()
 
-Serializes hosts entries to string:
+Serializes hosts entries back into `/etc/hosts` format.
 
 ```ts
 const content = serializeHosts([

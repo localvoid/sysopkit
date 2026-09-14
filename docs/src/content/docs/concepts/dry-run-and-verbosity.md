@@ -7,13 +7,13 @@ description: Controlling execution mode and output verbosity.
 
 Dry run mode prevents actual changes while still showing what would happen. Idempotent operations emit change events but skip modification.
 
-Enable via environment variable:
+Enable dry-run mode via the environment variable:
 
 ```sh
 SYSOPKIT_DRY_RUN=1 bun run script.ts
 ```
 
-Or programmatically:
+Alternatively, enable it programmatically:
 
 ```ts
 await start(
@@ -45,6 +45,6 @@ Set via environment variable:
 SYSOPKIT_VERBOSITY=debug bun run script.ts
 ```
 
-Valid values: `minimal`, `normal`, `trace`, `debug`.
+The valid values are `minimal`, `normal`, `trace`, and `debug`.
 
 Invalid values produce a warning and fall back to `normal`.

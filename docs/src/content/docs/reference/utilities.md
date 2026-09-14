@@ -5,7 +5,7 @@ description: retry, timeout, sleep, process management, and shell utilities.
 
 ## retry()
 
-Configurable retry with fixed or exponential backoff. Skips on `AbortError` so cancellation propagates immediately.
+Retries a function with fixed or exponential backoff. Skips `AbortError` so cancellation propagates immediately.
 
 ```ts
 import { retry } from 'sysopkit';
@@ -37,7 +37,7 @@ await retry(
 
 ## timeout()
 
-Wraps a function with an `AbortController`-based timer. Throws `TimeoutError` if the function exceeds the limit.
+Runs a function with an `AbortController`-based timer, throwing `TimeoutError` if the function exceeds the limit.
 
 ```ts
 import { timeout } from 'sysopkit';
@@ -49,7 +49,7 @@ await timeout(async () => {
 
 ## sleep()
 
-Abort-aware delay. Rejects with `signal.reason` on cancellation.
+An abort-aware delay that rejects with `signal.reason` on cancellation.
 
 ```ts
 import { sleep } from 'sysopkit';

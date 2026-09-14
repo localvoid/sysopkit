@@ -1,6 +1,6 @@
 ---
 title: exec
-description: Low-level process spawning and command execution.
+description: Spawn processes and collect their output via the active connector.
 ---
 
 ```ts

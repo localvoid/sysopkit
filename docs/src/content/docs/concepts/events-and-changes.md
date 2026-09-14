@@ -3,11 +3,11 @@ title: Events and Changes
 description: Type-safe event system and change tracking for infrastructure modifications.
 ---
 
-SysopKit uses a type-safe event system with branded symbols to prevent accidental collisions.
+SysopKit's event system uses branded symbols, so independently defined events can never collide.
 
 ## Event Type
 
-```typescript
+```ts
 type Event<T> = symbol & {
   readonly __value?: T;
   readonly __type?: 'sysopkit.event';
@@ -18,7 +18,7 @@ type Event<T> = symbol & {
 
 Use `emit()` to dispatch events from any context:
 
-```typescript
+```ts
 import { emit, Event, task } from 'sysopkit';
 
 const MY_EVENT: Event<string> = Symbol('my.event');
@@ -34,7 +34,7 @@ Events propagate up the parent context chain, calling registered handlers at eac
 
 Register handlers with `ctx.on()`:
 
-```typescript
+```ts
 import { task } from 'sysopkit';
 
 await task('demo', async (ctx) => {
@@ -52,7 +52,7 @@ await task('demo', async (ctx) => {
 
 The `CHANGE_EVENT` carries `ChangeEntry` objects describing infrastructure modifications:
 
-```typescript
+```ts
 interface ChangeEntry {
   type: string; // e.g., "file", "user", "package"
   resource: string; // e.g., "/etc/nginx/nginx.conf"
@@ -66,7 +66,7 @@ interface ChangeEntry {
 
 A convenience function for operations to report changes:
 
-```typescript
+```ts
 import { emitChanged } from 'sysopkit';
 
 emitChanged({
@@ -82,7 +82,7 @@ emitChanged({
 
 Use `onChange()` to register a scoped change listener for the duration of a function:
 
-```typescript
+```ts
 import { onChange, latch } from 'sysopkit';
 
 const restart = latch();

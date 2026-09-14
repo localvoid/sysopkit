@@ -1,6 +1,6 @@
 ---
 title: bash
-description: Bash shell command execution and TCP port waiting.
+description: Run commands with bash and wait for TCP ports.
 ---
 
 ```ts
@@ -17,7 +17,7 @@ const result = await bash('for i in {1..3}; do echo $i; done');
 
 ## waitPort()
 
-Waits for a TCP port to open or close using bash `/dev/tcp`:
+Waits for a TCP port to open or close using bash `/dev/tcp`.
 
 ```ts
 await waitPort({ port: 80, host: 'localhost', state: 'open', delay: 1000 });

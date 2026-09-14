@@ -1,6 +1,6 @@
 ---
 title: ssh
-description: SSH configuration serialization.
+description: Serialize objects to `ssh_config` format.
 ---
 
 ```ts
@@ -9,7 +9,7 @@ import { serializeSshConf } from 'sysopkit/op/ssh';
 
 ## serializeSshConf()
 
-Serializes an SSH configuration object to `ssh_config` format:
+Serializes an SSH configuration object to `ssh_config` format.
 
 ```ts
 const config = serializeSshConf({
@@ -21,7 +21,7 @@ const config = serializeSshConf({
 });
 ```
 
-Output:
+This produces the following `ssh_config` text:
 
 ```
 Host github.com

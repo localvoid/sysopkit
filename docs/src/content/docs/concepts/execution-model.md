@@ -3,7 +3,7 @@ title: Execution Model
 description: How SysopKit propagates context, manages tasks, and handles execution lifecycle.
 ---
 
-SysopKit uses `AsyncLocalStorage` to propagate `ExecutionContext` tree across async boundaries. Every execution runs within a context that carries a reporter, connector, abort signal, typed variables, verbosity level and dry-run flag.
+SysopKit propagates an `ExecutionContext` tree across async boundaries with `AsyncLocalStorage`. Every execution runs within a context that carries a reporter, connector, abort signal, typed variables, verbosity level, and dry-run flag.
 
 ## Context Tree
 
@@ -55,7 +55,7 @@ await utility('check state', async () => {
 
 ## Accessing Context
 
-Context can be accessed either via `context()` function to retrieve it from `AsyncLocalStorage`:
+Call `context()` to retrieve the current context from `AsyncLocalStorage`:
 
 ```ts
 import { context } from 'sysopkit';
@@ -65,7 +65,7 @@ console.log(ctx.dryRun); // is this a dry run?
 console.log(ctx.name); // current task/utility name
 ```
 
-Or from `apply`, `task`, `utility` closures:
+Alternatively, receive the context as the closure argument of `task`, `utility`, or `apply`:
 
 ```ts
 import { context } from 'sysopkit';

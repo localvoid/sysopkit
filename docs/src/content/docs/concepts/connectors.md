@@ -83,4 +83,4 @@ When using `resolveInventory()`, host strings with prefixes automatically select
 - `ssh:hostname` — SSH connector (default)
 - `pod:container` — Podman connector
 
-Custom connectors can be registered with custom prefixes.
+Factories for other transports can be registered under custom prefixes.

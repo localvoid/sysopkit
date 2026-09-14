@@ -3,7 +3,7 @@ title: Tutorial — Provision a Web Server
 description: Step-by-step walkthrough of provisioning a web server with SysopKit.
 ---
 
-This tutorial walks through a complete automation scenario: provisioning a web server with nginx, config file and a firewall rule.
+This tutorial walks through a complete automation scenario: provisioning a web server with nginx, a config file, and a firewall rule.
 
 ## Prerequisites
 
@@ -24,15 +24,18 @@ await start(async () => {
 
 ## Step 2: Define the Host
 
-Define the target host with SSH connector.
+Define the target host with an SSH connector.
 
 ```ts
+import { start } from 'sysopkit/start';
+import { SSHConnector } from 'sysopkit/connector/ssh';
+
 await start(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
 });
 ```
 
-The `await using` pattern ensures that SSH connection is cleaned up when script exits.
+The `await using` pattern ensures your SSH connection is cleaned up when the script exits.
 
 ## Step 3: Apply Operations to Host
 
@@ -115,7 +118,7 @@ if (configChanged()) {
 
 ## Step 7: Organize with Tasks
 
-Use `task()` to group related operations with named context:
+Use `task()` to group related operations under a named context:
 
 ```ts
 import { task } from 'sysopkit';
@@ -156,7 +159,7 @@ const NGINX_CONFIG = `server {
 await start(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
 
-  await apply('provision web', hosts.getByGroup('web'), async () => {
+  await apply('provision web', c, async () => {
     await sudo(async () => {
       await task('install packages', async () => {
         await sh('apt update');
@@ -189,3 +192,5 @@ await start(async () => {
   });
 });
 ```
+
+You now have a complete provisioning script: it connects over SSH, installs packages, manages config idempotently, reloads nginx only when the config changes, and configures the firewall. From here, continue with [Core Concepts](/concepts/architecture/) to understand the execution model, or scale out with [Inventory](/concepts/inventory/) to run this script against a fleet of hosts.

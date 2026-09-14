@@ -20,7 +20,7 @@ Error
 
 ## ConnectorError
 
-Transport-level failures — connection refused, authentication failure, etc.
+Reports transport-level failures such as refused connections or authentication errors.
 
 ```ts
 import { ConnectorError } from 'sysopkit';
@@ -39,7 +39,7 @@ class ConnectorError extends Error {
 
 ## OperationError
 
-Operation-specific failures wrapping an underlying cause.
+Wraps the underlying cause of an operation failure.
 
 ```ts
 import { OperationError } from 'sysopkit';
@@ -58,7 +58,7 @@ class OperationError extends Error {
 
 ## AbortError
 
-Execution was cancelled via `AbortSignal`. Use `isAbortError()` to check safely across realm boundaries.
+Reports execution cancelled via `AbortSignal`. Use `isAbortError()` to check safely across realm boundaries.
 
 ```ts
 import { AbortError, isAbortError } from 'sysopkit';
@@ -75,7 +75,7 @@ function isAbortError(err: unknown): boolean;
 
 ## TimeoutError
 
-Operation exceeded the time limit set by `timeout()`.
+Reports an operation that exceeded the time limit set by `timeout()`.
 
 ```ts
 import { TimeoutError } from 'sysopkit';
@@ -90,7 +90,7 @@ class TimeoutError extends Error {
 
 ## ExecError
 
-Command execution failure. Carries the command, exit code, and full output.
+Reports a command execution failure, carrying the command, exit code, and full output.
 
 ```ts
 import { ExecError } from 'sysopkit';
@@ -112,7 +112,7 @@ class ExecError extends Error {
 
 ## ApplyError
 
-Multi-host apply failures. Extends `AggregateError` with per-host results.
+Reports multi-host apply failures and extends `AggregateError` with per-host results.
 
 ```ts
 import { ApplyError } from 'sysopkit';
@@ -147,7 +147,7 @@ interface ApplyFailure {
 
 ## ShellError
 
-Thrown by `sh()` and `bash()` operations for non-zero exit codes outside the 64-78 BSD usage error range.
+The error thrown by `sh()` and `bash()` operations for non-zero exit codes outside the 64-78 BSD usage-error range.
 
 ```ts
 import { ShellError } from 'sysopkit/op/sh';

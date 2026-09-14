@@ -1,6 +1,6 @@
 ---
 title: curl
-description: HTTP requests via curl.
+description: Make HTTP requests via curl.
 ---
 
 ```ts
@@ -9,11 +9,11 @@ import { curl } from 'sysopkit/op/curl';
 
 ## curl()
 
-Makes HTTP requests via `curl`:
+Makes HTTP requests via `curl`.
 
 ```ts
 const result = await curl('https://api.example.com/data');
-// { stdout, stderr, exitCode }
+// { exitCode, stdout, stderr }
 ```
 
 Supports all standard curl flags:

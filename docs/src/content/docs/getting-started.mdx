@@ -5,25 +5,25 @@ description: Install SysopKit and run your first automation script.
 
 import { Tabs, TabItem, Code } from '@astrojs/starlight/components';
 
-SysopKit works with all Node-compatible runtimes.
+SysopKit works with all Node-compatible runtimes. You'll need Node.js 22+ or Bun (`await using` requires explicit resource management support), plus an OpenSSH client for remote hosts.
 
 ## Installation
 
 <Tabs>
-  <TabItem label="npm" icon="rocket">
+  <TabItem label="npm" icon="npm">
     <Code lang="sh" code="npm install sysopkit" />
   </TabItem>
   <TabItem label="pnpm" icon="pnpm">
-    <Code lang="sh" code="pnpm install sysopkit" />
+    <Code lang="sh" code="pnpm add sysopkit" />
   </TabItem>
   <TabItem label="Bun" icon="bun">
-    <Code lang="sh" code="bun install sysopkit" />
+    <Code lang="sh" code="bun add sysopkit" />
   </TabItem>
 </Tabs>
 
 ## Quick Start
 
-Create a file `setup.ts`:
+Create a file named `setup.ts` with the following content. It defines a two-host inventory and installs nginx on both machines:
 
 ```ts
 import { apply, task } from 'sysopkit';
@@ -67,10 +67,10 @@ await start(async () => {
 });
 ```
 
-Run it:
+Run the script with your preferred runtime:
 
 <Tabs>
-  <TabItem label="node" icon="rocket">
+  <TabItem label="node" icon="node">
     <Code lang="sh" code="node setup.ts" />
   </TabItem>
   <TabItem label="Bun" icon="bun">
@@ -78,7 +78,9 @@ Run it:
   </TabItem>
 </Tabs>
 
+:::note `setup.ts` is TypeScript, so Node must be able to strip types (Node 22.18+ runs it directly). On older Node versions, run with `node --experimental-strip-types setup.ts` or use a TS runner instead. :::
+
 ## Next Steps
 
-- [Tutorial](/tutorial/) — walk through a complete provisioning scenario
-- [Concepts](/concepts/execution-model/) — understand the execution model and architecture
+- [Tutorial](/tutorial/) — Walk through a complete provisioning scenario.
+- [Concepts](/concepts/execution-model/) — Understand the execution model and architecture.

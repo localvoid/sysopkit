@@ -7,7 +7,7 @@ See [Error Classes](/reference/error-classes/) for the complete API reference of
 
 ## AbortError
 
-Use `isAbortError()` to check for cancellation:
+Cancelled commands reject with `AbortError`. Use `isAbortError()` to check for cancellation:
 
 ```ts
 import { isAbortError } from 'sysopkit';
@@ -25,7 +25,7 @@ try {
 
 ## ApplyError
 
-In multi-host mode, `ApplyError` carries all per-host results:
+When a multi-host `apply()` exceeds its failure threshold, it throws `ApplyError` with every per-host result:
 
 ```ts
 import { ApplyError } from 'sysopkit';
@@ -45,7 +45,7 @@ try {
 
 ## OperationError
 
-Wraps the underlying cause of an operation failure:
+Operations wrap their underlying failure cause in `OperationError`:
 
 ```ts
 import { OperationError } from 'sysopkit';
@@ -61,7 +61,7 @@ try {
 
 ## ShellError
 
-Thrown by `sh()` and `bash()` for non-zero exit codes outside the 64-78 usage error range:
+The `sh()` and `bash()` operations throw `ShellError` for non-zero exit codes outside the 64-78 usage-error range:
 
 ```ts
 import { ShellError } from 'sysopkit/op/sh';

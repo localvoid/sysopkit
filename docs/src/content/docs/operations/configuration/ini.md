@@ -1,15 +1,15 @@
 ---
 title: ini
-description: INI file parsing and serialization.
+description: Parse and serialize INI-format text.
 ---
 
 ```ts
-import { serializeIni, parseIni } from 'sysopkit/op/ini';
+import { serializeIni } from 'sysopkit/op/ini';
 ```
 
 ## serializeIni()
 
-Serializes object to INI format text:
+Serializes an object to INI-format text.
 
 ```ts
 const ini = serializeIni({
@@ -19,7 +19,3 @@ const ini = serializeIni({
   },
 });
 ```
-
-## parseIni()
-
-Parses an INI format text into an object.

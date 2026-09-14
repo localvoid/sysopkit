@@ -3,7 +3,7 @@ title: System Configuration
 description: Limits, sysctl, and sudoers configuration operations.
 ---
 
-Parsing and serialization utilities for Linux system configuration files.
+Parse and serialize Linux system configuration files.
 
 ## Limits
 
@@ -35,7 +35,7 @@ Serializes `LimitsEntry[]` into limits.conf format.
 import { parseSysctlConf, serializeSysctlConf } from '@sysopkit/linux/sysctl';
 ```
 
-Parser and serializer for `sysctl.conf` kernel parameter configuration.
+Reads and writes `sysctl.conf` kernel parameter configuration.
 
 ```ts
 const conf = parseSysctlConf('net.ipv4.ip_forward = 1\nnet.core.somaxconn = 65535');
@@ -56,7 +56,7 @@ Serializes key-value pairs into sysctl.conf format.
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
 ```
 
-Serializer for `/etc/sudoers` rule files.
+Writes `/etc/sudoers` rule files.
 
 ```ts
 const content = serializeSudoersConf([

@@ -1,5 +1,5 @@
 ---
-title: Idempotency & Safety
+title: Idempotency and Safety
 description: How SysopKit ensures operations only apply changes when necessary.
 ---
 
@@ -19,7 +19,7 @@ An operation is idempotent if applying it multiple times has the same effect as 
 
 When an operation detects a difference and makes a change, it emits a `CHANGE_EVENT` via `emitChanged()`. This event propagates up the context chain, allowing parent scopes to react.
 
-```typescript
+```ts
 import { emitChanged } from 'sysopkit';
 
 // Inside an operation after detecting a diff
@@ -35,7 +35,7 @@ emitChanged({
 
 Use `onChange()` with `latch()` to conditionally run follow-up actions only when something actually changed:
 
-```typescript
+```ts
 import { onChange, latch } from 'sysopkit';
 
 const restart = latch();
@@ -54,9 +54,10 @@ if (restart()) {
 
 Some commands are inherently non-idempotent — sending a notification, appending to a log, or running a one-time migration. For these, use `ctx.dryRun` to guard execution:
 
-```typescript
+```ts
 import { context } from 'sysopkit';
 
+const ctx = context();
 if (!ctx.dryRun) {
   await sh('notify-admin "Deployment complete"');
 }
@@ -64,4 +65,4 @@ if (!ctx.dryRun) {
 
 ## Dry Run
 
-Set `dryRun: true` in `start()` options or `SYSOPKIT_DRY_RUN=1` environment variable. Idempotent operations will emit change events (showing what _would_ happen) but skip actual modifications.
+Set `dryRun: true` in `start()` options or via the `SYSOPKIT_DRY_RUN=1` environment variable. Idempotent operations will emit change events (showing what _would_ happen) but skip actual modifications.

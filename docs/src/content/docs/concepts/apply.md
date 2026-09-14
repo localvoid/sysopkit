@@ -1,6 +1,6 @@
 ---
-title: Orchestrating Operations
-description: Orchestrating operations across one or more hosts.
+title: Apply
+description: Orchestrating operations across one or more hosts with apply().
 ---
 
 The `apply()` function orchestrates operations across target hosts. It handles connection management, context creation, and multi-host batching.
@@ -69,7 +69,7 @@ await start(async () => {
 
 ## Error Handling
 
-In multi-host mode, failures are collected per-host. If `maxFailPercent` is exceeded, `apply()` throws `ApplyError` (extends `AggregateError`) containing all per-host results:
+In multi-host mode, failures are collected per host. If `maxFailPercent` is exceeded, `apply()` throws `ApplyError` (extends `AggregateError`) containing all per-host results:
 
 ```ts
 import { ApplyError } from 'sysopkit';

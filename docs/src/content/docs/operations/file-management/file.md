@@ -1,6 +1,6 @@
 ---
 title: file
-description: Idempotent file, directory, and symlink operations.
+description: Manage files, directories, and symlinks idempotently.
 ---
 
 ```ts
@@ -46,7 +46,7 @@ Deletes a file. No-op if the file does not exist.
 
 ## readFile() / tryReadFile()
 
-Reads a file as string. `tryReadFile()` returns `undefined` if not found.
+Reads a file as a string. `tryReadFile()` returns `undefined` if not found.
 
 ```ts
 const content = await readFile('/etc/hostname');
@@ -61,7 +61,7 @@ Writes content to a file using `cat >`. Not idempotent.
 
 > **IDEMPOTENT**
 
-Updates timestamps via `touch`, creates file if missing.
+Updates timestamps via `touch`, creating the file if it is missing.
 
 ## createDir() / deleteDir()
 
@@ -69,7 +69,7 @@ Updates timestamps via `touch`, creates file if missing.
 
 Creates or removes directories:
 
-```typescript
+```ts
 await createDir({ path: '/var/www', mode: 0o755, recursive: true });
 await deleteDir({ path: '/tmp/old', recursive: true });
 ```
@@ -86,7 +86,7 @@ Returns file metadata: type, user, group, mode, timestamps, size.
 
 ## sha256()
 
-Computes SHA256 hash of a file.
+Computes the SHA256 hash of a file.
 
 ## waitFilePath()
 

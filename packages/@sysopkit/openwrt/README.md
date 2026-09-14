@@ -66,7 +66,11 @@ const text = serializeUci(config);
 Network interfaces, devices, routes, rules, and bridge VLANs (`/etc/config/network`).
 
 ```typescript
-import type { UciNetwork, UciNetworkInterface, UciNetworkDevice } from '@sysopkit/openwrt/uci/network';
+import type {
+  UciNetwork,
+  UciNetworkInterface,
+  UciNetworkDevice,
+} from '@sysopkit/openwrt/uci/network';
 
 const config: UciNetwork = [
   {
@@ -170,7 +174,11 @@ const config: UciDhcp = [
 Firewall zones, rules, and forwarding (`/etc/config/firewall`).
 
 ```typescript
-import type { UciFirewall, UciFirewallZone, UciFirewallForwarding } from '@sysopkit/openwrt/uci/firewall';
+import type {
+  UciFirewall,
+  UciFirewallZone,
+  UciFirewallForwarding,
+} from '@sysopkit/openwrt/uci/firewall';
 
 const config: UciFirewall = [
   {

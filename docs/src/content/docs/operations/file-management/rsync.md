@@ -1,6 +1,6 @@
 ---
 title: rsync
-description: File synchronization via rsync (push and pull).
+description: Synchronize files with rsync, pushing to or pulling from the target.
 ---
 
 ```ts
@@ -11,7 +11,7 @@ import { rsyncPush, rsyncPull } from 'sysopkit/op/rsync';
 
 > **IDEMPOTENT**
 
-Syncs local to remote. Returns array of change entries.
+Syncs a local path to the remote host and returns the resulting change entries.
 
 ```ts
 const changes = await rsyncPush({
@@ -25,7 +25,7 @@ const changes = await rsyncPush({
 
 > **IDEMPOTENT**
 
-Syncs remote to local.
+Syncs a remote path to the local host.
 
 ```ts
 const changes = await rsyncPull({
@@ -46,4 +46,4 @@ const changes = await rsyncPull({
 | `usermap` / `groupmap` | User/group mapping                |
 | `rsyncPath`            | Custom rsync binary path          |
 
-Return type: `RsyncEntry[]` with `type`, `action` (sent/created/touched/deleted), and `path`.
+Both functions return `RsyncEntry[]` with `type`, `action` (`sent`/`created`/`touched`/`deleted`), and `path` fields.

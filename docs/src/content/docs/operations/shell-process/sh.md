@@ -1,6 +1,6 @@
 ---
 title: sh
-description: Shell command execution.
+description: Run shell commands via `sh -c`.
 ---
 
 ```ts
@@ -9,7 +9,7 @@ import { sh, ShellError } from 'sysopkit/op/sh';
 
 ## sh()
 
-Executes a command string via `sh -c`:
+Executes a command string via `sh -c`.
 
 ```ts
 const result = await sh('hostname');
@@ -35,8 +35,10 @@ class ShellError extends ExecError {
 
 ## `$_`
 
-Shell escaping:
+Quote a value for safe interpolation into a shell command:
 
 ```ts
-const text = await sh(`cat ${$_(path)}`);
+import { sh, $_ } from 'sysopkit/op/sh';
+
+const text = await sh(`cat ${$_(filePath)}`);
 ```
