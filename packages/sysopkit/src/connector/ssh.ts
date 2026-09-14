@@ -269,7 +269,9 @@ export class SSHConnector extends ConnectorBase {
       if (this.controlPath) {
         try {
           await stat(this.controlPath);
-          const proc = processSpawn([...this.rsh, '-O', 'EXIT', this.host], void 0, this.env);
+          // Lowercase `exit`: `ssh -O` multiplex commands are case-sensitive
+          // (uppercase `EXIT` is rejected with "Invalid multiplex command").
+          const proc = processSpawn([...this.rsh, '-O', 'exit', this.host], void 0, this.env);
           const [_exitCode, _stdout, _stderr] = await Promise.all([
             proc.exited,
             text(proc.stdout),

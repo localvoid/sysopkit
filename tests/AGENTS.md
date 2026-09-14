@@ -10,13 +10,13 @@
 
 Each test file shares long-lived containers via `beforeAll`/`afterAll` — do NOT start a fresh container per test (`withPodman`/`withSsh` are kept only for one-offs). Tests within a file run serially; files run in parallel via `bun test --parallel 4 --timeout 60000` (see `scripts/test-e2e.sh`).
 
-Distros are explicit: every suite picks one via `ContainerOptions.distro` (registry in `tests/e2e/images.ts`, majors pinned). SSH-based suites only run on `fedora`.
+Distros are explicit: every suite picks one via `ContainerOptions.distro` (registry in `tests/e2e/images.ts`, majors pinned). SSH-based suites run on `debian` (OpenSSH) and `openwrt` (dropbear).
 
 ```typescript
 import { beforeAll, afterAll } from 'bun:test';
 import {
   remoteTempPath,
-  sharedPodman, // or sharedSsh / startSharedSshContainer (fedora only)
+  sharedPodman, // or sharedSsh / startSharedSshContainer (debian + openwrt)
   startSharedContainer,
   type Container,
 } from '../container.js';
@@ -43,7 +43,7 @@ test('...', async () => {
 | debian | `sysopkit-test-debian:13` | Yes (`sudo` group instead of `wheel`) |
 | redhat | `sysopkit-test-redhat:10` | Yes (UBI minimal + microdnf; `coreutils-single` instead of `coreutils`; `dnf`, `nc` (nmap-ncat), `ed` installed for pkg/dnf4 + proc-net suites) |
 | arch | `sysopkit-test-arch:base` | Yes (rolling `archlinux:base`, pacman) |
-| openwrt | `sysopkit-test-openwrt:25.12` | **No** — busybox/musl, apk, no sudo user; only `sh` + applets |
+| openwrt | `sysopkit-test-openwrt:25.12` | **No** — busybox/musl, apk, no sudo user; only `sh` + applets (plus dropbear SSH as `root`, see below) |
 
 Parity contract: `testuser:testpasswd` with passworded sudo, sshd host keys + `testuser` authorized_keys, plus `rsync`, `pgrep`, GNU `stat`, `gpg`, `bun`.
 
@@ -51,15 +51,15 @@ Which container to use:
 
 - `redhat` — default for common ops (base-level support). If an op works here, it works everywhere parity.
 - `debian`, `fedora`, `arch` — distro-specific ops only (e.g. `pkg/apt` on debian, `pkg/dnf5` on fedora, pacman quirks on arch). Do NOT duplicate common-op suites per distro.
-- `fedora` — additionally the place for latest features (newest toolchain of the parity set) and the only distro for SSH-based suites.
-- `openwrt` — fully distro-specific: significantly different environment (busybox/musl, apk, no sudo user, no parity contract). Suites running on it must only rely on `sh` and busybox applets.
+- `fedora` — additionally the place for latest features (newest toolchain of the parity set).
+- `openwrt` — fully distro-specific: significantly different environment (busybox/musl, apk, no sudo user, no parity contract). Suites running on it must only rely on `sh` and busybox applets. Exception: `connectors/ssh-openwrt.test.ts` exercises the native dropbear server over SSH (as `root`, no sudo/rsync), with host keys + root `authorized_keys` baked in by `scripts/bootstrap-openwrt.sh`.
 
 Rules:
 
 - Remote paths must be unique per test via `remoteTempPath()` — no fixed `/tmp/...` paths (shared container = shared filesystem).
 - `sharedPodman` reuses a single connected `PodmanConnector` per `Container` (`podman inspect` runs once, in `beforeAll` order on first use). Each test still gets a fresh `start()`/`apply()` context (so `dryRun` and event handlers stay per-test); do NOT create connectors per test.
 - Only containers that use SSH publish container port 22 to a dynamically allocated host port (`container.sshPort`; `publishSsh: false` otherwise), so parallel files never collide.
-- SSH: start via `startSharedSshContainer({ distro: 'fedora' })` once per file (idempotent `ensureSshd` rejects non-fedora), then `sharedSsh(shared, ...)` per test with a fresh connector.
+- SSH: start via `startSharedSshContainer({ distro: 'debian' })` (or `{ distro: 'openwrt' }` for dropbear) once per file (idempotent `ensureSshd` rejects other distros), then `sharedSsh(shared, ...)` per test with a fresh connector. Login user follows the distro (`testuser` on debian, `root` on openwrt); pass `{ controlMaster: false }` to cover the non-multiplexed path.
 - The shared container is discarded in `afterAll`, so no per-test cleanup of remote temp paths is needed.
 - Images: build with `bun run test:container:init [fedora|debian|redhat|arch|openwrt]` (see `scripts/bootstrap-<distro>.sh`); `test-e2e.sh` loads only archives missing from podman storage and keeps images in storage for the `~/.local/share/containers` CI cache. Run suites with `bun run test:e2e` (`bun test --parallel`).
 - Adding a distro: pin the major in `images.ts`, add `scripts/bootstrap-<distro>.sh` (+ parity smoke check if parity), add the `case` entry (automatic via dispatcher), document it in the table above.
@@ -91,7 +91,8 @@ unit/
 e2e/
   connectors/
     podman.test.ts
-    ssh.test.ts
+    ssh.test.ts # debian (OpenSSH): sh/sudo/file/rsync matrix
+    ssh-openwrt.test.ts # openwrt (dropbear): sh/exec/file basics as root
   ops/ # grouped by area, assert final remote state (no cmd-string checks)
     filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke
     accounts.test.ts # redhat: users/groups incl. idempotency + dry-run

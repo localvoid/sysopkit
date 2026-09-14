@@ -327,7 +327,7 @@ export async function withSsh<R>(
       // can hit an accept-then-close IPv6 forward without falling back.
       host: '127.0.0.1',
       port: sshPortFor(container),
-      user: 'testuser',
+      user: sshUserFor(container),
       key: PRIVATE_KEY_PATH,
       strictHostKeyChecking: false,
       controlMaster: true,
@@ -367,20 +367,53 @@ async function ensureSshListener(container: Container): Promise<void> {
 }
 
 /**
- * Starts sshd inside the container if it isn't running yet, then waits for
- * the host port to accept connections. Idempotent: safe to call once per
- * shared container (in `beforeAll`) instead of once per test.
+ * Verifies dropbear listens on container port 22 from inside the container.
+ * Busybox `ash` has no `/dev/tcp` and busybox `nc` has no `-z`, so probe via
+ * `netstat -ltn` (present in the OpenWrt rootfs); the SSH banner itself is
+ * verified from the host by waitForSsh (`SSH-2.0-dropbear*` matches `SSH-*`).
+ */
+async function ensureDropbearListener(container: Container): Promise<void> {
+  const inside = await container.exec(
+    // NOTE: plain `pgrep` (no `-x`): busybox pgrep `-x` fails to match the
+    // dropbear comm while plain matching works (verified live).
+    ['sh', '-c', 'pgrep dropbear > /dev/null 2>&1 && netstat -ltn 2>/dev/null | grep -q ":22 "'],
+    { user: 'root' },
+  );
+  if (inside.exitCode !== 0) {
+    throw new Error(`dropbear is not listening on container port 22.`);
+  }
+}
+
+/** SSH login user per distro: OpenWrt is root-only (no sudo user). */
+export function sshUserFor(container: Container): string {
+  return container.distro === 'openwrt' ? 'root' : 'testuser';
+}
+
+/**
+ * Starts the SSH server inside the container if it isn't running yet, then
+ * waits for the host port to accept connections. Idempotent: safe to call
+ * once per shared container (in `beforeAll`) instead of once per test.
  *
- * SSH-based suites only run on debian; other distros are rejected.
+ * SSH-based suites run on debian (OpenSSH) and openwrt (dropbear); other
+ * distros are rejected.
  * Defaults to the container's dynamically allocated {@link Container.sshPort}
  * so parallel e2e files (`bun test --parallel`) don't collide.
  */
 export async function ensureSshd(container: Container, port?: number): Promise<void> {
-  if (container.distro !== 'debian') {
+  if (container.distro !== 'debian' && container.distro !== 'openwrt') {
     throw new Error(
-      `SSH test containers are only supported on debian (got '${container.distro}').`,
+      `SSH test containers are only supported on debian and openwrt (got '${container.distro}').`,
     );
   }
+  if (container.distro === 'openwrt') {
+    await ensureDropbear(container);
+  } else {
+    await ensureOpensshd(container);
+  }
+  await waitForSsh(sshPortFor(container, port));
+}
+
+async function ensureOpensshd(container: Container): Promise<void> {
   // No systemd-tmpfiles in containers: the privilege separation directory
   // may be missing, in which case sshd refuses to start.
   const runDir = await container.exec(['sh', '-c', 'mkdir -p /run/sshd && chmod 755 /run/sshd'], {
@@ -402,7 +435,31 @@ export async function ensureSshd(container: Container, port?: number): Promise<v
     }
   }
   await ensureSshListener(container);
-  await waitForSsh(sshPortFor(container, port));
+}
+
+/**
+ * Starts dropbear inside an OpenWrt container if it isn't running yet.
+ * Host keys and root authorized_keys are baked into the image by
+ * scripts/bootstrap-openwrt.sh; `-R` regenerates missing host keys so
+ * stale cached images (built before key provisioning) still work.
+ */
+async function ensureDropbear(container: Container): Promise<void> {
+  const check = await container.exec(['sh', '-c', 'pgrep dropbear > /dev/null 2>&1'], {
+    user: 'root',
+  });
+  if (check.exitCode !== 0) {
+    // -E logs to stderr (captured for diagnostics); dropbear forks into the
+    // background by itself (`&` releases the exec session; no `nohup` applet
+    // on busybox).
+    const started = await container.exec(
+      ['sh', '-c', '/usr/sbin/dropbear -R -p 22 -E > /tmp/dropbear-init.log 2>&1 &'],
+      { user: 'root' },
+    );
+    if (started.exitCode !== 0) {
+      throw new Error(`Failed to start dropbear: ${started.stderr.trim()}`);
+    }
+  }
+  await ensureDropbearListener(container);
 }
 
 /**
@@ -417,7 +474,8 @@ export async function startSharedContainer(options: ContainerOptions): Promise<C
 }
 
 /**
- * Starts a container with sshd running, shared across all tests in a file.
+ * Starts a container with its SSH server running, shared across all tests in
+ * a file. The server is started once via `ensureSshd` (sshd or dropbear).
  */
 export async function startSharedSshContainer(options: ContainerOptions): Promise<Container> {
   const container = await startSharedContainer(options);
@@ -427,6 +485,12 @@ export async function startSharedSshContainer(options: ContainerOptions): Promis
 
 export interface SharedRunOptions {
   readonly dryRun?: boolean;
+  /**
+   * Override ControlMaster multiplexing for SSH runs (default true).
+   * Ignored by {@link sharedPodman}. Used to prove the non-multiplexed
+   * fallback path (e.g. against dropbear).
+   */
+  readonly controlMaster?: boolean;
 }
 
 async function runShared<R>(
@@ -479,8 +543,10 @@ export async function sharedPodman<R>(
 
 /**
  * Runs `fn` against a shared container via SSH.
- * Assumes sshd was started once via `ensureSshd` / `startSharedSshContainer`.
- * Creates a fresh connector per test (one SSH handshake, multiplexed).
+ * Assumes the SSH server was started once via `ensureSshd` /
+ * `startSharedSshContainer`. Creates a fresh connector per test (one SSH
+ * handshake, multiplexed). Login user follows the container distro
+ * (`testuser` on parity distros, `root` on openwrt).
  */
 export async function sharedSsh<R>(
   container: Container,
@@ -493,10 +559,10 @@ export async function sharedSsh<R>(
     // IPv4 loopback, not 'localhost': see withSsh above.
     host: '127.0.0.1',
     port: sshPortFor(container),
-    user: 'testuser',
+    user: sshUserFor(container),
     key: PRIVATE_KEY_PATH,
     strictHostKeyChecking: false,
-    controlMaster: true,
+    controlMaster: options?.controlMaster ?? true,
   });
   return await runShared(container, conn, fn, options);
 }

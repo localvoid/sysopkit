@@ -18,9 +18,10 @@ export interface TestImage {
    * with passworded sudo, sshd host keys + `testuser` authorized_keys, plus
    * `rsync`, `pgrep`, GNU `stat`, `gpg`, and `bun`.
    *
-   * OpenWRT is explicitly non-parity (busybox/musl, dropbear, opkg, no sudo
+   * OpenWRT is explicitly non-parity (busybox/musl, dropbear, apk, no sudo
    * user): suites running on it must only rely on `sh` and preinstalled
-   * busybox applets.
+   * busybox applets — except `connectors/ssh-openwrt.test.ts`, which uses
+   * the baked-in dropbear host keys + root authorized_keys.
    */
   readonly parity: boolean;
 }
