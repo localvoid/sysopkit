@@ -151,10 +151,16 @@ export class SudoMiddleware extends ConnectorMiddleware {
       // forwarded immediately to avoid stalling output.
       const decoder = new TextDecoder();
       let pending = '';
+      // Full decoded stderr (bounded tail) for failure diagnostics: the
+      // re-prompt evidence (e.g. "Sorry, try again.") may arrive in an
+      // earlier chunk than the one carrying the repeated prompt.
+      let history = '';
       const windowSize = Math.max(prompt.length - 1, 0);
       const stderrTransform = new TransformStream<Uint8Array, Uint8Array>({
         transform: async (chunk, controller) => {
-          const text = pending + decoder.decode(chunk, STREAM_TRUE);
+          const decoded = decoder.decode(chunk, STREAM_TRUE);
+          history = (history + decoded).slice(-8000);
+          const text = pending + decoded;
           if (responded === false) {
             const index = text.indexOf(prompt);
             if (index !== -1) {
@@ -183,9 +189,9 @@ export class SudoMiddleware extends ConnectorMiddleware {
           } else {
             pending = '';
             if (text.includes(prompt)) {
-              const tail = text.trim().slice(-500);
+              const seen = history.split(prompt).length - 1;
               throw new Error(
-                `invalid sudo password for user '${this.user ?? 'root'}' running '${cmd.join(' ')}': sudo re-prompted for a password. Check the password and the sudoers configuration.${tail ? ` Stderr tail: ${tail}` : ''}`,
+                `invalid sudo password for user '${this.user ?? 'root'}' running '${cmd.join(' ')}': sudo re-prompted for a password (prompt seen ${seen}x in stderr). Check the password and the sudoers configuration. Stderr: ${history.trim().slice(-2000)}`,
               );
             }
           }

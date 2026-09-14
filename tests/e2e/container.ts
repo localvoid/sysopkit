@@ -52,6 +52,25 @@ async function ensurePrivateKeyPerms(): Promise<void> {
   }
 }
 
+/** Cached host AppArmor detection for {@link hasAppArmor}. */
+let apparmorCache: boolean | undefined;
+
+/**
+ * Whether the host enforces AppArmor. Best-effort: any read failure means
+ * no AppArmor (e.g. Fedora/Arch hosts without the kernel module).
+ */
+async function hasAppArmor(): Promise<boolean> {
+  if (apparmorCache === undefined) {
+    try {
+      apparmorCache =
+        (await Bun.file('/sys/module/apparmor/parameters/enabled').text()).trim() === 'Y';
+    } catch {
+      apparmorCache = false;
+    }
+  }
+  return apparmorCache;
+}
+
 /** Allocates a free loopback TCP port for SSH publishing. */
 function allocateFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -140,6 +159,16 @@ export class Container {
         args.push('--privileged');
       }
 
+      // On hosts with enforcing AppArmor (e.g. Ubuntu), the default container
+      // profile denies cap_dac_override to the unix_chkpwd PAM helper (which
+      // drops to the target uid, then needs the capability to read the
+      // mode-000 /etc/shadow), breaking all password verification and PAM
+      // account checks in CI. Opt out where AppArmor is present; elsewhere
+      // this flag is skipped entirely.
+      if (await hasAppArmor()) {
+        args.push('--security-opt', 'apparmor=unconfined');
+      }
+
       if (this.ports) {
         for (const [hostPort, containerPort] of Object.entries(this.ports)) {
           args.push('-p', `${hostPort}:${containerPort}`);
@@ -158,7 +187,9 @@ export class Container {
       if (
         this.publishSsh &&
         attempt < 4 &&
-        /address already in use|port is already allocated|binding.*failed|addr.*in use/i.test(stderr)
+        /address already in use|port is already allocated|binding.*failed|addr.*in use/i.test(
+          stderr,
+        )
       ) {
         this.sshPort = await allocateFreePort();
         continue;
@@ -302,18 +333,24 @@ export async function withSsh<R>(
       controlMaster: true,
     });
 
-    return await apply('test', conn, fn, { vars: { container } });
+    try {
+      return await apply('test', conn, fn, { vars: { container } });
+    } catch (error) {
+      throw await withSshDiagnostics(container, error);
+    }
   }, options);
 }
 
 async function waitForSsh(port: number): Promise<void> {
-  // The loop must report failure via its exit code: a trailing `sleep`
-  // always succeeds, so `exit 1` after the loop is required — otherwise a
-  // never-listening sshd would silently pass as ready.
+  // Probe the SSH handshake, not just TCP: a port forwarder can accept a
+  // connection and immediately close it without a working sshd behind it,
+  // which a bare /dev/tcp open cannot distinguish (false ready). The loop
+  // must report failure via its exit code: a trailing `sleep` always
+  // succeeds, so `exit 1` after the loop is required.
   const exitCode = await Bun.spawn([
     'bash',
     '-c',
-    `for i in {1..20}; do (echo > /dev/tcp/127.0.0.1/${port}) >/dev/null 2>&1 && exit 0 || sleep 0.1; done; exit 1`,
+    `for i in {1..24}; do if exec 3<>/dev/tcp/127.0.0.1/${port} 2>/dev/null; then if read -t 2 -r banner <&3 2>/dev/null && [[ "$banner" == SSH-* ]]; then exit 0; fi; exec 3<&- 3>&- 2>/dev/null; fi; sleep 0.25; done; exit 1`,
   ]).exited;
   if (exitCode !== 0) {
     throw Error('SSH server launch timeout');
@@ -341,6 +378,26 @@ export async function ensureTestUser(container: Container): Promise<void> {
   if (result.exitCode !== 0) {
     throw new Error(`Failed to ensure testuser credentials: ${result.stderr.trim()}`);
   }
+  // Verify the credentials actually took effect: usable (unlocked) password,
+  // sudo group membership, and the drop-in content. A passing setup with a
+  // failing verification means the image/container auth backend is broken.
+  const verify = await container.exec(
+    [
+      'sh',
+      '-c',
+      `passwd -S testuser && id testuser && groups testuser && cat /etc/sudoers.d/02-${group}-passwd`,
+    ],
+    { user: 'root' },
+  );
+  const output = `${verify.stdout}\n${verify.stderr}`.trim();
+  if (
+    verify.exitCode !== 0 ||
+    !/^testuser P /m.test(output) ||
+    !new RegExp(`\\b${group}\\b`).test(output) ||
+    !output.includes(sudoersLine)
+  ) {
+    throw new Error(`testuser credential verification failed:\n${output}`);
+  }
 }
 
 /**
@@ -367,29 +424,100 @@ async function ensureAuthorizedKeys(container: Container): Promise<void> {
 }
 
 /**
+ * Collects container-side sshd state for failure output. Best-effort: every
+ * probe is guarded so diagnostics never mask the original error.
+ */
+async function sshdDiagnostics(container: Container): Promise<string> {
+  const parts: string[] = [];
+  const run = async (label: string, cmd: string[]): Promise<void> => {
+    try {
+      const result = await container.exec(cmd, { user: 'root' });
+      const output = [result.stdout.trim(), result.stderr.trim()]
+        .filter((s) => s.length > 0)
+        .join('\n');
+      parts.push(`${label} (exit ${result.exitCode}):${output ? `\n${output}` : ' <empty>'}`);
+    } catch (e) {
+      parts.push(`${label}: exec failed: ${(e as Error).message}`);
+    }
+  };
+  await run('pgrep sshd', ['sh', '-c', 'pgrep -ax sshd || true']);
+  await run('inside :22 check', [
+    'bash',
+    '-c',
+    'exec 3<>/dev/tcp/127.0.0.1/22 && echo LISTENING || echo NOT-LISTENING',
+  ]);
+  await run('run dir', ['sh', '-c', 'ls -ld /run/sshd || true']);
+  await run('sshd log', [
+    'sh',
+    '-c',
+    'tail -c 2000 /tmp/sshd-init.log 2>/dev/null || echo no-log-file',
+  ]);
+  return parts.join('\n');
+}
+
+/** Verifies sshd listens on container port 22 from inside the container. */
+async function ensureSshListener(container: Container): Promise<void> {
+  // Open-only check (no banner write) to avoid "invalid format" noise in the
+  // sshd log; the banner itself is verified from the host by waitForSsh.
+  const inside = await container.exec(
+    ['bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/22 && echo LISTENING'],
+    { user: 'root' },
+  );
+  if (inside.exitCode !== 0 || !inside.stdout.includes('LISTENING')) {
+    const diagnostics = await sshdDiagnostics(container);
+    throw new Error(`sshd is not listening on container port 22.\n${diagnostics}`);
+  }
+}
+
+/**
+ * Appends container-side sshd diagnostics to an SSH run failure. Used by
+ * `withSsh`/`sharedSsh` so a dead backend shows up in the test output.
+ */
+async function withSshDiagnostics(container: Container, error: unknown): Promise<Error> {
+  const diagnostics = await sshdDiagnostics(container);
+  return new Error(`SSH run failed; container sshd diagnostics:\n${diagnostics}`, {
+    cause: error,
+  });
+}
+
+/**
  * Starts sshd inside the container if it isn't running yet, then waits for
  * the host port to accept connections. Idempotent: safe to call once per
  * shared container (in `beforeAll`) instead of once per test.
  *
- * SSH-based suites only run on fedora; other distros are rejected.
+ * SSH-based suites only run on debian; other distros are rejected.
  * Defaults to the container's dynamically allocated {@link Container.sshPort}
  * so parallel e2e files (`bun test --parallel`) don't collide.
  */
 export async function ensureSshd(container: Container, port?: number): Promise<void> {
-  if (container.distro !== 'fedora') {
+  if (container.distro !== 'debian') {
     throw new Error(
-      `SSH test containers are only supported on fedora (got '${container.distro}').`,
+      `SSH test containers are only supported on debian (got '${container.distro}').`,
     );
   }
   await ensureTestUser(container);
+  // No systemd-tmpfiles in containers: the privilege separation directory
+  // may be missing, in which case sshd refuses to start.
+  const runDir = await container.exec(['sh', '-c', 'mkdir -p /run/sshd && chmod 755 /run/sshd'], {
+    user: 'root',
+  });
+  if (runDir.exitCode !== 0) {
+    throw new Error(`Failed to prepare sshd run directory: ${runDir.stderr.trim()}`);
+  }
   const check = await container.exec(['sh', '-c', 'pgrep -x sshd > /dev/null 2>&1']);
   if (check.exitCode !== 0) {
-    const started = await container.exec(['sh', '-c', 'nohup /usr/sbin/sshd > /dev/null 2>&1 &']);
+    // -E captures startup failures for diagnostics instead of /dev/null.
+    const started = await container.exec([
+      'sh',
+      '-c',
+      'nohup /usr/sbin/sshd -E /tmp/sshd-init.log > /dev/null 2>&1 &',
+    ]);
     if (started.exitCode !== 0) {
       throw new Error(`Failed to start sshd: ${started.stderr.trim()}`);
     }
   }
   await ensureAuthorizedKeys(container);
+  await ensureSshListener(container);
   await waitForSsh(sshPortFor(container, port));
 }
 
@@ -486,7 +614,11 @@ export async function sharedSsh<R>(
     strictHostKeyChecking: false,
     controlMaster: true,
   });
-  return await runShared(container, conn, fn, options);
+  try {
+    return await runShared(container, conn, fn, options);
+  } catch (error) {
+    throw await withSshDiagnostics(container, error);
+  }
 }
 
 /**
