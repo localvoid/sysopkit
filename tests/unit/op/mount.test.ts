@@ -4,7 +4,7 @@ import { mountInfo, parseFstab, serializeFstab, type FstabEntry } from 'sysopkit
 
 // Unit scope: findmnt JSON parsing and fstab serialization only.
 // Real mount/umount behavior (idempotency, dry-run, round-trip) is covered
-// in tests/integration/ops/mount.test.ts with actual tmpfs mounts.
+// in tests/e2e/ops/mount.test.ts with actual tmpfs mounts.
 
 const FINDMNT_JSON = JSON.stringify({
   filesystems: [

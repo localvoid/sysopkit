@@ -7,7 +7,7 @@
   reporters, middleware arg-merging/stream logic, `retry`/`timeout`/`sleep`).
   Mock-based command-string assertions (`mockSpawn` `cmd` arrays,
   `getSpawnCalls` counts) are NOT used to verify op behavior.
-- **Integration** (`tests/integration/ops/`): everything that executes commands
+- **E2E** (`tests/e2e/ops/`): everything that executes commands
   on a target. Assert **final remote state** via read-back ops (`readFile`,
   `getPathInfo`, `getFileStat`, `exec(['test', ...])`, `id`/`getent`,
   re-running the op for idempotency, `trackChanged()`), never generated shell
@@ -18,11 +18,11 @@
   kernel modules, `tuned`) stay as unit mocks + file-content assertions and
   are documented as excluded below.
 
-## Integration (`tests/integration/`)
+## E2E (`tests/e2e/`)
 
-Each test file shares long-lived containers via `beforeAll`/`afterAll` — do NOT start a fresh container per test (`withPodman`/`withSsh` are kept only for one-offs). Serial execution is assumed.
+Each test file shares long-lived containers via `beforeAll`/`afterAll` — do NOT start a fresh container per test (`withPodman`/`withSsh` are kept only for one-offs). Tests within a file run serially; files run in parallel via `bun test --parallel 4 --timeout 60000` (see `scripts/test-e2e.sh`).
 
-Distros are explicit: every suite picks one via `ContainerOptions.distro` (registry in `tests/integration/images.ts`, majors pinned). SSH-based suites only run on `fedora`.
+Distros are explicit: every suite picks one via `ContainerOptions.distro` (registry in `tests/e2e/images.ts`, majors pinned). SSH-based suites only run on `fedora`.
 
 ```typescript
 import { beforeAll, afterAll } from 'bun:test';
@@ -70,10 +70,10 @@ Rules:
 
 - Remote paths must be unique per test via `remoteTempPath()` — no fixed `/tmp/...` paths (shared container = shared filesystem).
 - `sharedPodman` reuses a single connected `PodmanConnector` per `Container` (`podman inspect` runs once, in `beforeAll` order on first use). Each test still gets a fresh `start()`/`apply()` context (so `dryRun` and event handlers stay per-test); do NOT create connectors per test.
-- Only containers that use SSH publish host port 2222 (`publishSsh: false` otherwise), so coexisting containers don't collide.
+- Only containers that use SSH publish container port 22 to a dynamically allocated host port (`container.sshPort`; `publishSsh: false` otherwise), so parallel files never collide.
 - SSH: start via `startSharedSshContainer({ distro: 'fedora' })` once per file (idempotent `ensureSshd` rejects non-fedora), then `sharedSsh(shared, ...)` per test with a fresh connector.
 - The shared container is discarded in `afterAll`, so no per-test cleanup of remote temp paths is needed.
-- Images: build with `bun run test:container:init [fedora|debian|redhat|arch|openwrt]` (see `scripts/bootstrap-<distro>.sh`); `test-integration.sh` loads every archive present in `tests/fixtures/container/cache/`.
+- Images: build with `bun run test:container:init [fedora|debian|redhat|arch|openwrt]` (see `scripts/bootstrap-<distro>.sh`); `test-e2e.sh` loads only archives missing from podman storage and keeps images in storage for the `~/.local/share/containers` CI cache. Run suites with `bun run test:e2e` (`bun test --parallel`).
 - Adding a distro: pin the major in `images.ts`, add `scripts/bootstrap-<distro>.sh` (+ parity smoke check if parity), add the `case` entry (automatic via dispatcher), document it in the table above.
 - Privileged: only `ops/mount.test.ts` uses `startSharedContainer({ privileged: true })` for real `tmpfs` mounts. Mounts stay inside the container's mount namespace on unique `remoteTempPath()` targets — never host paths.
 
@@ -99,7 +99,7 @@ unit/
     retry.test.ts
     sudo.test.ts # sudo argv merging (pure command generation)
     timeout.test.ts
-integration/
+e2e/
   connectors/
     podman.test.ts
     ssh.test.ts

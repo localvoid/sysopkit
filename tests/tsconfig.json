@@ -15,5 +15,5 @@
 
     "skipLibCheck": true
   },
-  "include": ["./unit/**/*.ts", "./integration/**/*.ts"]
+  "include": ["./unit/**/*.ts", "./e2e/**/*.ts"]
 }

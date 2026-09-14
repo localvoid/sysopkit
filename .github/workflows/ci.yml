@@ -4,6 +4,7 @@ on:
     paths:
       - packages/**
       - tests/**
+      - scripts/**
       - bun.lock
     branches:
       - main
@@ -11,6 +12,7 @@ on:
     paths:
       - packages/**
       - tests/**
+      - scripts/**
       - bun.lock
     branches:
       - main
@@ -23,6 +25,7 @@ env:
   ACTION_CACHE_PATH: |
     ~/.bun/install/cache
     node_modules/
+  E2E_CONTAINERS_PATH: ~/.local/share/containers
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -44,3 +47,43 @@ jobs:
       - run: bun install
       - run: bun run build
       - run: bun run test
+  e2e:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache@v6
+        with:
+          path: ${{ env.ACTION_CACHE_PATH }}
+          key: ${{ runner.os }}
+      - name: Cache podman containers storage
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.E2E_CONTAINERS_PATH }}
+          key: e2e-containers-${{ runner.os }}-${{ hashFiles('scripts/bootstrap-*.sh', 'tests/e2e/images.ts') }}
+          restore-keys: |
+            e2e-containers-${{ runner.os }}-
+      - run: bun install
+      - run: bun run build
+      - name: Bootstrap missing test images
+        run: |
+          declare -A IMAGES=(
+            [fedora]="sysopkit-test-fedora:44"
+            [debian]="sysopkit-test-debian:13"
+            [redhat]="sysopkit-test-redhat:10"
+            [arch]="sysopkit-test-arch:base"
+            [openwrt]="sysopkit-test-openwrt:24.10"
+          )
+          for distro in fedora debian redhat arch openwrt; do
+            if podman image inspect "${IMAGES[$distro]}" >/dev/null 2>&1; then
+              echo "present ${IMAGES[$distro]} (cache hit)"
+            else
+              echo "building ${IMAGES[$distro]}..."
+              ./scripts/bootstrap-test-container.sh "$distro"
+            fi
+          done
+      - run: bun run test:e2e

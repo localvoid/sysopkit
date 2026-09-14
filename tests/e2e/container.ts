@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { apply, type ApplyResult, type Connector, type ExecutionContext } from 'sysopkit';
 import { PodmanConnector } from 'sysopkit/connector/podman';
@@ -16,10 +17,12 @@ export interface ContainerOptions {
   readonly user?: string;
   readonly dryRun?: boolean;
   /**
-   * Publish container port 22 to host {@link SSH_PORT}. Defaults to true for
+   * Publish container port 22 to a dynamically allocated host port
+   * (exposed as {@link Container.sshPort}). Defaults to true for
    * backwards compatibility. Set to false for containers that never use SSH
    * (e.g. shared PodmanConnector containers) so multiple containers can
-   * coexist without host port collisions.
+   * coexist without host port collisions. Required for parallel e2e
+   * (`bun test --parallel`): every SSH container gets its own host port.
    */
   readonly publishSsh?: boolean;
   /**
@@ -33,7 +36,28 @@ export interface ContainerOptions {
 
 export const CONTAINER_FIXTURES_DIR: string = join(import.meta.dirname, '../fixtures/container');
 const PRIVATE_KEY_PATH = join(CONTAINER_FIXTURES_DIR, 'private_key');
-const SSH_PORT = 2222;
+
+/** Allocates a free loopback TCP port for SSH publishing. */
+function allocateFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      server.close((err) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (address && typeof address === 'object') {
+          resolve(address.port);
+        } else {
+          reject(new Error('Failed to allocate free port'));
+        }
+      });
+    });
+  });
+}
 
 async function checkImageLoaded(distro: TestDistro): Promise<void> {
   const { image, archive } = TEST_IMAGES[distro];
@@ -50,8 +74,10 @@ export class Container {
   readonly distro: TestDistro;
   readonly image: string;
   readonly user: string | undefined;
-  readonly ports: Record<number, number> | undefined;
+  readonly publishSsh: boolean;
   readonly privileged: boolean;
+  /** Host port publishing container port 22. Undefined when publishSsh is false. */
+  sshPort: number | undefined;
   private started = false;
 
   constructor(options: ContainerOptions) {
@@ -59,8 +85,14 @@ export class Container {
     this.distro = options.distro;
     this.image = TEST_IMAGES[options.distro].image;
     this.user = options.user;
-    this.ports = options.publishSsh === false ? undefined : { [SSH_PORT]: 22 };
+    this.publishSsh = options.publishSsh !== false;
+    this.sshPort = undefined;
     this.privileged = options.privileged === true;
+  }
+
+  /** Compat accessor for `{ hostPort: containerPort }` publishing. */
+  get ports(): Record<number, number> | undefined {
+    return this.sshPort === undefined ? undefined : { [this.sshPort]: 22 };
   }
 
   async start(): Promise<void> {
@@ -70,43 +102,57 @@ export class Container {
 
     await checkImageLoaded(this.distro);
 
-    const args = [
-      'podman',
-      'run',
-      '-d',
-      '--rm',
-      '--name',
-      this.name,
-      '--hostname',
-      'sysopkit-test',
-    ];
-    if (this.user) {
-      args.push('--user', this.user);
+    if (this.publishSsh && this.sshPort === undefined) {
+      this.sshPort = await allocateFreePort();
     }
 
-    if (this.privileged) {
-      args.push('--privileged');
-    }
-
-    if (this.ports) {
-      for (const [hostPort, containerPort] of Object.entries(this.ports)) {
-        args.push('-p', `${hostPort}:${containerPort}`);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const args = [
+        'podman',
+        'run',
+        '-d',
+        '--rm',
+        '--name',
+        this.name,
+        '--hostname',
+        'sysopkit-test',
+      ];
+      if (this.user) {
+        args.push('--user', this.user);
       }
-    }
 
-    args.push(this.image, '/bin/sh', '-c', "trap 'exit 0' TERM; tail -f /dev/null & wait $!");
+      if (this.privileged) {
+        args.push('--privileged');
+      }
 
-    const proc = Bun.spawn(args, { stderr: 'pipe' });
-    const [exitCode, stderr] = await Promise.all([proc.exited, proc.stderr.text()]);
-    if (exitCode !== 0) {
+      if (this.ports) {
+        for (const [hostPort, containerPort] of Object.entries(this.ports)) {
+          args.push('-p', `${hostPort}:${containerPort}`);
+        }
+      }
+
+      args.push(this.image, '/bin/sh', '-c', "trap 'exit 0' TERM; tail -f /dev/null & wait $!");
+
+      const proc = Bun.spawn(args, { stderr: 'pipe' });
+      const [exitCode, stderr] = await Promise.all([proc.exited, proc.stderr.text()]);
+      if (exitCode === 0) {
+        await this.waitForReady();
+        this.started = true;
+        return;
+      }
+      if (
+        this.publishSsh &&
+        attempt < 4 &&
+        /address already in use|port is already allocated|binding.*failed|addr.*in use/i.test(stderr)
+      ) {
+        this.sshPort = await allocateFreePort();
+        continue;
+      }
       throw new Error(`Failed to start container: ${stderr}`);
     }
-
-    await this.waitForReady();
-    this.started = true;
   }
 
-  private async waitForReady(timeout = 3000): Promise<void> {
+  private async waitForReady(timeout = 30000): Promise<void> {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
       const result = await this.exec(['sh', '-c', 'exit 0']);
@@ -210,6 +256,16 @@ export async function withPodman<R>(
   }, options);
 }
 
+function sshPortFor(container: Container, port?: number): number {
+  const resolved = port ?? container.sshPort;
+  if (resolved === undefined) {
+    throw new Error(
+      'SSH container has no published host port (publishSsh: false?). Use publishSsh (default true) for SSH suites.',
+    );
+  }
+  return resolved;
+}
+
 export async function withSsh<R>(
   fn: (ctx: ExecutionContext) => Promise<R>,
   options: ContainerOptions,
@@ -220,7 +276,7 @@ export async function withSsh<R>(
     const conn = new SSHConnector({
       name: 'ssh',
       host: 'localhost',
-      port: SSH_PORT,
+      port: sshPortFor(container),
       user: 'testuser',
       key: PRIVATE_KEY_PATH,
       strictHostKeyChecking: false,
@@ -248,8 +304,10 @@ async function waitForSsh(port: number): Promise<void> {
  * shared container (in `beforeAll`) instead of once per test.
  *
  * SSH-based suites only run on fedora; other distros are rejected.
+ * Defaults to the container's dynamically allocated {@link Container.sshPort}
+ * so parallel e2e files (`bun test --parallel`) don't collide.
  */
-export async function ensureSshd(container: Container, port: number = SSH_PORT): Promise<void> {
+export async function ensureSshd(container: Container, port?: number): Promise<void> {
   if (container.distro !== 'fedora') {
     throw new Error(
       `SSH test containers are only supported on fedora (got '${container.distro}').`,
@@ -259,12 +317,13 @@ export async function ensureSshd(container: Container, port: number = SSH_PORT):
   if (check.exitCode !== 0) {
     await container.exec(['sh', '-c', 'nohup /usr/sbin/sshd > /dev/null 2>&1 &']);
   }
-  await waitForSsh(port);
+  await waitForSsh(sshPortFor(container, port));
 }
 
 /**
  * Starts a container meant to be shared across all tests in a file.
- * Call in `beforeAll`, stop it in `afterAll`. Serial execution assumed.
+ * Call in `beforeAll`, stop it in `afterAll`. Tests within a file run
+ * serially; files run in parallel via `bun test --parallel`.
  */
 export async function startSharedContainer(options: ContainerOptions): Promise<Container> {
   const container = new Container(options);
@@ -346,7 +405,7 @@ export async function sharedSsh<R>(
   const conn = new SSHConnector({
     name: 'ssh',
     host: 'localhost',
-    port: SSH_PORT,
+    port: sshPortFor(container),
     user: 'testuser',
     key: PRIVATE_KEY_PATH,
     strictHostKeyChecking: false,
