@@ -49,17 +49,17 @@ fi
 
 mkdir -p "$BTRFS_SNAPSHOTS_PATH"
 TMP_SNAPSHOT_PATH="$BTRFS_SNAPSHOTS_PATH/tmp-backup"
-[[ -d "$TMP_SNAPSHOT_PATH" ]] && btrfs subvolume delete "$TMP_SNAPSHOT_PATH"
+if [[ -d "$TMP_SNAPSHOT_PATH" ]]; then
+    btrfs subvolume delete "$TMP_SNAPSHOT_PATH"
+fi
 
 cleanup() {
-    local exit_code=$?
-    if [[ -d "${TMP_SNAPSHOT_PATH:-}" ]]; then
+    if [[ -n "${TMP_SNAPSHOT_PATH:-}" && -d "$TMP_SNAPSHOT_PATH" ]]; then
         echo "Cleaning up temporary snapshot: $TMP_SNAPSHOT_PATH"
-        btrfs subvolume delete "$TMP_SNAPSHOT_PATH" || echo "Warning: Failed to delete $TMP_SNAPSHOT_PATH"
+        btrfs subvolume delete "$TMP_SNAPSHOT_PATH" || echo "Warning: Failed to delete $TMP_SNAPSHOT_PATH" >&2
     fi
-    exit $exit_code
 }
-trap cleanup EXIT SIGINT SIGTERM
+trap cleanup EXIT
 
 echo "Creating local read-only snapshot..."
 btrfs subvolume snapshot -r "$BTRFS_SRC_SUBVOL" "$TMP_SNAPSHOT_PATH"
@@ -75,8 +75,10 @@ RSYNC_OPTS=(
     --info=progress2
 )
 
-if [[ -L "$BACKUP_LATEST_PATH" ]]; then
+if [[ -L "$BACKUP_LATEST_PATH" && -e "$BACKUP_LATEST_PATH/" ]]; then
     RSYNC_OPTS+=(--link-dest="$BACKUP_LATEST_PATH")
+elif [[ -L "$BACKUP_LATEST_PATH" ]]; then
+    echo "Warning: ignoring broken 'latest' symlink for --link-dest." >&2
 fi
 
 echo "Starting backup to: $BACKUP_PATH"
@@ -99,7 +101,15 @@ if [[ $(findmnt -no FSTYPE -T "$BACKUP_ROOT_PATH") == "btrfs" ]]; then
 fi
 
 echo "Cleaning up backups older than $RETENTION_DAYS days..."
-find "$BACKUP_ROOT_PATH/backup/" -mindepth 1 -maxdepth 1 -type d -ctime +$RETENTION_DAYS -exec rm -rf {} +
+LATEST_TARGET=""
+if [[ -L "$BACKUP_LATEST_PATH" ]]; then
+    LATEST_TARGET="$(readlink "$BACKUP_LATEST_PATH" || true)"
+fi
+if [[ -n "$LATEST_TARGET" ]]; then
+    find "$BACKUP_ROOT_PATH/backup/" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETENTION_DAYS" ! -name "$LATEST_TARGET" -print -exec rm -rf -- {} +
+else
+    find "$BACKUP_ROOT_PATH/backup/" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETENTION_DAYS" -print -exec rm -rf -- {} +
+fi
 
 echo "Backup finished"
 echo "TIP: If backup drive is getting slow, run 'btrfs balance'"
@@ -151,7 +161,19 @@ TMP_SNAPSHOT_PATH="$BTRFS_SNAPSHOTS_PATH/tmp-backup"
 
 ```bash
 mkdir -p "$BTRFS_SNAPSHOTS_PATH"
-[[ -d "$TMP_SNAPSHOT_PATH" ]] && btrfs subvolume delete "$TMP_SNAPSHOT_PATH"
+if [[ -d "$TMP_SNAPSHOT_PATH" ]]; then
+    btrfs subvolume delete "$TMP_SNAPSHOT_PATH"
+fi
+```
+
+```bash
+cleanup() {
+    if [[ -n "${TMP_SNAPSHOT_PATH:-}" && -d "$TMP_SNAPSHOT_PATH" ]]; then
+        echo "Cleaning up temporary snapshot: $TMP_SNAPSHOT_PATH"
+        btrfs subvolume delete "$TMP_SNAPSHOT_PATH" || echo "Warning: Failed to delete $TMP_SNAPSHOT_PATH" >&2
+    fi
+}
+trap cleanup EXIT
 ```
 
 ```bash
@@ -160,7 +182,7 @@ btrfs subvolume snapshot -r "$BTRFS_SRC_SUBVOL" "$TMP_SNAPSHOT_PATH"
 
 `-r` creates a read-only snapshot, which is both a safety measure (nothing during the backup can mutate the source view) and nearly free on Btrfs — snapshot creation is instant regardless of `/home` size because blocks are shared until they diverge.
 
-The snapshot is temporary by design. A `trap` on `EXIT`, `SIGINT`, and `SIGTERM` deletes `/.snapshots/tmp-backup` when the script finishes or is interrupted, so a `Ctrl-C` never leaves a stale snapshot behind. Only one transient snapshot ever exists; history lives on the vault drive, not in a growing pile of local snapshots.
+The snapshot is temporary by design. A `trap` on `EXIT` deletes `/.snapshots/tmp-backup` when the script finishes or is interrupted, so a `Ctrl-C` never leaves a stale snapshot behind. Only one transient snapshot ever exists; history lives on the vault drive, not in a growing pile of local snapshots. The cleanup guard checks that the variable is set and the path is still a directory, and any failure warning goes to stderr. No explicit `exit` is needed in the handler — `EXIT` already preserves the script's exit status.
 
 This requires `/home` to be a Btrfs subvolume and `/.snapshots` to be writable by root.
 
@@ -175,8 +197,10 @@ RSYNC_OPTS=(
     --info=progress2
 )
 
-if [[ -L "$BACKUP_LATEST_PATH" ]]; then
+if [[ -L "$BACKUP_LATEST_PATH" && -e "$BACKUP_LATEST_PATH/" ]]; then
     RSYNC_OPTS+=(--link-dest="$BACKUP_LATEST_PATH")
+elif [[ -L "$BACKUP_LATEST_PATH" ]]; then
+    echo "Warning: ignoring broken 'latest' symlink for --link-dest." >&2
 fi
 
 mkdir -p "$BACKUP_PATH"
@@ -191,7 +215,7 @@ What each flag preserves or controls:
 - `--numeric-ids` — compares users/groups by UID/GID rather than name, so restores are correct even if the target system's `/etc/passwd` differs.
 - `--filter=": .rsync-filter"` — per-directory merge-file excludes, covered in detail in [Filtering with per-directory `.rsync-filter` files](#filtering-with-per-directory-rsync-filter-files).
 - `--info=progress2` — single overall progress line instead of per-file noise.
-- `--link-dest="$BACKUP_LATEST_PATH"` — the incremental mechanism. Unchanged files are hard-linked from the previous `latest` backup instead of copied, so each timestamped directory looks like a full backup but only new or changed blocks consume space. It is only added when `latest` is actually a symlink, which keeps the very first backup (no predecessor) working without special-casing.
+- `--link-dest="$BACKUP_LATEST_PATH"` — the incremental mechanism. Unchanged files are hard-linked from the previous `latest` backup instead of copied, so each timestamped directory looks like a full backup but only new or changed blocks consume space. It is only added when `latest` is a symlink to an existing directory, which keeps the very first backup (no predecessor) working without special-casing. A dangling `latest` symlink — for example after a manual delete — is ignored with a stderr warning instead of failing the `rsync` run.
 
 Note the trailing slash in `"$TMP_SNAPSHOT_PATH/"` — it syncs the _contents_ of the snapshot into `$BACKUP_PATH` rather than nesting an extra `tmp-backup` directory inside it.
 
@@ -290,10 +314,18 @@ If the vault filesystem is Btrfs, every backup ends with a full scrub: all data 
 
 ```bash
 RETENTION_DAYS=60
-find "$BACKUP_ROOT_PATH/backup/" -mindepth 1 -maxdepth 1 -type d -ctime +$RETENTION_DAYS -exec rm -rf {} +
+LATEST_TARGET=""
+if [[ -L "$BACKUP_LATEST_PATH" ]]; then
+    LATEST_TARGET="$(readlink "$BACKUP_LATEST_PATH" || true)"
+fi
+if [[ -n "$LATEST_TARGET" ]]; then
+    find "$BACKUP_ROOT_PATH/backup/" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETENTION_DAYS" ! -name "$LATEST_TARGET" -print -exec rm -rf -- {} +
+else
+    find "$BACKUP_ROOT_PATH/backup/" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETENTION_DAYS" -print -exec rm -rf -- {} +
+fi
 ```
 
-Backups older than 60 days are deleted at the end of each run, keeping only top-level directories under `backup/`. Because unchanged files are hard-links shared between snapshots, deleting an old directory only frees blocks unique to it — shared blocks stay alive through their remaining links. `-ctime +60` keys off directory creation time, which matches the `DATETIME` naming scheme.
+Backups older than 60 days are deleted at the end of each run, keeping only top-level directories under `backup/`. Because unchanged files are hard-links shared between snapshots, deleting an old directory only frees blocks unique to it — shared blocks stay alive through their remaining links. `-mtime +60` keys off directory modification time, which matches the `DATETIME` naming scheme and avoids `ctime` bumps from metadata-only changes. The current `latest` target is explicitly excluded via `! -name`, so a stale-but-current backup is never deleted when the vault was offline past retention — it stays available as the next `--link-dest` reference. `-print` lists what is removed, and `--` keeps `rm` safe against names starting with `-`.
 
 The closing hint addresses long-term Btrfs behavior on the vault drive: heavy hard-link and delete churn fragments free space over time, and an occasional `btrfs balance` compacts it when writes get slow.
 
