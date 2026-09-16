@@ -84,6 +84,7 @@ fi
 echo "Starting backup to: $BACKUP_PATH"
 mkdir -p "$BACKUP_PATH"
 rsync "${RSYNC_OPTS[@]}" "$TMP_SNAPSHOT_PATH/" "$BACKUP_PATH"
+touch "$BACKUP_PATH"
 
 (
     cd "$BACKUP_ROOT_PATH/backup"
