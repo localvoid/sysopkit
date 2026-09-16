@@ -38,5 +38,5 @@
     "node": true
   },
   "globals": {},
-  "ignorePatterns": ["*/dist/**", "docs/.astro/**"]
+  "ignorePatterns": []
 }
