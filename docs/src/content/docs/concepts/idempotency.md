@@ -65,4 +65,4 @@ if (!ctx.dryRun) {
 
 ## Dry Run
 
-Set `dryRun: true` in `start()` options or via the `SYSOPKIT_DRY_RUN=1` environment variable. Idempotent operations will emit change events (showing what _would_ happen) but skip actual modifications.
+Set `dryRun: true` in `start()` options or via the `SYSOPKIT_DRY_RUN=1` environment variable. The flag is global (inherited down the context tree) but enforcement is per-op: idempotent operations will emit change events (showing what _would_ happen) but skip actual modifications. Exceptions: `tar`/`untar` emit `packed`/`extracted` unconditionally (including dry-run), and `curl` has no dry-run guard — it always downloads.

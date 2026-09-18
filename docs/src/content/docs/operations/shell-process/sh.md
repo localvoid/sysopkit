@@ -25,7 +25,7 @@ const text = await sh('cat /etc/hostname');
 
 ```ts
 class ShellError extends ExecError {
-  cmd: string;
+  cmd: string[];
   exitCode: number;
   stdout: string;
   stderr: string;

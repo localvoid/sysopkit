@@ -110,7 +110,7 @@ function context(): ExecutionContext;
 | `conn` | `Connector \| null` | Active connector (null in root) |
 | `dryRun` | `boolean` | Dry-run mode flag |
 | `name` | `string` | Context name |
-| `vars` | `Record<symbol \| string, any>` | Context variables |
+| `vars` | `Record<symbol \| string, any> \| undefined` | Context variables |
 | `signal` | `AbortSignal` | Abort signal for cancellation |
 | `verbosity` | `Verbosity` | Current verbosity level |
 

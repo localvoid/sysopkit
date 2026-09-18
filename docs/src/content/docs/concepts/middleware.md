@@ -30,7 +30,7 @@ await sudo(
 );
 ```
 
-Context variables control sudo behavior:
+Context variables control sudo behavior (set them via `start`/`apply`/`task`/`utility` `vars` — inventory host/group `vars` live on the connector object and are not visible to context lookup):
 
 - `SUDO_USER` — target user
 - `SUDO_PASSWORD` — password for sudo prompts
@@ -39,7 +39,7 @@ Context variables control sudo behavior:
 
 ## TraceMiddleware
 
-Pipes stdout and stderr through TransformStreams and reports each chunk via the reporter.
+Pipes stdout and stderr through TransformStreams, buffers the decoded output, and reports it once on stream close via `reporter.info()` for stdout and `reporter.error()` for stderr.
 
 ```ts
 import { trace } from 'sysopkit/middleware/trace';
@@ -49,7 +49,7 @@ await trace(async () => {
 });
 ```
 
-Output is buffered and flushed on stream end. Each chunk is reported via `reporter.info()` for stdout and `reporter.error()` for stderr.
+Output is buffered and reported once on stream close. Empty or whitespace-only output is suppressed.
 
 ## ExpectPromptMiddleware
 
@@ -73,11 +73,11 @@ Only responds once — after the first match, subsequent writes pass through nor
 Transforms command arrays before execution. Useful for wrapping commands in a shell or adding prefixes.
 
 ```ts
+import { middleware } from 'sysopkit';
 import { TransformCmdMiddleware } from 'sysopkit/middleware/transform-cmd';
 
-const noLog = new TransformCmdMiddleware(connector, {
-  transform: (cmd) => ['env', 'DISABLE_LOGGING=1', ...cmd],
-});
+await middleware('no-log', async () => { /* … */ }, (next) => new TransformCmdMiddleware(next,
+  (cmd) => ['env', 'DISABLE_LOGGING=1', ...cmd]));
 ```
 
 ## Stacking Middleware

@@ -89,7 +89,6 @@ export default defineConfig({
                 'operations/network/net',
                 'operations/network/netcat',
                 'operations/network/ssh',
-                'operations/network/wget',
               ],
             },
             {

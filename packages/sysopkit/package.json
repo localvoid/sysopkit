@@ -149,11 +149,6 @@
       "types": "./dist/op/users.d.ts",
       "default": "./dist/op/users.js"
     },
-    "./op/wget": {
-      "bun": "./src/op/wget.ts",
-      "types": "./dist/op/wget.d.ts",
-      "default": "./dist/op/wget.js"
-    },
     "./utils/gpg": {
       "bun": "./src/utils/gpg.ts",
       "types": "./dist/utils/gpg.d.ts",

@@ -5,7 +5,7 @@ description: Controlling execution mode and output verbosity.
 
 ## Dry Run Mode
 
-Dry run mode prevents actual changes while still showing what would happen. Idempotent operations emit change events but skip modification.
+Dry run mode prevents actual changes while still showing what would happen. The flag is global (set once at `start()`, inherited down the context tree) but enforcement is per-op: idempotent operations emit change events but skip modification. Exceptions: `tar`/`untar` emit unconditionally, and `curl` has no dry-run guard.
 
 Enable dry-run mode via the environment variable:
 

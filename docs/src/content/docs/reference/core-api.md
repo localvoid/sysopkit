@@ -9,10 +9,10 @@ description: Detailed reference for SysopKit's core types and interfaces.
 interface Connector extends AsyncDisposable {
   readonly host: string;
   readonly name: string;
-  readonly vars: Record<string | symbol, any>;
+  readonly vars: Record<string | symbol, any> | undefined;
   readonly rsh: string[];
   connect(signal?: AbortSignal): Promise<void>;
-  spawn(cmd: string[], signal?: AbortSignal): Process;
+  spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
   [Symbol.asyncDispose](): Promise<void>;
 }
 ```
@@ -23,11 +23,11 @@ Abstract command transport with `LocalConnector`, `SSHConnector`, and `PodmanCon
 
 ```ts
 abstract class ConnectorBase implements Connector {
-  host: string;
-  name: string;
-  vars: Record<string | symbol, any>;
+  readonly host: string;
+  readonly name: string;
+  readonly vars: Record<string | symbol, any> | undefined;
   abstract get rsh(): string[];
-  abstract spawn(cmd: string[], signal?: AbortSignal): Process;
+  abstract spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
   connect(signal?: AbortSignal): Promise<void>; // no-op by default
   [Symbol.asyncDispose](): Promise<void>; // no-op by default
 }
@@ -52,23 +52,23 @@ Base class for the decorator pattern. Subclasses override methods to intercept o
 ```ts
 class ExecutionContext {
   type: ContextType; // 'root' | 'apply' | 'connector' | 'middleware' | 'utility' | 'task'
-  parent?: ExecutionContext;
+  parent: ExecutionContext | null;
   reporter: Reporter;
-  conn?: Connector;
+  conn: Connector | null;
   dryRun: boolean;
   name: string;
-  details?: Record<string, any>;
-  vars: Record<string | symbol, any>;
+  details: string | (() => string | Record<string, string | number | undefined>) | undefined;
+  vars: Record<string | symbol, any> | undefined;
   signal: AbortSignal;
-  verbosity: number;
-  eventHandlers: Map<Event<any>, Set<EventHandler>>;
-  tryGet<T>(key: Var<T>): T | undefined;
-  get<T>(key: Var<T>): T;
-  abort(reason?: any): never;
+  verbosity: Verbosity;
+  eventHandlers: null | Map<Event<any>, Array<(data: unknown) => void>>;
+  tryGet<T>(key: Var<T> | string): T | undefined;
+  get<T>(key: Var<T> | string): T;
+  abort(reason?: string): never;
   on<T>(event: Event<T>, handler: (data: T) => void): void;
-  info(...args: any[]): void;
-  warn(...args: any[]): void;
-  error(...args: any[]): void;
+  info(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
 }
 ```
 
@@ -79,7 +79,7 @@ interface Reporter {
   ctxStart(ctx: ExecutionContext): void;
   ctxEnd(ctx: ExecutionContext): void;
   ctxError(ctx: ExecutionContext, error: unknown): void;
-  onEvent(ctx: ExecutionContext, event: symbol, data: unknown): void;
+  onEvent<T>(ctx: ExecutionContext, event: Event<T>, data: T): void;
   spawn(ctx: ExecutionContext, cmd: string[]): void;
   retryAttempt(ctx: ExecutionContext, attempt: number, delay: number, error: unknown): void;
   info(ctx: ExecutionContext, message: string): void;

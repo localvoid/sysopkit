@@ -9,10 +9,10 @@ import { spawn, exec } from 'sysopkit/op/exec';
 
 ## spawn()
 
-Spawns a process via the current connector. Returns a `Process` object.
+Spawns a process via the current connector. Returns a `Promise<Process>`.
 
 ```ts
-const proc = spawn(['ping', '-c', '3', '8.8.8.8']);
+const proc = await spawn(['ping', '-c', '3', '8.8.8.8']);
 // proc.stdin, proc.stdout, proc.stderr, proc.exited
 ```
 

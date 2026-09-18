@@ -48,7 +48,8 @@ Host-level variables override group-level variables, which override inventory-le
 - Implements `AsyncDisposable` for bulk cleanup
 
 ```ts
-import { start, resolveInventory, apply } from 'sysopkit';
+import { start, apply } from 'sysopkit';
+import { resolveInventory } from 'sysopkit/inventory';
 import { sh } from 'sysopkit/op/sh';
 
 const INVENTORY = {
@@ -90,6 +91,8 @@ Host strings with prefixes determine connection type:
 
 - `ssh:hostname` — SSH connector (default for any hostname)
 - `pod:container` — Podman connector
+
+Unknown prefixes fall back to the SSH connector with the remainder after `:` as the host, so prefer explicit `ssh:` or bare hostnames.
 
 Custom factories can be registered:
 

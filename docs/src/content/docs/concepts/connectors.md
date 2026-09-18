@@ -11,10 +11,10 @@ Connectors abstract how commands reach a target system. Every connector implemen
 interface Connector extends AsyncDisposable {
   readonly host: string;
   readonly name: string;
-  readonly vars: Record<string | symbol, any>;
+  readonly vars: Record<string | symbol, any> | undefined;
   readonly rsh: string[]; // command prefix for remote execution
   connect(signal?: AbortSignal): Promise<void>;
-  spawn(cmd: string[], signal?: AbortSignal): Process;
+  spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
   [Symbol.asyncDispose](): Promise<void>;
 }
 ```
@@ -72,7 +72,7 @@ Executes commands inside running Podman containers via `podman exec`.
 ```ts
 import { PodmanConnector } from 'sysopkit/connector/podman';
 
-await using c = new PodmanConnector({ container: 'my-app' });
+await using c = new PodmanConnector({ host: 'my-app' });
 await c.connect(); // validates container is running
 ```
 

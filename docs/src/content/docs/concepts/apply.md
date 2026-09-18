@@ -11,7 +11,8 @@ Connects to a single host, creates a connector context, and runs the function:
 
 ```ts
 import { start } from 'sysopkit/start';
-import { apply, LocalConnector } from 'sysopkit';
+import { apply } from 'sysopkit';
+import { LocalConnector } from 'sysopkit/connector/local';
 import { sh } from 'sysopkit/op/sh';
 
 await start(async () => {
@@ -30,7 +31,9 @@ await start(async () => {
 Processes multiple hosts in parallel batches:
 
 ```ts
-import { start, resolveInventory, apply } from 'sysopkit';
+import { start } from 'sysopkit/start';
+import { apply } from 'sysopkit';
+import { resolveInventory } from 'sysopkit/inventory';
 
 const inventory = {
   groups: {
@@ -61,11 +64,11 @@ await start(async () => {
 
 ## Options
 
-| Option           | Default | Description                                                 |
-| ---------------- | ------- | ----------------------------------------------------------- |
-| `batchSize`      | 5       | Number of hosts to process in parallel                      |
-| `maxFailPercent` | —       | Abort remaining batches if failure % exceeds this threshold |
-| `vars`           | —       | Additional context variables                                |
+| Option           | Default | Description                                                                |
+| ---------------- | ------- | -------------------------------------------------------------------------- |
+| `batchSize`      | 5       | Hosts per parallel batch (`>= 1` or `Infinity` for one giant batch)        |
+| `maxFailPercent` | —       | Abort remaining batches if failure % exceeds this threshold                |
+| `vars`           | —       | Additional context variables                                               |
 
 ## Error Handling
 

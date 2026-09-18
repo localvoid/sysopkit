@@ -19,7 +19,7 @@ type Event<T> = symbol & {
 Use `emit()` to dispatch events from any context:
 
 ```ts
-import { emit, Event, task } from 'sysopkit';
+import { emit, task, type Event } from 'sysopkit';
 
 const MY_EVENT: Event<string> = Symbol('my.event');
 

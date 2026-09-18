@@ -93,7 +93,7 @@ await start(async () => {
   });
 
   await using local = new LocalConnector();
-  await using pod = new PodmanConnector({ container: 'my-app' });
+  await using pod = new PodmanConnector({ host: 'my-app' });
 });
 ```
 

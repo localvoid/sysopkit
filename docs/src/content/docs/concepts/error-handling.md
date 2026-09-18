@@ -7,7 +7,7 @@ See [Error Classes](/reference/error-classes/) for the complete API reference of
 
 ## AbortError
 
-Cancelled commands reject with `AbortError`. Use `isAbortError()` to check for cancellation:
+Cancelled operations reject with `AbortError`, or with the abort `signal.reason` wherever the op checks cancellation (e.g. `sleep` rejects with the reason, so a `timeout()` expiry surfaces as `TimeoutError`). Use `isAbortError()` to check for plain cancellation:
 
 ```ts
 import { isAbortError } from 'sysopkit';
