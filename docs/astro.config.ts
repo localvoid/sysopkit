@@ -4,6 +4,7 @@ import starlightBlog from 'starlight-blog';
 
 export default defineConfig({
   site: 'https://www.sysopkit.com',
+  trailingSlash: 'never',
   integrations: [
     starlight({
       plugins: [
