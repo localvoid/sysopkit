@@ -49,6 +49,23 @@ export {
 } from './systemd/service.js';
 export { SLEEP_CONF_PATH, type SleepConf } from './systemd/sleep.js';
 export {
+  SYSTEM_CONF_PATH,
+  USER_CONF_PATH,
+  type SystemManagerConf,
+  type SystemManagerCPUPressureWatch,
+  type SystemManagerCrashAction,
+  type SystemManagerCtrlAltDelBurstAction,
+  type SystemManagerIOPressureWatch,
+  type SystemManagerLogTarget,
+  type SystemManagerMemoryPressureWatch,
+  type SystemManagerNUMAPolicy,
+  type SystemManagerProtectSystem,
+  type SystemManagerRestrictFileSystemAccess,
+  type SystemManagerShowStatus,
+  type SystemManagerStandardOutput,
+  type SystemManagerStatusUnitFormat,
+} from './systemd/system-conf.js';
+export {
   type SetHostnameOptions,
   type SetLocaleOptions,
   type SetTimezoneOptions,
