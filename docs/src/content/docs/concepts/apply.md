@@ -64,11 +64,11 @@ await start(async () => {
 
 ## Options
 
-| Option           | Default | Description                                                                |
-| ---------------- | ------- | -------------------------------------------------------------------------- |
-| `batchSize`      | 5       | Hosts per parallel batch (`>= 1` or `Infinity` for one giant batch)        |
-| `maxFailPercent` | —       | Abort remaining batches if failure % exceeds this threshold                |
-| `vars`           | —       | Additional context variables                                               |
+| Option           | Default | Description                                                         |
+| ---------------- | ------- | ------------------------------------------------------------------- |
+| `batchSize`      | 5       | Hosts per parallel batch (`>= 1` or `Infinity` for one giant batch) |
+| `maxFailPercent` | —       | Abort remaining batches if failure % exceeds this threshold         |
+| `vars`           | —       | Additional context variables                                        |
 
 ## Error Handling
 

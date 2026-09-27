@@ -11,28 +11,19 @@ Retries a function with fixed or exponential backoff. Skips `AbortError` so canc
 import { retry, TimeoutError } from 'sysopkit';
 
 // Fixed backoff (default)
-await retry(
-  { attempts: 3, delay: 1000 },
-  async () => {
-    await sh('curl -s http://api/health');
-  },
-);
+await retry({ attempts: 3, delay: 1000 }, async () => {
+  await sh('curl -s http://api/health');
+});
 
 // Exponential backoff
-await retry(
-  { attempts: 5, delay: 500, backoff: 'exponential', maxDelay: 30_000 },
-  async () => {
-    await sh('curl -s http://api/health');
-  },
-);
+await retry({ attempts: 5, delay: 500, backoff: 'exponential', maxDelay: 30_000 }, async () => {
+  await sh('curl -s http://api/health');
+});
 
 // With retryOn predicate
-await retry(
-  { attempts: 3, retryOn: (err) => err instanceof TimeoutError },
-  async () => {
-    // only retry on specific errors
-  },
-);
+await retry({ attempts: 3, retryOn: (err) => err instanceof TimeoutError }, async () => {
+  // only retry on specific errors
+});
 ```
 
 ## timeout()

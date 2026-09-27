@@ -29,12 +29,12 @@ task('inner', async (ctx) => {
 
 ## Built-in Variables
 
-| Variable            | Type                       | Description                        |
-| ------------------- | -------------------------- | ---------------------------------- |
-| `SUDO_USER`         | `Var<string>`              | Default sudo user                  |
-| `SUDO_PASSWORD`     | `Var<string>`              | Default sudo password              |
-| `SUDO_ROLE`         | `Var<string>`              | SELinux role for sudo              |
-| `SUDO_PRESERVE_ENV` | `Var<boolean \| string[]>` | Preserved sudo env vars            |
+| Variable            | Type                       | Description             |
+| ------------------- | -------------------------- | ----------------------- |
+| `SUDO_USER`         | `Var<string>`              | Default sudo user       |
+| `SUDO_PASSWORD`     | `Var<string>`              | Default sudo password   |
+| `SUDO_ROLE`         | `Var<string>`              | SELinux role for sudo   |
+| `SUDO_PRESERVE_ENV` | `Var<boolean \| string[]>` | Preserved sudo env vars |
 
 `SSH_AUTH_SOCKET` is not a context variable — it is an environment key the SSH connector sets internally from its `authSocket` option.
 

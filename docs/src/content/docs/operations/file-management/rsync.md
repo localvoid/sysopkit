@@ -36,15 +36,15 @@ const changes = await rsyncPull({
 
 ## Options
 
-| Option                 | Description                                              |
-| ---------------------- | -------------------------------------------------------- |
-| `src`                  | Source path                                              |
-| `dst`                  | Destination path                                         |
-| `flags`                | Additional rsync flags (default Archive `-a` when unset) |
-| `remove`               | Remove extra files on destination (default `true` → `--delete`; pass `remove: false` to keep them) |
-| `user` / `group`       | Ownership settings                                       |
-| `usermap` / `groupmap` | User/group mapping                                       |
-| `rsyncPath`            | Custom rsync binary path                                 |
+| Option | Description |
+| --- | --- |
+| `src` | Source path |
+| `dst` | Destination path |
+| `flags` | Additional rsync flags (default Archive `-a` when unset) |
+| `remove` | Remove extra files on destination (default `true` → `--delete`; pass `remove: false` to keep them) |
+| `user` / `group` | Ownership settings |
+| `usermap` / `groupmap` | User/group mapping |
+| `rsyncPath` | Custom rsync binary path |
 
 Both functions return `RsyncEntry[]` with `type`, `action` (`sent`/`created`/`touched`/`deleted`), and `path` fields.
 

@@ -6,7 +6,13 @@ description: systemd-networkd configuration types (.link, .network, .netdev).
 Type definitions for systemd-networkd configuration files: `.link`, `.network`, and `.netdev` files.
 
 ```ts
-import type { LinkConf, LinkMatch, LinkLink, LinkSRIOV, LinkEnergyEfficientEthernet } from '@sysopkit/linux/systemd/networkd/link';
+import type {
+  LinkConf,
+  LinkMatch,
+  LinkLink,
+  LinkSRIOV,
+  LinkEnergyEfficientEthernet,
+} from '@sysopkit/linux/systemd/networkd/link';
 
 import type {
   NetworkConf,
@@ -37,7 +43,10 @@ import type {
 Device-level configuration applied by udev during device initialization.
 
 ```ts
-type LinkConf = Partial<LinkMatch> & Partial<LinkLink> & Partial<LinkSRIOV> & Partial<LinkEnergyEfficientEthernet>;
+type LinkConf = Partial<LinkMatch> &
+  Partial<LinkLink> &
+  Partial<LinkSRIOV> &
+  Partial<LinkEnergyEfficientEthernet>;
 ```
 
 ### LinkMatch

@@ -5,8 +5,7 @@ description: TypeScript infrastructure automation (Ansible-like). Use when writi
 
 # SysopKit
 
-TypeScript-first infrastructure automation (programmatic Ansible alternative).
-Zero runtime dependencies. Requires Bun (or Node 22+ with `AbortSignal.any`).
+TypeScript-first infrastructure automation (programmatic Ansible alternative). Zero runtime dependencies. Requires Bun (or Node 22+ with `AbortSignal.any`).
 
 ## Minimal workflow
 
@@ -18,11 +17,15 @@ import { sudo } from 'sysopkit/middleware/sudo';
 import { sh } from 'sysopkit/op/sh';
 
 const result = await start(async () => {
-  await using hosts = resolveInventory({ groups: {
-    web: { hosts: { 'web-1': { host: '192.168.1.10', user: 'admin' } } },
-  }});
+  await using hosts = resolveInventory({
+    groups: {
+      web: { hosts: { 'web-1': { host: '192.168.1.10', user: 'admin' } } },
+    },
+  });
   await apply('setup', hosts.getByGroup('web'), async () => {
-    await sudo(async () => { await sh('apt-get install -y nginx'); });
+    await sudo(async () => {
+      await sh('apt-get install -y nginx');
+    });
   });
 });
 if (!result.success) throw result.error;
@@ -33,8 +36,7 @@ Rules that always apply:
 - Everything runs inside `start()` — there is no ambient context outside it.
 - Connectors are `AsyncDisposable` — always `await using` them (or the inventory).
 - `start()` never throws; it returns `{ success, result | error, duration }`.
-- `apply()` with one connector throws `ApplyError` on failure; with an array it
-  returns per-host results and throws only past `maxFailPercent`.
+- `apply()` with one connector throws `ApplyError` on failure; with an array it returns per-host results and throws only past `maxFailPercent`.
 
 ## Router — read the page that matches the task
 
@@ -76,28 +78,15 @@ Rules that always apply:
 
 ## Watch out
 
-- Outside `start()`, everything throws `No context available`.
-  ([execution-model](execution-model.md))
-- `sh`/`bash` throw on non-zero exit **except 64–78**; exit 64 means "not
-  found". Probe via `exitCode`. Interpolate paths with `$_()`. ([ops/shell](ops/shell.md))
-- Dry-run flag is **global** (set once, inherited); enforcement is **per-op**.
-  `curl` ignores it entirely.
-  ([execution-model](execution-model.md), [ops/files](ops/files.md))
-- Multi-host `apply` below the failure threshold **returns** mixed results
-  without throwing — check `r.success`. `connect()` failures abort the whole
-  batch. ([inventory-apply](inventory-apply.md))
-- SSH: `chmod 600` keys, `connect()` before first `rsh` read, prefer `exec`/`sh`
-  ops over raw `spawn()`. ([connectors/ssh](connectors/ssh.md))
-- Podman passes argv verbatim — use `sh` for shell syntax.
-  ([connectors/podman](connectors/podman.md))
-- `sudo` without a password uses `-n` (fails fast); `expectStderrPrompt`
-  watches stderr only, fires once. ([middleware/sudo](middleware/sudo.md),
-  [middleware/others](middleware/others.md))
-- `onChange` dies with its scope; handlers must not throw.
-  ([events-changes](events-changes.md))
-- `rsync` defaults to `--delete`; `restartService` is unconditional — gate it
-  behind `onChange`. ([ops/files](ops/files.md),
-  [ops/linux-systemd](ops/linux-systemd.md))
+- Outside `start()`, everything throws `No context available`. ([execution-model](execution-model.md))
+- `sh`/`bash` throw on non-zero exit **except 64–78**; exit 64 means "not found". Probe via `exitCode`. Interpolate paths with `$_()`. ([ops/shell](ops/shell.md))
+- Dry-run flag is **global** (set once, inherited); enforcement is **per-op**. `curl` ignores it entirely. ([execution-model](execution-model.md), [ops/files](ops/files.md))
+- Multi-host `apply` below the failure threshold **returns** mixed results without throwing — check `r.success`. `connect()` failures abort the whole batch. ([inventory-apply](inventory-apply.md))
+- SSH: `chmod 600` keys, `connect()` before first `rsh` read, prefer `exec`/`sh` ops over raw `spawn()`. ([connectors/ssh](connectors/ssh.md))
+- Podman passes argv verbatim — use `sh` for shell syntax. ([connectors/podman](connectors/podman.md))
+- `sudo` without a password uses `-n` (fails fast); `expectStderrPrompt` watches stderr only, fires once. ([middleware/sudo](middleware/sudo.md), [middleware/others](middleware/others.md))
+- `onChange` dies with its scope; handlers must not throw. ([events-changes](events-changes.md))
+- `rsync` defaults to `--delete`; `restartService` is unconditional — gate it behind `onChange`. ([ops/files](ops/files.md), [ops/linux-systemd](ops/linux-systemd.md))
 
 ## Repo map (import subpaths)
 
@@ -105,8 +94,6 @@ Rules that always apply:
 - `sysopkit/inventory`, `sysopkit` — orchestration (`resolveInventory`), host management (`apply`)
 - `sysopkit/connector/local`, `sysopkit/connector/ssh`, `sysopkit/connector/podman` — transports
 - `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd` — wrappers
-- `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`,
-  `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh` — core ops
-- `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`,
-  `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
+- `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh` — core ops
+- `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`, `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
 - OpenWrt UCI — see the `sysopkit-openwrt` skill

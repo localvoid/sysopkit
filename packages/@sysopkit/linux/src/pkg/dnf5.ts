@@ -125,7 +125,15 @@ export type DnfMainConf = {
   readonly proxy?: string;
   readonly proxy_username?: string;
   readonly proxy_password?: string;
-  readonly proxy_auth_method?: 'basic' | 'digest' | 'negotiate' | 'ntlm' | 'digest_ie' | 'ntlm_wb' | 'none' | 'any';
+  readonly proxy_auth_method?:
+    | 'basic'
+    | 'digest'
+    | 'negotiate'
+    | 'ntlm'
+    | 'digest_ie'
+    | 'ntlm_wb'
+    | 'none'
+    | 'any';
   readonly proxy_sslcacert?: string;
   readonly proxy_sslclientcert?: string;
   readonly proxy_sslclientkey?: string;

@@ -5,9 +5,7 @@ description: OpenWrt UCI configuration with sysopkit. Use when writing or debugg
 
 # SysopKit OpenWrt
 
-Typed OpenWrt UCI builders (`@sysopkit/openwrt/uci/*`). Pure
-serializers — no transport, no apply ops. Combine with the `sysopkit` skill
-(`start`, `apply`, `createFile`, `sh`) for execution.
+Typed OpenWrt UCI builders (`@sysopkit/openwrt/uci/*`). Pure serializers — no transport, no apply ops. Combine with the `sysopkit` skill (`start`, `apply`, `createFile`, `sh`) for execution.
 
 ## Workflow
 
@@ -17,15 +15,12 @@ import type { UciNetwork } from '@sysopkit/openwrt/uci/network';
 import { createFile } from 'sysopkit/op/file';
 import { sh } from 'sysopkit/op/sh';
 
-const config: UciNetwork = [ /* typed sections, see configs.md */ ];
+const config: UciNetwork = [/* typed sections, see configs.md */];
 await createFile({ path: '/etc/config/network', content: serializeUci(config) });
 await sh('/etc/init.d/network reload'); // subsystem reload; varies per config
 ```
 
-`serializeUci` output replaces the whole `/etc/config/<name>` file, so always
-build the complete config (all sections), not a delta. `createFile` is
-idempotent — reload only when it changed (latch on `onChange`, see the
-`sysopkit` skill's `events-changes.md`).
+`serializeUci` output replaces the whole `/etc/config/<name>` file, so always build the complete config (all sections), not a delta. `createFile` is idempotent — reload only when it changed (latch on `onChange`, see the `sysopkit` skill's `events-changes.md`).
 
 ## Router
 
@@ -37,8 +32,5 @@ idempotent — reload only when it changed (latch on `onChange`, see the
 ## Pitfalls
 
 - Full-file replace: omitting a section **deletes** it from the device config.
-- Reload command differs per subsystem (`network reload`, firewall restart,
-  `uci commit` + service reload) — sending the wrong one silently applies
-  nothing.
-- Option values are strings on the wire; the types allow `string | number` —
-  confirm device-side parsing for numeric options.
+- Reload command differs per subsystem (`network reload`, firewall restart, `uci commit` + service reload) — sending the wrong one silently applies nothing.
+- Option values are strings on the wire; the types allow `string | number` — confirm device-side parsing for numeric options.

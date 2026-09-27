@@ -76,8 +76,13 @@ Transforms command arrays before execution. Useful for wrapping commands in a sh
 import { middleware } from 'sysopkit';
 import { TransformCmdMiddleware } from 'sysopkit/middleware/transform-cmd';
 
-await middleware('no-log', async () => { /* … */ }, (next) => new TransformCmdMiddleware(next,
-  (cmd) => ['env', 'DISABLE_LOGGING=1', ...cmd]));
+await middleware(
+  'no-log',
+  async () => {
+    /* … */
+  },
+  (next) => new TransformCmdMiddleware(next, (cmd) => ['env', 'DISABLE_LOGGING=1', ...cmd]),
+);
 ```
 
 ## Stacking Middleware
