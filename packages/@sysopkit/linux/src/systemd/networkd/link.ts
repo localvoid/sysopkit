@@ -6,6 +6,11 @@
  * @see systemd.link(5) - Network device configuration
  */
 
+export type LinkConf = Partial<LinkMatch> &
+  Partial<LinkLink> &
+  Partial<LinkSRIOV> &
+  Partial<LinkEnergyEfficientEthernet>;
+
 /**
  * [Match] section for .link files.
  * Determines if a link file may be applied to a given device.
@@ -44,6 +49,8 @@ export type LinkMatch = {
     Architecture?: string;
     /** Checks whether the system is running on a machine with the specified firmware. See ConditionFirmware= in systemd.unit(5). */
     Firmware?: string;
+    /** Matches against the tags assigned to the local machine. See ConditionMachineTag= in systemd.unit(5). */
+    MachineTag?: string;
   };
 };
 
@@ -75,9 +82,9 @@ export type LinkLink = {
     'AlternativeNamesPolicy'?: string;
     /** Alternative interface name to use. Can be specified multiple times. Max 127 characters. */
     'AlternativeName'?: string | string[];
-    /** Number of transmit queues (1-4096). */
+    /** Number of transmit queues (1-16384). */
     'TransmitQueues'?: number;
-    /** Number of receive queues (1-4096). */
+    /** Number of receive queues (1-16384). */
     'ReceiveQueues'?: number;
     /** Transmit queue length in packets (0-4294967294). */
     'TransmitQueueLength'?: number;
@@ -129,6 +136,12 @@ export type LinkLink = {
     'LargeReceiveOffload'?: 'yes' | 'no';
     /** CPUs for Receive Packet Steering (RPS). List of indices/ranges or "all". "disable" to turn off. */
     'ReceivePacketSteeringCPUMask'?: string;
+    /** IRQ distribution strategy for MSI/MSI-X interrupts. "spread" distributes across CPUs, "single" pins to one CPU. */
+    'IRQAffinityPolicy'?: 'spread' | 'single';
+    /** CPUs eligible for IRQ placement. List of indices/ranges. Only effective with IRQAffinityPolicy=. */
+    'IRQAffinity'?: string;
+    /** Restrict IRQ placement to a NUMA node. Takes "local" or a node number. Only effective with IRQAffinityPolicy=. */
+    'IRQAffinityNUMA'?: string;
     /** Enable receive VLAN CTAG hardware acceleration. */
     'ReceiveVLANCTAGHardwareAcceleration'?: 'yes' | 'no';
     /** Enable transmit VLAN CTAG hardware acceleration. */

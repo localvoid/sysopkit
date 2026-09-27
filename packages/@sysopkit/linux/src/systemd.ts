@@ -190,6 +190,7 @@ export type {
   NetDevXfrm,
 } from './systemd/networkd/netdev.js';
 export type {
+  LinkConf,
   LinkEnergyEfficientEthernet,
   LinkLink,
   LinkMatch,

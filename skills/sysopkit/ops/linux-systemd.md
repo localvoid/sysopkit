@@ -53,8 +53,8 @@ await setLocale({ locale: 'C.UTF-8' }); // bare form, sets LANG
 
 - `ServiceUnitConf`, `TimerUnitConf` (+ `ServiceSectionOptions`,
   `TimerSectionOptions`, `UnitSectionOptions`, `InstallSectionOptions`) for
-  building unit files; `Network*` / `NetDev*` / `Link*` types for
-  systemd-networkd; `TmpFilesConf` / `SysusersConf` with `parse*`/`serialize*`.
+  building unit files; `NetworkConf` / `NetDevConf` / `LinkConf` (+ `Network*` /
+  `NetDev*` / `Link*` section types) for systemd-networkd; `TmpFilesConf` / `SysusersConf` with `parse*`/`serialize*`.
 - `common.ts`: `SYSTEMD_SYSTEM_PATH` / `USER_PATH`, `SystemdScope` /
   `ScopeOptions`, `getSystemdConfigPath` / `getSystemdConfigDropInPath` /
   `getUnitPath` path helpers.
