@@ -178,11 +178,30 @@ export async function modinfo(module: string): Promise<ModprobeInfo> {
   };
 }
 
+/** Which kexec syscall to use when loading a kernel. */
+export type KexecSyscall =
+  /** Try `KEXEC_FILE_LOAD` first, fall back to `KEXEC_LOAD` (`kexec -a`). */
+  | 'auto'
+  /** Use `KEXEC_FILE_LOAD` exclusively (`kexec -s`). */
+  | 'file'
+  /** Use `KEXEC_LOAD` exclusively (`kexec -c`). */
+  | 'load';
+
 /** Options for loading a kernel with kexec. */
 export interface KexecLoadOptions {
   readonly kernel: string;
   readonly initrd?: string;
   readonly cmdline?: string;
+  /**
+   * Which kexec syscall to use.
+   *
+   * Use `'file'` on systems with locked-down Secure Boot: `KEXEC_LOAD`
+   * is blocked there and `KEXEC_FILE_LOAD` (`kexec -s`) is required so
+   * the kernel signature is verified. Use `'load'` for kernel images
+   * or architectures without `KEXEC_FILE_LOAD` support. Omit for the
+   * kexec default (auto).
+   */
+  readonly syscall?: KexecSyscall;
 }
 
 /**
@@ -191,8 +210,12 @@ export interface KexecLoadOptions {
  * The kernel is loaded but not executed. Call `kexecExec()` to boot into it.
  */
 export async function kexecLoad(options: KexecLoadOptions): Promise<void> {
-  const { kernel, initrd, cmdline } = options;
-  let cmd = `kexec -l ${$_(kernel)}`;
+  const { kernel, initrd, cmdline, syscall } = options;
+  let cmd = 'kexec';
+  if (syscall === 'file') cmd += ' -s';
+  else if (syscall === 'load') cmd += ' -c';
+  else if (syscall === 'auto') cmd += ' -a';
+  cmd += ` -l ${$_(kernel)}`;
   if (initrd) cmd += ` ${$_(`--initrd=${initrd}`)}`;
   if (cmdline) cmd += ` ${$_(`--append=${cmdline}`)}`;
   await sh(cmd);

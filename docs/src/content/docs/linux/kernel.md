@@ -47,6 +47,23 @@ await kexecLoad({
 });
 ```
 
+On systems with locked-down Secure Boot, `KEXEC_LOAD` is blocked and
+`KEXEC_FILE_LOAD` (`kexec -s`) is required so the kernel signature is
+verified:
+
+```ts
+await kexecLoad({
+  kernel: '/boot/vmlinuz-linux',
+  initrd: '/boot/initramfs-linux.img',
+  cmdline: 'root=/dev/sda1 ro quiet',
+  syscall: 'file',
+});
+```
+
+`syscall` selects the kexec interface: `'file'` (`-s`, file only),
+`'load'` (`-c`, classic `KEXEC_LOAD` only), `'auto'` (`-a`, try file
+first with fallback). Omit for the kexec default (auto).
+
 ## kexecExec()
 
 Executes the loaded kernel, rebooting the system immediately using `kexec -e`.
