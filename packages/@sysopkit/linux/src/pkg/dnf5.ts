@@ -32,6 +32,116 @@ export type DnfRepoConfEntry = {
   readonly includepkgs?: string;
 };
 
+/**
+ * DNF5 main configuration ([main] section of /etc/dnf/dnf.conf).
+ *
+ * All options correspond to keys in the [main] section, including options
+ * shared with repository sections (used as per-repo defaults).
+ * All fields are optional and INI-verbatim: booleans use the existing
+ * `'0' | '1' | 'True' | 'False'` style, lists/integers/sizes/times/colors
+ * are plain strings.
+ *
+ * @see dnf.conf(5) - DNF5 configuration file format
+ */
+export type DnfMainConf = {
+  readonly allow_downgrade?: '0' | '1' | 'True' | 'False';
+  readonly allow_vendor_change?: '0' | '1' | 'True' | 'False';
+  readonly assumeno?: '0' | '1' | 'True' | 'False';
+  readonly assumeyes?: '0' | '1' | 'True' | 'False';
+  readonly best?: '0' | '1' | 'True' | 'False';
+  readonly cachedir?: string;
+  readonly cacheonly?: 'all' | 'metadata' | 'none';
+  readonly check_config_file_age?: '0' | '1' | 'True' | 'False';
+  readonly clean_requirements_on_remove?: '0' | '1' | 'True' | 'False';
+  readonly debugdir?: string;
+  readonly debug_solver?: '0' | '1' | 'True' | 'False';
+  readonly defaultyes?: '0' | '1' | 'True' | 'False';
+  readonly destdir?: string;
+  readonly exclude_from_weak?: string;
+  readonly exclude_from_weak_autodetect?: '0' | '1' | 'True' | 'False';
+  readonly excludeenvs?: string;
+  readonly excludegroups?: string;
+  readonly gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly gpgcheck_policy?: 'legacy' | 'full' | 'all';
+  readonly group_package_types?: string;
+  readonly ignorearch?: '0' | '1' | 'True' | 'False';
+  readonly installonlypkgs?: string;
+  readonly installonly_limit?: string;
+  readonly installroot?: string;
+  readonly install_weak_deps?: '0' | '1' | 'True' | 'False';
+  readonly keepcache?: '0' | '1' | 'True' | 'False';
+  readonly logdir?: string;
+  readonly log_rotate?: string;
+  readonly log_size?: string;
+  readonly module_platform_id?: string;
+  readonly module_stream_switch?: '0' | '1' | 'True' | 'False';
+  readonly multilib_policy?: 'best' | 'all';
+  readonly obsoletes?: '0' | '1' | 'True' | 'False';
+  readonly optional_metadata_types?: string;
+  readonly persistdir?: string;
+  readonly persistence?: 'auto' | 'transient' | 'persist';
+  readonly pluginconfpath?: string;
+  readonly pluginpath?: string;
+  readonly plugins?: '0' | '1' | 'True' | 'False';
+  readonly protected_packages?: string;
+  readonly protect_running_kernel?: '0' | '1' | 'True' | 'False';
+  readonly recent?: string;
+  readonly reposdir?: string;
+  readonly skip_broken?: '0' | '1' | 'True' | 'False';
+  readonly skip_system_repo_lock?: '0' | '1' | 'True' | 'False';
+  readonly skip_unavailable?: '0' | '1' | 'True' | 'False';
+  readonly system_cachedir?: string;
+  readonly system_state_dir?: string;
+  readonly transaction_history_dir?: string;
+  readonly tsflags?: string;
+  readonly use_host_config?: '0' | '1' | 'True' | 'False';
+  readonly usr_drift_protected_paths?: string;
+  readonly varsdir?: string;
+  readonly zchunk?: '0' | '1' | 'True' | 'False';
+  readonly color_list_available_upgrade?: string;
+  readonly color_list_available_downgrade?: string;
+  readonly color_list_available_reinstall?: string;
+  readonly color_list_available_install?: string;
+  readonly color_update_installed?: string;
+  readonly color_update_local?: string;
+  readonly color_update_remote?: string;
+  readonly color_search_match?: string;
+  readonly bandwidth?: string;
+  readonly build_cache?: '0' | '1' | 'True' | 'False';
+  readonly countme?: '0' | '1' | 'True' | 'False';
+  readonly disable_excludes?: string;
+  readonly enablegroups?: '0' | '1' | 'True' | 'False';
+  readonly excludepkgs?: string;
+  readonly fastestmirror?: '0' | '1' | 'True' | 'False';
+  readonly pkg_gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly includepkgs?: string;
+  readonly ip_resolve?: '4' | 'IPv4' | '6' | 'IPv6' | 'whatever';
+  readonly localpkg_gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly max_parallel_downloads?: string;
+  readonly max_downloads_per_mirror?: string;
+  readonly metadata_expire?: string;
+  readonly minrate?: string;
+  readonly password?: string;
+  readonly proxy?: string;
+  readonly proxy_username?: string;
+  readonly proxy_password?: string;
+  readonly proxy_auth_method?: 'basic' | 'digest' | 'negotiate' | 'ntlm' | 'digest_ie' | 'ntlm_wb' | 'none' | 'any';
+  readonly proxy_sslcacert?: string;
+  readonly proxy_sslclientcert?: string;
+  readonly proxy_sslclientkey?: string;
+  readonly proxy_sslverify?: '0' | '1' | 'True' | 'False';
+  readonly repo_gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly skip_if_unavailable?: '0' | '1' | 'True' | 'False';
+  readonly sslcacert?: string;
+  readonly sslclientcert?: string;
+  readonly sslclientkey?: string;
+  readonly sslverify?: '0' | '1' | 'True' | 'False';
+  readonly throttle?: string;
+  readonly timeout?: string;
+  readonly username?: string;
+  readonly user_agent?: string;
+};
+
 /** Detailed information about an installed package. */
 export interface PackageInfo {
   readonly name: string;

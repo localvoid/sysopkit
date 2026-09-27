@@ -68,6 +68,15 @@ Removes packages using `dnf remove`. Unused dependencies installed for the remov
 await removePackages({ packages: ['httpd'] });
 ```
 
+### Configuration types
+
+```ts
+import type { DnfMainConf, DnfRepoConf } from '@sysopkit/linux/pkg/dnf5';
+```
+
+- `DnfRepoConf` — `.repo` files (per-repository sections).
+- `DnfMainConf` — `[main]` section of `/etc/dnf/dnf.conf` (see `dnf.conf(5)`). All fields optional, INI-verbatim strings.
+
 ## DNF4 (RHEL)
 
 ```ts
@@ -98,6 +107,15 @@ Removes packages using `dnf remove`. Unused dependencies installed for the remov
 ```ts
 await removePackages({ packages: ['httpd'] });
 ```
+
+### Configuration types
+
+```ts
+import type { DnfMainConf, DnfRepoConf } from '@sysopkit/linux/pkg/dnf4';
+```
+
+- `DnfRepoConf` — `.repo` files (per-repository sections).
+- `DnfMainConf` — `[main]` section of `/etc/dnf/dnf.conf` (see `dnf.conf(5)`). All fields optional, INI-verbatim strings. Differs from the DNF5 variant (e.g. boolean `cacheonly`, `deltarpm`/`retries`/`strict`, extra `color_list_installed_*` keys).
 
 ## Pacman (Arch Linux)
 

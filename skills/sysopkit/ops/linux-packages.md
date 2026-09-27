@@ -24,7 +24,9 @@ const pkgs = await getInstalledPackages(); // [{ name, … }]
   (`-s` simulate in dry-run, `dpkg-query -W` for queries);
   apk uses `apk add -U [--simulate]` (`apk list -I` for queries, busybox-safe
   sh-only); dnf4/dnf5 add repo-conf types (`DnfRepoConf`) alongside the same
-  install/remove/query trio.
+  install/remove/query trio; dnf5 also has `DnfMainConf` for the `[main]`
+  section of `/etc/dnf/dnf.conf` (`dnf.conf(5)`), mirrored by a DNF4-specific
+  `DnfMainConf` variant (boolean `cacheonly`, `deltarpm`/`retries`/`strict`).
 - `removePackages` on apt accepts `autoremove` (`--auto-remove`).
 
 ## rpm (`@sysopkit/linux/pkg/rpm`)

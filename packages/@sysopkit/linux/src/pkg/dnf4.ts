@@ -32,6 +32,124 @@ export type DnfRepoConfEntry = {
   readonly includepkgs?: string;
 };
 
+/**
+ * DNF4 main configuration ([main] section of /etc/dnf/dnf.conf).
+ *
+ * All options correspond to keys in the [main] section, including options
+ * shared with repository sections (used as per-repo defaults).
+ * All fields are optional and INI-verbatim: booleans use the existing
+ * `'0' | '1' | 'True' | 'False'` style, lists/integers/sizes/times/colors
+ * are plain strings.
+ *
+ * @see dnf.conf(5) - DNF4 configuration file format
+ */
+export type DnfMainConf = {
+  readonly allow_vendor_change?: '0' | '1' | 'True' | 'False';
+  readonly arch?: string;
+  readonly assumeno?: '0' | '1' | 'True' | 'False';
+  readonly assumeyes?: '0' | '1' | 'True' | 'False';
+  readonly autocheck_running_kernel?: '0' | '1' | 'True' | 'False';
+  readonly basearch?: string;
+  readonly best?: '0' | '1' | 'True' | 'False';
+  readonly cachedir?: string;
+  readonly cacheonly?: '0' | '1' | 'True' | 'False';
+  readonly check_config_file_age?: '0' | '1' | 'True' | 'False';
+  readonly clean_requirements_on_remove?: '0' | '1' | 'True' | 'False';
+  readonly config_file_path?: string;
+  readonly debuglevel?: string;
+  readonly debug_solver?: '0' | '1' | 'True' | 'False';
+  readonly defaultyes?: '0' | '1' | 'True' | 'False';
+  readonly diskspacecheck?: '0' | '1' | 'True' | 'False';
+  readonly errorlevel?: string;
+  readonly exclude_from_weak?: string;
+  readonly exclude_from_weak_autodetect?: '0' | '1' | 'True' | 'False';
+  readonly exit_on_lock?: '0' | '1' | 'True' | 'False';
+  readonly gpgkey_dns_verification?: '0' | '1' | 'True' | 'False';
+  readonly group_package_types?: string;
+  readonly ignorearch?: '0' | '1' | 'True' | 'False';
+  readonly installonlypkgs?: string;
+  readonly installonly_limit?: string;
+  readonly installroot?: string;
+  readonly install_weak_deps?: '0' | '1' | 'True' | 'False';
+  readonly keepcache?: '0' | '1' | 'True' | 'False';
+  readonly logdir?: string;
+  readonly logfilelevel?: string;
+  readonly log_compress?: '0' | '1' | 'True' | 'False';
+  readonly log_rotate?: string;
+  readonly log_size?: string;
+  readonly metadata_timer_sync?: string;
+  readonly module_obsoletes?: '0' | '1' | 'True' | 'False';
+  readonly module_platform_id?: string;
+  readonly module_stream_switch?: '0' | '1' | 'True' | 'False';
+  readonly multilib_policy?: 'best' | 'all';
+  readonly obsoletes?: '0' | '1' | 'True' | 'False';
+  readonly optional_metadata_types?: string;
+  readonly persistdir?: string;
+  readonly persistence?: 'auto' | 'transient' | 'persist';
+  readonly pluginconfpath?: string;
+  readonly pluginpath?: string;
+  readonly plugins?: '0' | '1' | 'True' | 'False';
+  readonly protected_packages?: string;
+  readonly protect_running_kernel?: '0' | '1' | 'True' | 'False';
+  readonly releasever?: string;
+  readonly reposdir?: string;
+  readonly rpmverbosity?: 'critical' | 'emergency' | 'error' | 'warn' | 'info' | 'debug';
+  readonly strict?: '0' | '1' | 'True' | 'False';
+  readonly tsflags?: string;
+  readonly upgrade_group_objects_upgrade?: '0' | '1' | 'True' | 'False';
+  readonly usr_drift_protected_paths?: string;
+  readonly varsdir?: string;
+  readonly zchunk?: '0' | '1' | 'True' | 'False';
+  readonly color?: 'auto' | 'never' | 'always';
+  readonly color_list_available_downgrade?: string;
+  readonly color_list_available_install?: string;
+  readonly color_list_available_reinstall?: string;
+  readonly color_list_available_upgrade?: string;
+  readonly color_list_installed_extra?: string;
+  readonly color_list_installed_newer?: string;
+  readonly color_list_installed_older?: string;
+  readonly color_list_installed_reinstall?: string;
+  readonly color_search_match?: string;
+  readonly color_update_installed?: string;
+  readonly color_update_local?: string;
+  readonly color_update_remote?: string;
+  readonly bandwidth?: string;
+  readonly countme?: '0' | '1' | 'True' | 'False';
+  readonly deltarpm?: '0' | '1' | 'True' | 'False';
+  readonly deltarpm_percentage?: string;
+  readonly enablegroups?: '0' | '1' | 'True' | 'False';
+  readonly excludepkgs?: string;
+  readonly fastestmirror?: '0' | '1' | 'True' | 'False';
+  readonly gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly includepkgs?: string;
+  readonly ip_resolve?: '4' | 'IPv4' | '6' | 'IPv6';
+  readonly localpkg_gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly max_parallel_downloads?: string;
+  readonly metadata_expire?: string;
+  readonly minrate?: string;
+  readonly password?: string;
+  readonly proxy?: string;
+  readonly proxy_username?: string;
+  readonly proxy_password?: string;
+  readonly proxy_auth_method?: 'basic' | 'digest' | 'negotiate' | 'ntlm' | 'digest_ie' | 'ntlm_wb' | 'none' | 'any';
+  readonly proxy_sslcacert?: string;
+  readonly proxy_sslverify?: '0' | '1' | 'True' | 'False';
+  readonly proxy_sslclientcert?: string;
+  readonly proxy_sslclientkey?: string;
+  readonly repo_gpgcheck?: '0' | '1' | 'True' | 'False';
+  readonly retries?: string;
+  readonly skip_if_unavailable?: '0' | '1' | 'True' | 'False';
+  readonly sslcacert?: string;
+  readonly sslverify?: '0' | '1' | 'True' | 'False';
+  readonly sslverifystatus?: '0' | '1' | 'True' | 'False';
+  readonly sslclientcert?: string;
+  readonly sslclientkey?: string;
+  readonly throttle?: string;
+  readonly timeout?: string;
+  readonly username?: string;
+  readonly user_agent?: string;
+};
+
 /** Detailed information about an installed package. */
 export interface PackageInfo {
   readonly name: string;
