@@ -82,6 +82,11 @@
       "types": "./dist/os.d.ts",
       "default": "./dist/os.js"
     },
+    "./fwupd": {
+      "bun": "./src/fwupd.ts",
+      "types": "./dist/fwupd.d.ts",
+      "default": "./dist/fwupd.js"
+    },
     "./sudoers": {
       "bun": "./src/sudoers.ts",
       "types": "./dist/sudoers.d.ts",

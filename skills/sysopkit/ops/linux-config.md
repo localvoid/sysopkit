@@ -4,6 +4,7 @@
 import { serializeSysctlConf } from '@sysopkit/linux/sysctl';
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
 import { serializeLimitsConf } from '@sysopkit/linux/limits';
+import type { FwupdConf } from '@sysopkit/linux/fwupd';
 import { getOSInfo } from '@sysopkit/linux/os';
 import { lsblk } from '@sysopkit/linux/disk';
 import { lscpu } from '@sysopkit/linux/cpu';
@@ -38,6 +39,12 @@ await createFile({ path: `${SYSCTL_DROP_IN_PATH}/99-app.conf`, content: serializ
   `/etc/sudoers`.
 - `@sysopkit/linux/limits`: `LimitsConf` (`LimitsEntry[]`: `domain`, `limitType`
   `soft|hard|-`, `item`, `value`), `parseLimitsConf` / `serializeLimitsConf`.
+- `@sysopkit/linux/fwupd`: `FwupdConf` (`{ fwupd: {...} }`, all keys in the
+  `[fwupd]` section of `fwupd.conf`), `FWUPD_CONF_PATH`
+  (`/etc/fwupd/fwupd.conf`). Booleans are `'true'|'false'` string literals
+  (keeps `serializeIni` compatibility), lists are single delimiter-joined
+  strings (`;`/`,`), `ReleasePriority?: 'local'|'remote'` (omit = empty/no
+  adjustment). Serialize with `serializeIni`, write with `createFile`.
 
 ## Host facts (read-only)
 
