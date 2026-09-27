@@ -87,6 +87,11 @@
       "types": "./dist/fwupd.d.ts",
       "default": "./dist/fwupd.js"
     },
+    "./iwd": {
+      "bun": "./src/iwd.ts",
+      "types": "./dist/iwd.d.ts",
+      "default": "./dist/iwd.js"
+    },
     "./sudoers": {
       "bun": "./src/sudoers.ts",
       "types": "./dist/sudoers.d.ts",

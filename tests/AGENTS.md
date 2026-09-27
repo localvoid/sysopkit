@@ -78,6 +78,7 @@ unit/
     context.test.ts
   ops/
     ini.test.ts # serializeIni (pure)
+    iwd.test.ts # iwd SSID encoding + network paths (pure)
     mount.test.ts # mountInfo JSON parsing + fstab parse/serialize (pure)
     sysusers.test.ts # sysusers parse/serialize round-trip (pure)
     systemd-common.test.ts # systemd paths + systemctl show parsing (pure)

@@ -5,6 +5,8 @@ import { serializeSysctlConf } from '@sysopkit/linux/sysctl';
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
 import { serializeLimitsConf } from '@sysopkit/linux/limits';
 import type { FwupdConf } from '@sysopkit/linux/fwupd';
+import type { IwdMainConf, IwdPskConf } from '@sysopkit/linux/iwd';
+import { getIwdNetworkPath } from '@sysopkit/linux/iwd';
 import { getOSInfo } from '@sysopkit/linux/os';
 import { lsblk } from '@sysopkit/linux/disk';
 import { lscpu } from '@sysopkit/linux/cpu';
@@ -45,6 +47,16 @@ await createFile({ path: `${SYSCTL_DROP_IN_PATH}/99-app.conf`, content: serializ
   (keeps `serializeIni` compatibility), lists are single delimiter-joined
   strings (`;`/`,`), `ReleasePriority?: 'local'|'remote'` (omit = empty/no
   adjustment). Serialize with `serializeIni`, write with `createFile`.
+- `@sysopkit/linux/iwd`: `IwdMainConf` (optional `General`/`Network`/
+  `Blacklist`/`Rank`/`Scan`/`IPv4`/`DriverQuirks` sections of `main.conf`),
+  `IwdPskConf` (`Settings`/`Security` incl. full EAP settings/`Network`/
+  `IPv4`/`IPv6` for `.psk`, shared groups with `.open`/`.8021x`),
+  `IWD_MAIN_CONF_PATH` (`/etc/iwd/main.conf`), `IWD_NETWORK_DIR`
+  (`/var/lib/iwd`), `getIwdNetworkPath(ssid, security)` (naming rule:
+  verbatim if only `[A-Za-z0-9 _-]`, else `=` + lowercase hex) +
+  `encodeIwdSsid(ssid)`. Same `'true'|'false'` boolean convention as fwupd;
+  append `[@pem@<name>]` embedded PEMs manually (`serializeIni` can't emit
+  them, reference via `embed:<name>`).
 
 ## Host facts (read-only)
 

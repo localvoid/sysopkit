@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { getIwdNetworkPath, type IwdMainConf, type IwdPskConf } from '@sysopkit/linux/iwd';
 import { parseLimitsConf, serializeLimitsConf } from '@sysopkit/linux/limits';
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
 import { parseSysctlConf, serializeSysctlConf } from '@sysopkit/linux/sysctl';
@@ -138,6 +139,39 @@ describe('config file ops', () => {
       ];
       await writeFile(p, serializeSysusersConf(conf));
       expect(parseSysusersConf(await readFile(p))).toEqual(conf);
+    });
+  });
+
+  test('iwd main serialize → write → read round-trip', async () => {
+    await sharedPodman(shared, async () => {
+      const p = remoteTempPath('cfg-iwd-main-');
+      const data = {
+        General: { EnableNetworkConfiguration: 'true', AddressRandomization: 'network' },
+        Network: { NameResolvingService: 'systemd' },
+        Scan: { DisablePeriodicScan: 'false' },
+      } satisfies IwdMainConf;
+      await writeFile(p, serializeIni(data));
+      const back = await readFile(p);
+      expect(back).toContain('[General]');
+      expect(back).toContain('EnableNetworkConfiguration=true');
+      expect(back).toContain('[Scan]');
+    });
+  });
+
+  test('iwd psk serialize → write → read round-trip', async () => {
+    await sharedPodman(shared, async () => {
+      const p = remoteTempPath('cfg-iwd-psk-');
+      expect(getIwdNetworkPath('Coffee Shop', 'psk')).toBe('/var/lib/iwd/Coffee Shop.psk');
+      const data = {
+        Settings: { AutoConnect: 'true' },
+        Security: { Passphrase: 'secret123' },
+        IPv4: { Address: '192.168.1.10', Gateway: '192.168.1.1' },
+      } satisfies IwdPskConf;
+      await writeFile(p, serializeIni(data));
+      const back = await readFile(p);
+      expect(back).toContain('[Security]');
+      expect(back).toContain('Passphrase=secret123');
+      expect(back).toContain('[IPv4]');
     });
   });
 

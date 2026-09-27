@@ -108,5 +108,5 @@ Rules that always apply:
 - `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`,
   `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh` — core ops
 - `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`,
-  `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd` — Linux ops
+  `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
 - OpenWrt UCI — see the `sysopkit-openwrt` skill

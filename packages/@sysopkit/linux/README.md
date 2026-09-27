@@ -30,6 +30,8 @@ bun add @sysopkit/linux sysopkit
 | `sudoers` | `@sysopkit/linux/sudoers` | `serializeSudoersConf(rules)` |
 | `systemd` | `@sysopkit/linux/systemd` | **Idempotent** `service`, `setHostname`, `setTimezone`, `setLocale`; `daemonReload`, `getServiceInfo`, `isServiceRunning`, `isServiceEnabled`, `journalRead`, `journalVacuum`; unit-file, `sysusers.d`/`tmpfiles.d`, and `networkd` types |
 | `tuned` | `@sysopkit/linux/tuned` | **Idempotent** `setTuneProfile({ profile })` (`null` disables) |
+| `fwupd` | `@sysopkit/linux/fwupd` | `FwupdConf` (`[fwupd]` types for `/etc/fwupd/fwupd.conf`) |
+| `iwd` | `@sysopkit/linux/iwd` | `IwdMainConf` (`main.conf` types), `IwdPskConf` (`.psk`/`.open`/`.8021x` types), `getIwdNetworkPath()` |
 
 ## Usage
 

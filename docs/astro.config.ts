@@ -140,6 +140,7 @@ export default defineConfig({
             'linux/kernel',
             'linux/tuned',
             'linux/fwupd',
+            'linux/iwd',
           ],
         },
         {
