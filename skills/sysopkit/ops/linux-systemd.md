@@ -43,7 +43,7 @@ await setLocale({ locale: 'C.UTF-8' }); // bare form, sets LANG
 ## Journal
 
 - `journalRead({ afterCursor?, lines? })` (`journalctl --show-cursor`), `journalVacuum({ size?, time?, files? })` (`journalctl --vacuum-*`).
-- The rest are config-file serializers + paths (`JournaldConf`, `LOGIND_CONF_PATH`, `SLEEP_CONF_PATH`, `RESOLVED_CONF_PATH`, `TIMESYNCD_CONF_PATH`, `CoredumpConf`, `SystemManagerConf` with `SYSTEM_CONF_PATH` (`/etc/systemd/system.conf`) / `USER_CONF_PATH` (`/etc/systemd/user.conf`)) — serialize with `serializeIni` from `sysopkit/op/ini`, write with `createFile` (prefer `*.conf.d/` drop-ins), then `daemonReload()` / restart the relevant service.
+- The rest are config-file serializers + paths (`JournaldConf`, `LOGIND_CONF_PATH`, `SLEEP_CONF_PATH`, `RESOLVED_CONF_PATH`, `TIMESYNCD_CONF_PATH`, `CoredumpConf`, `ZramGeneratorConf` with `ZRAM_GENERATOR_CONF_PATH` (`/etc/systemd/zram-generator.conf`) / `ZRAM_GENERATOR_DROP_IN_PATH`, `SystemManagerConf` with `SYSTEM_CONF_PATH` (`/etc/systemd/system.conf`) / `USER_CONF_PATH` (`/etc/systemd/user.conf`)) — serialize with `serializeIni` from `sysopkit/op/ini`, write with `createFile` (prefer `*.conf.d/` drop-ins), then `daemonReload()` / restart the relevant service.
 
 ## Unit and networkd types
 

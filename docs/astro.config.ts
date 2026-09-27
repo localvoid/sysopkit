@@ -132,6 +132,7 @@ export default defineConfig({
                 'linux/systemd/timesyncd',
                 'linux/systemd/sleep',
                 'linux/systemd/coredump',
+                'linux/systemd/zram-generator',
                 'linux/systemd/sysusers',
                 'linux/systemd/tmpfiles',
                 'linux/systemd/networkd',

@@ -203,6 +203,7 @@ The systemd module also exports TypeScript types for configuration files. See th
 - [sleep](./sleep) — `systemd-sleep.conf(5)` types
 - [system-conf](./system-conf) — `systemd-system.conf(5)` types (`system.conf`/`user.conf`)
 - [coredump](./coredump) — `coredump.conf(5)` types
+- [zram-generator](./zram-generator) — `zram-generator.conf(5)` types
 - [sysusers](./sysusers) — `sysusers.d(5)` parsing/serialization
 - [tmpfiles](./tmpfiles) — `tmpfiles.d(5)` parsing/serialization
 - [networkd](./networkd) — systemd-networkd `.link`/`.network`/`.netdev` types

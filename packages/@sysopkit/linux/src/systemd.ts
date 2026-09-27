@@ -88,6 +88,12 @@ export {
   parseTmpFilesConf,
   serializeTmpFilesConf,
 } from './systemd/tmpfiles.js';
+export {
+  ZRAM_GENERATOR_CONF_PATH,
+  ZRAM_GENERATOR_DROP_IN_PATH,
+  type ZramGeneratorConf,
+  type ZramGeneratorDeviceConf,
+} from './systemd/zram-generator.js';
 export type {
   AutomountSectionOptions,
   AutomountUnitConf,
