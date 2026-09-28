@@ -27,6 +27,22 @@ async function stopTcpServer(pidFile: string): Promise<void> {
   await sh(`kill $(cat ${$_(pidFile)}) 2>/dev/null || true`);
 }
 
+/**
+ * Starts a Bun HTTP server inside the container with a custom fetch
+ * handler; killed automatically when the `await using` scope exits —
+ * no pidfile plumbing at the call site.
+ */
+async function startHttpServer(port: number, fetch: string): Promise<AsyncDisposable> {
+  const pidFile = remoteTempPath('srv-pid-');
+  const script = `Bun.serve({port:${port},fetch:${fetch}})`;
+  await sh(`bun -e ${$_(script)} >/dev/null 2>&1 & echo $! > ${$_(pidFile)}`);
+  return {
+    [Symbol.asyncDispose](): Promise<void> {
+      return stopTcpServer(pidFile);
+    },
+  };
+}
+
 describe('proc/net ops', () => {
   let shared: Container;
   beforeAll(async () => {
@@ -96,13 +112,42 @@ describe('proc/net ops', () => {
     await sharedPodman(shared, async () => {
       const dst = remoteTempPath('curl-http-dst-');
       const port = 18712;
-      const pidFile = await startTcpServer(port, 'hello-http\n');
+      await using _server = await startHttpServer(port, `()=>new Response('hello-http\\n')`);
+      await waitPortBash({ port, delay: 50 });
+      await curl({ url: `http://localhost:${port}/index.html`, path: dst });
+      expect(await readFile(dst)).toBe('hello-http\n');
+    });
+  });
+
+  test('curl follows redirects and fails on HTTP errors', async () => {
+    await sharedPodman(shared, async () => {
+      const port = 18713;
+      await using _server = await startHttpServer(
+        port,
+        `(req)=>{const u=new URL(req.url);if(u.pathname==='/old')return Response.redirect('/new');if(u.pathname==='/new')return new Response('redirected\\n');return new Response('nope',{status:404})}`,
+      );
+      await waitPortBash({ port, delay: 50 });
+      const dst = remoteTempPath('curl-redirect-dst-');
+      await curl({
+        url: `http://localhost:${port}/old`,
+        path: dst,
+        followRedirects: true,
+        silent: true,
+      });
+      expect(await readFile(dst)).toBe('redirected\n');
+      // fail:true turns the 404 into a thrown error instead of
+      // saving the error page to path.
+      const bad = remoteTempPath('curl-404-dst-');
       try {
-        await waitPortBash({ port, delay: 50 });
-        await curl({ url: `http://localhost:${port}/index.html`, path: dst });
-        expect(await readFile(dst)).toBe('hello-http\n');
-      } finally {
-        await stopTcpServer(pidFile);
+        await curl({
+          url: `http://localhost:${port}/missing`,
+          path: bad,
+          fail: true,
+          silent: true,
+        });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toContain('404');
       }
     });
   });
