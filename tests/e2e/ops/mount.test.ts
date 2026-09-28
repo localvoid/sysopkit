@@ -59,6 +59,46 @@ describe('mount ops (privileged)', () => {
     });
   });
 
+  test('mount --bind round-trip with idempotent re-bind', async () => {
+    await sharedPodman(shared, async () => {
+      const src = remoteTempPath('mnt-bind-src-');
+      const target = remoteTempPath('mnt-bind-');
+      await sh(`mkdir -p ${src} ${target}`);
+      await writeFile(`${src}/probe.txt`, 'bound\n');
+
+      const t1 = trackChanged();
+      await mount({ src, path: target, bind: true });
+      expect(t1.changed).toBe(true);
+      expect(await readFile(`${target}/probe.txt`)).toBe('bound\n');
+
+      const t2 = trackChanged();
+      await mount({ src, path: target, bind: true });
+      expect(t2.changed).toBe(false);
+
+      const t3 = trackChanged();
+      await umount({ path: target });
+      expect(t3.changed).toBe(true);
+      expect(await mountInfo({ path: target })).toBeNull();
+    });
+  });
+
+  test('umount recursive+lazy detaches nested binds', async () => {
+    await sharedPodman(shared, async () => {
+      const src = remoteTempPath('mnt-rec-src-');
+      const target = remoteTempPath('mnt-rec-');
+      const nested = `${target}/sub`;
+      await sh(`mkdir -p ${src} ${nested}`);
+      await mount({ src, path: target, bind: true });
+      await mount({ src, path: nested, bind: true });
+
+      const t = trackChanged();
+      await umount({ path: target, recursive: true, lazy: true });
+      expect(t.changed).toBe(true);
+      expect(await mountInfo({ path: target })).toBeNull();
+      expect(await mountInfo({ path: nested })).toBeNull();
+    });
+  });
+
   test('umount is idempotent for unmounted path', async () => {
     await sharedPodman(shared, async () => {
       const t = trackChanged();

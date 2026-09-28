@@ -233,16 +233,44 @@ interface FindmntOutput {
 export interface MountOptions {
   readonly src: string;
   readonly path: string;
-  readonly fstype: string;
+  /**
+   * Filesystem type (e.g. `ext4`, `tmpfs`). Required unless this is a
+   * bind mount — `mount --bind` takes no type.
+   */
+  readonly fstype?: string;
+  /** Mount options for `-o` (regular mounts only). Defaults to `defaults`. */
   readonly opts?: string;
+  /**
+   * Bind-mount `src` onto `path` (`mount --bind`) instead of mounting
+   * a filesystem by type. Default false.
+   */
+  readonly bind?: boolean;
+  /**
+   * Add `--make-rslave` to a bind mount, so mounts under the source
+   * don't propagate into the bind (container/installer API mounts
+   * such as `/dev`). Implies `bind`. Default false.
+   */
+  readonly rslave?: boolean;
 }
 
 /**
  * **[IDEMPOTENT]** Mounts filesystem.
  *
- * @param options - Mount configuration including source, target, fstype.
+ * Regular mounts emit `mount -t <fstype> -o <opts> <src> <path>`;
+ * bind mounts emit `mount [--make-rslave] --bind <src> <path>`.
+ * Skips when `path` already exposes `src` (binds compare file identity
+ * via `stat`, since findmnt reports the backing device rather than the
+ * source path; regular mounts compare source, fstype and options).
  */
-export async function mount({ src, path, fstype, opts = 'defaults' }: MountOptions): Promise<void> {
+export async function mount(o: MountOptions): Promise<void> {
+  const { src, path } = o;
+  const bind = o.bind === true || o.rslave === true;
+  const rslave = o.rslave === true;
+  const fstype = o.fstype;
+  const opts = o.opts ?? 'defaults';
+  if (!bind && fstype === undefined) {
+    throw new Error('refusing: fstype is required unless bind is set');
+  }
   return task(
     `mount ${src} → ${path}`,
     async (ctx) => {
@@ -253,7 +281,18 @@ export async function mount({ src, path, fstype, opts = 'defaults' }: MountOptio
           currentInfo.source.includes(src) ||
           src.includes(currentInfo.source);
 
-        if (srcMatch && currentInfo.fstype === fstype) {
+        if (bind) {
+          // findmnt reports the backing device for binds (e.g. `udev`
+          // for a `/dev` bind), never the source path — compare file
+          // identity instead: a bound path exposes the source's inode.
+          const { stdout: ids } = await sh(
+            `stat -c '%d %i' ${$_(src)}; stat -c '%d %i' ${$_(path)}`,
+          );
+          const [srcId, pathId] = ids.trim().split('\n');
+          if (srcId !== undefined && srcId !== '' && srcId === pathId) {
+            return;
+          }
+        } else if (srcMatch && currentInfo.fstype === fstype) {
           const currentOpts = currentInfo.options.split(',')[0] || 'defaults';
           if (opts === 'defaults' || currentOpts === opts.split(',')[0]) {
             return;
@@ -261,7 +300,13 @@ export async function mount({ src, path, fstype, opts = 'defaults' }: MountOptio
         }
       }
 
-      if (!ctx.dryRun) await sh(`mount -t ${$_(fstype)} -o ${$_(opts)} ${$_(src)} ${$_(path)}`);
+      if (!ctx.dryRun) {
+        if (bind) {
+          await sh(`mount${rslave ? ' --make-rslave' : ''} --bind ${$_(src)} ${$_(path)}`);
+        } else {
+          await sh(`mount -t ${$_(fstype as string)} -o ${$_(opts)} ${$_(src)} ${$_(path)}`);
+        }
+      }
       emitChanged({ type: 'mount', resource: path, property: 'state', to: 'mounted' });
     },
     { details: () => ({ src, fstype, opts }), verbosity: VERBOSITY_NORMAL },
@@ -271,23 +316,88 @@ export async function mount({ src, path, fstype, opts = 'defaults' }: MountOptio
 /** Configuration for umount operation. */
 export interface UmountOptions {
   readonly path: string;
+  /**
+   * Detach the whole tree under `path` (`umount -R`), not just the
+   * mount at `path` itself. The pre-check is submount-aware, so
+   * orphaned child mounts are detached even when `path` itself is
+   * no longer mounted. Default false.
+   */
+  readonly recursive?: boolean;
+  /** Lazy detach (`umount -l`). Default false. */
+  readonly lazy?: boolean;
+  /**
+   * Never throw: the detach runs with `2>/dev/null || true`. For
+   * cleanup / pre-reboot paths that must not strand the flow when
+   * the detach fails. Default false (failures are loud).
+   */
+  readonly ignoreErrors?: boolean;
+}
+
+interface SubmountNode {
+  readonly target: string;
+  readonly children?: SubmountNode[];
+}
+
+/**
+ * All mount targets at or under `path` (itself included when
+ * mounted), or null when `path` resolves to no filesystem.
+ */
+async function submountTargets(path: string): Promise<string[] | null> {
+  const { stdout, exitCode } = await sh(
+    `findmnt -R --json --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+  );
+  if (exitCode !== 0) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(stdout) as { filesystems?: SubmountNode[] };
+    const targets: string[] = [];
+    const walk = (nodes: SubmountNode[] | undefined): void => {
+      for (const node of nodes ?? []) {
+        targets.push(node.target);
+        walk(node.children);
+      }
+    };
+    walk(parsed.filesystems);
+    return targets;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * **[IDEMPOTENT]** Unmounts filesystem.
  *
- * @param options - Unmount configuration.
+ * Plain `umount <path>` skips when `path` is not mounted;
+ * `recursive` detaches the whole tree when anything is mounted at
+ * or under `path`. `ignoreErrors` turns a failed detach into a no-op
+ * for cleanup / pre-reboot paths.
  */
-export async function umount({ path }: UmountOptions): Promise<void> {
+export async function umount(o: UmountOptions): Promise<void> {
+  const { path } = o;
+  const recursive = o.recursive === true;
+  const lazy = o.lazy === true;
+  const ignoreErrors = o.ignoreErrors === true;
+  const flags = `${lazy ? ' -l' : ''}${recursive ? ' -R' : ''}`;
   return task(
-    `umount ${path}`,
+    `umount${flags} ${path}`,
     async (ctx) => {
-      const currentInfo = await mountInfo({ path });
-      if (currentInfo === null) {
-        return;
+      if (recursive) {
+        const targets = await submountTargets(path);
+        const hit = targets !== null && targets.some((t) => t === path || t.startsWith(`${path}/`));
+        if (!hit) {
+          return;
+        }
+      } else {
+        const currentInfo = await mountInfo({ path });
+        if (currentInfo === null) {
+          return;
+        }
       }
 
-      if (!ctx.dryRun) await sh(`umount ${$_(path)}`);
+      if (!ctx.dryRun) {
+        await sh(`umount${flags} ${$_(path)}${ignoreErrors ? ' 2>/dev/null || true' : ''}`);
+      }
       emitChanged({ type: 'mount', resource: path, property: 'state', to: 'unmounted' });
     },
     { verbosity: VERBOSITY_NORMAL },

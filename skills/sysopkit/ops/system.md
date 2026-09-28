@@ -25,12 +25,15 @@ All four are **idempotent**: diff `/etc/passwd` / `/etc/group` first (`useradd`/
 
 ```typescript
 await mount({ src: '/dev/sda1', path: '/mnt/data', fstype: 'ext4', opts?: 'defaults' });
+await mount({ src: '/srv/data', path: '/mnt/data', bind: true }); // mount --bind, no -t/-o
+await mount({ src: '/dev', path: '/target/dev', rslave: true }); // implies bind + --make-rslave
 await umount({ path: '/mnt/data' });
+await umount({ path: '/target', recursive: true, lazy: true, ignoreErrors: true }); // umount -l -R ... || true
 ```
 
-Idempotent. Read-only: `mountInfo({ path })` (exit 64 when absent), `parseFstab` / `serializeFstab`.
+Idempotent. `fstype` required unless `bind`/`rslave`. Read-only: `mountInfo({ path })` (exit 64 when absent), `parseFstab` / `serializeFstab`.
 
-**Pitfall:** source matching is fuzzy (`===` or `includes` either way) and only the first comma-option is compared — unusual `opts` strings can false-positive as "already mounted".
+**Pitfalls:** regular mounts match source fuzzily (`===` or `includes` either way) and compare only the first comma-option — unusual `opts` strings can false-positive as "already mounted". Bind mounts ignore findmnt source (reports backing device) and compare `stat -c '%d %i'` identity instead. Recursive `umount -R` pre-check is submount-aware (detaches orphaned children even when `path` itself is unmounted); `ignoreErrors` appends `2>/dev/null || true` for cleanup paths.
 
 ## Network and process probing
 
