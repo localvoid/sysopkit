@@ -29,7 +29,8 @@ export interface CurlOptions {
   readonly followRedirects?: boolean;
   /**
    * Hide the progress meter but still show errors (`-sS`). Keeps op
-   * output clean while preserving failure diagnostics. Default false.
+   * output clean while preserving failure diagnostics. Default true;
+   * pass `false` to show the progress meter.
    */
   readonly silent?: boolean;
 }
@@ -44,7 +45,7 @@ export async function curl({
   insecure,
   fail,
   followRedirects,
-  silent,
+  silent = true,
 }: CurlOptions): Promise<void> {
   let cmd = `curl`;
   if (fail) cmd += ` -f`;

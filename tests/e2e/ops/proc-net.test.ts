@@ -132,7 +132,6 @@ describe('proc/net ops', () => {
         url: `http://localhost:${port}/old`,
         path: dst,
         followRedirects: true,
-        silent: true,
       });
       expect(await readFile(dst)).toBe('redirected\n');
       // fail:true turns the 404 into a thrown error instead of
@@ -143,11 +142,10 @@ describe('proc/net ops', () => {
           url: `http://localhost:${port}/missing`,
           path: bad,
           fail: true,
-          silent: true,
         });
         expect.unreachable();
       } catch (e) {
-        expect((e as Error).message).toContain('404');
+        expect(String(e)).toContain('404');
       }
     });
   });

@@ -42,4 +42,4 @@ await untar({ src: '/backup/app.tar.gz', dst: '/srv/app' });
 await curl({ url, path, user?, headers?, cookies?, insecure?, fail?, followRedirects?, silent? });
 ```
 
-Both **non-idempotent**. `tar`/`untar` skip the command in dry-run but still emit `packed`/`extracted`. `curl` (`curl [-f -L -sS -u -H -b -k] -o path url`) has **no** dry-run guard — it always downloads. `fail` (`-f`) throws on HTTP >=400 instead of saving the error page, `followRedirects` (`-L`) follows 302s, `silent` (`-sS`) hides progress but keeps errors.
+Both **non-idempotent**. `tar`/`untar` skip the command in dry-run but still emit `packed`/`extracted`. `curl` (`curl [-f -L -sS -u -H -b -k] -o path url`) has **no** dry-run guard — it always downloads. `fail` (`-f`) throws on HTTP >=400 instead of saving the error page, `followRedirects` (`-L`) follows 302s, `silent` (`-sS`, default true) hides progress but keeps errors.
