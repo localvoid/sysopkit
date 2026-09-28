@@ -122,6 +122,60 @@ describe('accounts ops', () => {
     });
   });
 
+  test('createUser with groups reports change in dry-run without creating', async () => {
+    const user = uniqueName('tku-dry-grp-');
+    const group = uniqueName('tkg-dry-');
+    await sharedPodman(shared, async () => {
+      await createGroup({ name: group });
+    });
+    try {
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await createUser({ user, groups: [group] });
+          expect(t.changed).toBe(true);
+          const { exitCode } = await exec(['id', user]);
+          expect(exitCode).not.toBe(0);
+        },
+        { dryRun: true },
+      );
+    } finally {
+      await sharedPodman(shared, async () => {
+        await deleteGroup({ name: group });
+      });
+    }
+  });
+
+  test('createUser with groups never removes externally managed membership', async () => {
+    await sharedPodman(shared, async () => {
+      const user = uniqueName('tku-keep-');
+      const ext = uniqueName('tkg-ext-');
+      const want = uniqueName('tkg-want-');
+      await createGroup({ name: ext });
+      await createGroup({ name: want });
+      await createUser({ user });
+      // Externally managed membership (outside createUser).
+      await sh(`usermod -aG ${$_(ext)} ${$_(user)}`);
+
+      const t = trackChanged();
+      await createUser({ user, groups: [want] });
+      expect(t.changed).toBe(true);
+      const { stdout } = await exec(['id', '-nG', user]);
+      const have = stdout.trim().split(/\s+/);
+      expect(have).toContain(ext);
+      expect(have).toContain(want);
+
+      const t2 = trackChanged();
+      await createUser({ user, groups: [want] });
+      expect(t2.changed).toBe(false);
+
+      await deleteUser({ user });
+      await deleteGroup({ name: ext });
+      await deleteGroup({ name: want });
+    });
+  });
+
   test('deleteUser is idempotent for missing user', async () => {
     await sharedPodman(shared, async () => {
       const user = uniqueName('tku-missing-');

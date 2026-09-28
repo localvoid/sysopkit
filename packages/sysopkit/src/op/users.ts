@@ -118,6 +118,7 @@ export interface CreateUserOptions {
    * Supplementary groups ensured via `usermod -aG`. Missing memberships
    * are appended; existing ones (including externally managed) are never
    * removed. For exact member lists use `createGroup({ members })`.
+   * Listed groups must already exist.
    */
   readonly groups?: readonly string[];
 }
@@ -142,15 +143,18 @@ export async function createUser({
   system,
   groups,
 }: CreateUserOptions): Promise<void> {
-  const wantGroups = [...new Set(groups ?? [])];
-  for (const g of wantGroups) {
-    if (!LOGIN_RE.test(g)) {
-      throw new Error(`refusing: bad group name '${g}'`);
-    }
-  }
   return task(
     `create user ${user}`,
     async (ctx) => {
+      if (!LOGIN_RE.test(user)) {
+        throw new Error(`refusing: bad user name '${user}'`);
+      }
+      const wantGroups = [...new Set(groups ?? [])];
+      for (const g of wantGroups) {
+        if (!LOGIN_RE.test(g)) {
+          throw new Error(`refusing: bad group name '${g}'`);
+        }
+      }
       const users = parsePasswdFile(await readFile(PASSWD_PATH));
       const prev = users.find((entry) => entry.user === user);
       if (prev !== void 0) {
@@ -222,7 +226,7 @@ export async function createUser({
           if (home) cmd += ` -d ${$_(home)}`;
           if (shell) cmd += ` -s ${$_(shell)}`;
           if (system) cmd += ' --system';
-          cmd += ` ${user}`;
+          cmd += ` ${$_(user)}`;
           await sh(cmd);
         }
         emitChanged({ type: 'user', resource: user, property: 'created' });
