@@ -15,14 +15,17 @@ Creates a system user.
 
 ```ts
 await createUser({
-  name: 'app',
+  user: 'app',
   uid: 1001,
-  gid: 1001,
   home: '/home/app',
   shell: '/bin/bash',
   groups: ['www-data'],
 });
 ```
+
+Supplementary `groups` are ensured via `usermod -aG` — missing
+memberships are appended, existing ones never removed. For exact
+member lists use `createGroup({ members })`.
 
 ## deleteUser()
 
@@ -31,7 +34,7 @@ await createUser({
 Removes a user.
 
 ```ts
-await deleteUser({ name: 'app', removeHome: true });
+await deleteUser({ user: 'app' });
 ```
 
 ## createGroup() / deleteGroup()

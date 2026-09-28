@@ -149,6 +149,11 @@
       "types": "./dist/op/users.d.ts",
       "default": "./dist/op/users.js"
     },
+    "./op/which": {
+      "bun": "./src/op/which.ts",
+      "types": "./dist/op/which.d.ts",
+      "default": "./dist/op/which.js"
+    },
     "./utils/gpg": {
       "bun": "./src/utils/gpg.ts",
       "types": "./dist/utils/gpg.d.ts",

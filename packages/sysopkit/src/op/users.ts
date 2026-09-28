@@ -114,7 +114,15 @@ export interface CreateUserOptions {
   readonly home?: string;
   readonly shell?: string;
   readonly system?: boolean;
+  /**
+   * Supplementary groups ensured via `usermod -aG`. Missing memberships
+   * are appended; existing ones (including externally managed) are never
+   * removed. For exact member lists use `createGroup({ members })`.
+   */
+  readonly groups?: readonly string[];
 }
+
+const LOGIN_RE = /^[a-z_][a-z0-9_-]*[$]?$/i;
 
 /**
  * **[IDEMPOTENT]** Creates or modifies a user account.
@@ -132,7 +140,14 @@ export async function createUser({
   home,
   shell,
   system,
+  groups,
 }: CreateUserOptions): Promise<void> {
+  const wantGroups = [...new Set(groups ?? [])];
+  for (const g of wantGroups) {
+    if (!LOGIN_RE.test(g)) {
+      throw new Error(`refusing: bad group name '${g}'`);
+    }
+  }
   return task(
     `create user ${user}`,
     async (ctx) => {
@@ -212,6 +227,29 @@ export async function createUser({
         }
         emitChanged({ type: 'user', resource: user, property: 'created' });
       }
+
+      if (wantGroups.length > 0) {
+        // Supplementary membership only (`id -nG` includes the primary
+        // group, which is never touched here). In dry-run the user may
+        // not exist yet — assume all missing and report the change.
+        let missing: string[];
+        try {
+          const { stdout } = await sh(`id -nG ${$_(user)}`);
+          const have = new Set(stdout.trim().split(/\s+/).filter(Boolean));
+          missing = wantGroups.filter((g) => !have.has(g));
+        } catch (e) {
+          if (!ctx.dryRun) throw e;
+          missing = wantGroups;
+        }
+        if (missing.length > 0) {
+          if (!ctx.dryRun) {
+            await sh(`usermod -aG ${missing.map($_).join(',')} ${$_(user)}`);
+          }
+          emitChanged(
+            missing.map((g) => ({ type: 'user', resource: user, property: 'group', to: g })),
+          );
+        }
+      }
     },
     {
       details: () => ({
@@ -220,6 +258,7 @@ export async function createUser({
         gecos,
         home,
         shell,
+        groups: groups !== void 0 ? groups.join(',') : void 0,
       }),
       verbosity: VERBOSITY_NORMAL,
     },

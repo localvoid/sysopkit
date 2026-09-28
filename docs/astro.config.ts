@@ -100,6 +100,7 @@ export default defineConfig({
                 'operations/shell-process/sh',
                 'operations/shell-process/bash',
                 'operations/shell-process/proc',
+                'operations/shell-process/which',
               ],
             },
             {

@@ -1,9 +1,10 @@
-# Shell ops: exec, sh, bash
+# Shell ops: exec, sh, bash, which
 
 ```typescript
 import { exec } from 'sysopkit/op/exec';
 import { sh, $_, ShellError } from 'sysopkit/op/sh';
 import { bash } from 'sysopkit/op/bash';
+import { which, resolveTools } from 'sysopkit/op/which';
 ```
 
 ```typescript
@@ -14,6 +15,7 @@ import { bash } from 'sysopkit/op/bash';
 await exec(['systemctl', 'restart', 'nginx']); // raw argv, no throw, inspect exitCode
 await sh('cat > file <<EOF\n…'); // runs via `sh -c`, throws ShellError
 await bash('echo $EPOCHREALTIME'); // runs via `bash -c`
+await which('parted'); // absolute path via `command -v`, throws when missing
 ```
 
 All three are **non-idempotent** — they run every time. Guard with `if (!context().dryRun)` and track changes yourself when the command mutates.

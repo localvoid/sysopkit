@@ -13,7 +13,7 @@ import { serializeIni } from 'sysopkit/op/ini';
 ## Users (`sysopkit/op/users`)
 
 ```typescript
-await createUser({ user: 'app', uid?, gid?, gecos?, home?, shell?, system? });
+await createUser({ user: 'app', uid?, gid?, gecos?, home?, shell?, system?, groups? }); // groups appended via usermod -aG, never removed
 await deleteUser({ user: 'app' });
 await createGroup({ name: 'app', gid?, members?, system? }); // members diffed
 await deleteGroup({ name: 'app' });

@@ -94,6 +94,6 @@ Rules that always apply:
 - `sysopkit/inventory`, `sysopkit` — orchestration (`resolveInventory`), host management (`apply`)
 - `sysopkit/connector/local`, `sysopkit/connector/ssh`, `sysopkit/connector/podman` — transports
 - `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd` — wrappers
-- `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh` — core ops
+- `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh`, `sysopkit/op/which` — core ops
 - `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`, `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
 - OpenWrt UCI — see the `sysopkit-openwrt` skill

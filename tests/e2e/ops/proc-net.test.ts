@@ -6,6 +6,7 @@ import { readFile, writeFile } from 'sysopkit/op/file';
 import { waitPort as waitPortNc } from 'sysopkit/op/netcat';
 import { waitProcess } from 'sysopkit/op/proc';
 import { $_, sh } from 'sysopkit/op/sh';
+import { resolveTools, which } from 'sysopkit/op/which';
 
 import {
   remoteTempPath,
@@ -146,6 +147,20 @@ describe('proc/net ops', () => {
         expect.unreachable();
       } catch (e) {
         expect(String(e)).toContain('404');
+      }
+    });
+  });
+
+  test('which resolves tool paths', async () => {
+    await sharedPodman(shared, async () => {
+      const shPath = await which('sh');
+      expect(shPath.startsWith('/')).toBe(true);
+      expect(await resolveTools(['sh', 'ls'])).toEqual([shPath, await which('ls')]);
+      try {
+        await which('definitely-not-a-tool-xyz');
+        expect.unreachable();
+      } catch (e) {
+        expect(String(e)).toContain('not installed');
       }
     });
   });

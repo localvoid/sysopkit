@@ -74,6 +74,7 @@ Idempotent where marked. Non-idempotent helpers (`sh`, `exec`, `curl`, …) run 
 | `net` | `sysopkit/op/net` | `parseHosts`, `serializeHosts` (`/etc/hosts`) |
 | `netcat` | `sysopkit/op/netcat` | `waitPort({ host, port, … })` |
 | `ssh` | `sysopkit/op/ssh` | `serializeSshConf(config)` (`sshd_config`) |
+| `which` | `sysopkit/op/which` | `which(name)`, `resolveTools(names)` via `command -v` |
 | `gpg` | `sysopkit/utils/gpg` | `parseGpgKey`, `showGpgKeys` |
 
 ## Connectors

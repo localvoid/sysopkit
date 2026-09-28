@@ -101,6 +101,27 @@ describe('accounts ops', () => {
     );
   });
 
+  test('createUser with groups ensures membership idempotently', async () => {
+    await sharedPodman(shared, async () => {
+      const user = uniqueName('tku-grp-');
+      const group = uniqueName('tkg-');
+      await createGroup({ name: group });
+
+      const t = trackChanged();
+      await createUser({ user, groups: [group] });
+      expect(t.changed).toBe(true);
+      const { stdout } = await exec(['id', '-nG', user]);
+      expect(stdout.trim().split(/\s+/)).toContain(group);
+
+      const t2 = trackChanged();
+      await createUser({ user, groups: [group] });
+      expect(t2.changed).toBe(false);
+
+      await deleteUser({ user });
+      await deleteGroup({ name: group });
+    });
+  });
+
   test('deleteUser is idempotent for missing user', async () => {
     await sharedPodman(shared, async () => {
       const user = uniqueName('tku-missing-');
