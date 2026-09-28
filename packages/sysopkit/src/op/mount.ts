@@ -378,15 +378,27 @@ export async function umount(o: UmountOptions): Promise<void> {
   const recursive = o.recursive === true;
   const lazy = o.lazy === true;
   const ignoreErrors = o.ignoreErrors === true;
-  const flags = `${lazy ? ' -l' : ''}${recursive ? ' -R' : ''}`;
+  const lazyFlag = lazy ? ' -l' : '';
+  const flags = `${lazyFlag}${recursive ? ' -R' : ''}`;
+  const suffix = ignoreErrors ? ' 2>/dev/null || true' : '';
   return task(
     `umount${flags} ${path}`,
     async (ctx) => {
+      // Relevant targets for a recursive detach, deepest first. Null when
+      // nothing is mounted at or under `path`.
+      let orphanTargets: string[] | null = null;
       if (recursive) {
         const targets = await submountTargets(path);
-        const hit = targets !== null && targets.some((t) => t === path || t.startsWith(`${path}/`));
-        if (!hit) {
+        const relevant = (targets ?? []).filter((t) => t === path || t.startsWith(`${path}/`));
+        if (relevant.length === 0) {
           return;
+        }
+        if (!relevant.includes(path)) {
+          // `umount -R <path>` requires `path` itself to be mounted
+          // (live: "not mounted" while a child stays attached), so detach
+          // orphaned children directly, deepest first.
+          relevant.sort((a, b) => b.split('/').length - a.split('/').length || b.length - a.length);
+          orphanTargets = relevant;
         }
       } else {
         const currentInfo = await mountInfo({ path });
@@ -396,7 +408,13 @@ export async function umount(o: UmountOptions): Promise<void> {
       }
 
       if (!ctx.dryRun) {
-        await sh(`umount${flags} ${$_(path)}${ignoreErrors ? ' 2>/dev/null || true' : ''}`);
+        if (orphanTargets !== null) {
+          for (const t of orphanTargets) {
+            await sh(`umount${lazyFlag} ${$_(t)}${suffix}`);
+          }
+        } else {
+          await sh(`umount${flags} ${$_(path)}${suffix}`);
+        }
       }
       emitChanged({ type: 'mount', resource: path, property: 'state', to: 'unmounted' });
     },

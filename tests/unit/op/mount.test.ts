@@ -245,12 +245,43 @@ describe('umount options', () => {
       });
       mockSpawn(conn, [
         mockSubmounts('/mnt/data', orphanJson),
-        { cmd: ['sh', '-c', 'umount -R /mnt/data'] },
+        // `umount -R /mnt/data` requires the path itself to be mounted
+        // (live: "not mounted" while the child stays attached), so orphans
+        // are detached directly.
+        { cmd: ['sh', '-c', 'umount /mnt/data/sub'] },
       ]);
 
       await umount({ path: '/mnt/data', recursive: true });
 
       expect(getSpawnCalls(conn)).toHaveLength(2);
+    });
+  });
+
+  test('recursive detaches multiple orphans deepest first with lazy', async () => {
+    await withMockContext(async ({ conn }) => {
+      const orphanJson = JSON.stringify({
+        filesystems: [
+          {
+            target: '/',
+            source: 'overlay',
+            fstype: 'overlay',
+            options: 'rw',
+            children: [
+              { target: '/mnt/data/a', source: 'tmpfs', fstype: 'tmpfs', options: 'rw' },
+              { target: '/mnt/data/a/b', source: 'tmpfs', fstype: 'tmpfs', options: 'rw' },
+            ],
+          },
+        ],
+      });
+      mockSpawn(conn, [
+        mockSubmounts('/mnt/data', orphanJson),
+        { cmd: ['sh', '-c', 'umount -l /mnt/data/a/b'] },
+        { cmd: ['sh', '-c', 'umount -l /mnt/data/a'] },
+      ]);
+
+      await umount({ path: '/mnt/data', recursive: true, lazy: true });
+
+      expect(getSpawnCalls(conn)).toHaveLength(3);
     });
   });
 

@@ -87,8 +87,11 @@ describe('mount ops (privileged)', () => {
       const src = remoteTempPath('mnt-rec-src-');
       const target = remoteTempPath('mnt-rec-');
       const nested = `${target}/sub`;
-      await sh(`mkdir -p ${src} ${nested}`);
+      await sh(`mkdir -p ${src} ${target}`);
       await mount({ src, path: target, bind: true });
+      // mkdir after the parent bind: the pre-mount `target/sub` would be
+      // shadowed by the bind (mount point does not exist in the new view).
+      await sh(`mkdir -p ${nested}`);
       await mount({ src, path: nested, bind: true });
 
       const t = trackChanged();
@@ -96,6 +99,24 @@ describe('mount ops (privileged)', () => {
       expect(t.changed).toBe(true);
       expect(await mountInfo({ path: target })).toBeNull();
       expect(await mountInfo({ path: nested })).toBeNull();
+    });
+  });
+
+  test('umount recursive detaches orphaned child when parent is unmounted', async () => {
+    await sharedPodman(shared, async () => {
+      const src = remoteTempPath('mnt-orph-src-');
+      const parent = remoteTempPath('mnt-orph-');
+      const child = `${parent}/sub`;
+      await sh(`mkdir -p ${src} ${child}`);
+      await mount({ src, path: child, bind: true });
+      expect(await mountInfo({ path: child })).not.toBeNull();
+
+      // `umount -R <parent>` alone reports "not mounted" while the child
+      // stays attached — the op must detach the orphan directly.
+      const t = trackChanged();
+      await umount({ path: parent, recursive: true });
+      expect(t.changed).toBe(true);
+      expect(await mountInfo({ path: child })).toBeNull();
     });
   });
 
