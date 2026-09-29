@@ -7,7 +7,7 @@ import { expectStderrPrompt } from 'sysopkit/middleware/expect';
 import { TransformCmdMiddleware } from 'sysopkit/middleware/transform-cmd';
 ```
 
-For `sudo`, see [sudo](sudo.md).
+For `sudo`, see [sudo](sudo.md). For `chroot`, see [chroot](chroot.md).
 
 ## Model
 

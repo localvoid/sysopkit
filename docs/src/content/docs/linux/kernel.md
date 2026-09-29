@@ -47,9 +47,7 @@ await kexecLoad({
 });
 ```
 
-On systems with locked-down Secure Boot, `KEXEC_LOAD` is blocked and
-`KEXEC_FILE_LOAD` (`kexec -s`) is required so the kernel signature is
-verified:
+On systems with locked-down Secure Boot, `KEXEC_LOAD` is blocked and `KEXEC_FILE_LOAD` (`kexec -s`) is required so the kernel signature is verified:
 
 ```ts
 await kexecLoad({
@@ -60,9 +58,7 @@ await kexecLoad({
 });
 ```
 
-`syscall` selects the kexec interface: `'file'` (`-s`, file only),
-`'load'` (`-c`, classic `KEXEC_LOAD` only), `'auto'` (`-a`, try file
-first with fallback). Omit for the kexec default (auto).
+`syscall` selects the kexec interface: `'file'` (`-s`, file only), `'load'` (`-c`, classic `KEXEC_LOAD` only), `'auto'` (`-a`, try file first with fallback). Omit for the kexec default (auto).
 
 ## kexecExec()
 

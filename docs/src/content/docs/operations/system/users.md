@@ -23,10 +23,7 @@ await createUser({
 });
 ```
 
-Supplementary `groups` are ensured via `usermod -aG` — missing
-memberships are appended, existing ones never removed. For exact
-member lists use `createGroup({ members })`. Listed groups must
-already exist (create them with `createGroup` first).
+Supplementary `groups` are ensured via `usermod -aG` — missing memberships are appended, existing ones never removed. For exact member lists use `createGroup({ members })`. Listed groups must already exist (create them with `createGroup` first).
 
 ## deleteUser()
 

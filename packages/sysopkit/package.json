@@ -59,6 +59,11 @@
       "types": "./dist/connector/podman.d.ts",
       "default": "./dist/connector/podman.js"
     },
+    "./middleware/chroot": {
+      "bun": "./src/middleware/chroot.ts",
+      "types": "./dist/middleware.chroot.d.ts",
+      "default": "./dist/middleware/chroot.js"
+    },
     "./middleware/sudo": {
       "bun": "./src/middleware/sudo.ts",
       "types": "./dist/middleware.sudo.d.ts",

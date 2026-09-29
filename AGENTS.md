@@ -19,6 +19,7 @@ The `Connector` interface abstracts command transport to a target system. It pro
 `ConnectorMiddleware` wraps a connector using the decorator pattern. The `middleware()` function creates a new context with the wrapped connector. Built-in middlewares:
 
 - **SudoMiddleware** – prepends `sudo`, supports user/role/env flags
+- **ChrootMiddleware** – prefixes `chroot <root>`, confines paths to a directory
 - **TraceMiddleware** – pipes stdout/stderr through TransformStreams, reports output via reporter
 - **ExpectPromptMiddleware** – watches stderr for a pattern, writes response to stdin
 - **TransformCmdMiddleware** – transforms command arrays before execution
@@ -69,6 +70,7 @@ packages/
       podman.ts # PodmanConnector
       ssh.ts # SSHConnector
     middleware/ # Connector middlewares
+      chroot.ts # ChrootMiddleware
       expect.ts # ExpectMiddleware
       sudo.ts # SudoMiddleware
       trace.ts # TraceMiddleware

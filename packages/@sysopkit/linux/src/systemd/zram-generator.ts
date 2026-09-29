@@ -94,7 +94,7 @@ export type ZramGeneratorDeviceConf = {
    * Mount or swapon options. Availability depends on `fs-type`.
    * Default: "discard".
    */
-  options?: string;
+  'options'?: string;
 };
 
 /**

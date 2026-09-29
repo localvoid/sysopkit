@@ -26,7 +26,7 @@ type ZramGeneratorDeviceConf = {
   'swap-priority'?: number;
   'mount-point'?: string;
   'fs-type'?: string;
-  options?: string;
+  'options'?: string;
 };
 ```
 

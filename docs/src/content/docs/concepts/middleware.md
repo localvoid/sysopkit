@@ -85,6 +85,19 @@ await middleware(
 );
 ```
 
+## ChrootMiddleware
+
+Confines all commands to a chroot directory (e.g. an installed system mounted at `/target` during OS installation). Every `spawn` in scope is prefixed with `chroot <root>`, so absolute paths resolve against the new root.
+
+```ts
+import { chroot } from 'sysopkit/middleware/chroot';
+import { createFile } from 'sysopkit/op/file';
+
+await chroot('/target', async () => {
+  await createFile({ path: '/etc/hostname', content: 'srv01\n' }); // lands in /target/etc/hostname
+});
+```
+
 ## Stacking Middleware
 
 Middlewares compose naturally — each layer wraps the next:

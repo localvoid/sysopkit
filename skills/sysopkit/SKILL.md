@@ -63,6 +63,7 @@ Rules that always apply:
 | --- | --- |
 | `sudo` — privilege escalation, passwords, vars, `-n` behavior | [middleware/sudo.md](middleware/sudo.md) |
 | `trace`, `expectStderrPrompt`, `TransformCmdMiddleware` | [middleware/others.md](middleware/others.md) |
+| `chroot` — confine commands to a directory (installers) | [middleware/chroot.md](middleware/chroot.md) |
 
 ### Operations
 
@@ -85,6 +86,7 @@ Rules that always apply:
 - SSH: `chmod 600` keys, `connect()` before first `rsh` read, prefer `exec`/`sh` ops over raw `spawn()`. ([connectors/ssh](connectors/ssh.md))
 - Podman passes argv verbatim — use `sh` for shell syntax. ([connectors/podman](connectors/podman.md))
 - `sudo` without a password uses `-n` (fails fast); `expectStderrPrompt` watches stderr only, fires once. ([middleware/sudo](middleware/sudo.md), [middleware/others](middleware/others.md))
+- `chroot` only prefixes argv — set up the root and API mounts yourself, use chroot-relative paths in scope, nest inside `sudo`. ([middleware/chroot](middleware/chroot.md))
 - `onChange` dies with its scope; handlers must not throw. ([events-changes](events-changes.md))
 - `rsync` defaults to `--delete`; `restartService` is unconditional — gate it behind `onChange`. ([ops/files](ops/files.md), [ops/linux-systemd](ops/linux-systemd.md))
 
@@ -93,7 +95,7 @@ Rules that always apply:
 - `sysopkit/start`, `sysopkit` — entry point, context tree (`start`, `task`, `utility`, `emit`)
 - `sysopkit/inventory`, `sysopkit` — orchestration (`resolveInventory`), host management (`apply`)
 - `sysopkit/connector/local`, `sysopkit/connector/ssh`, `sysopkit/connector/podman` — transports
-- `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd` — wrappers
+- `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd`, `sysopkit/middleware/chroot` — wrappers
 - `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh`, `sysopkit/op/which` — core ops
 - `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`, `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
 - OpenWrt UCI — see the `sysopkit-openwrt` skill

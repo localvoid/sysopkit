@@ -94,6 +94,8 @@ e2e/
     podman.test.ts
     ssh.test.ts # debian (OpenSSH): sh/sudo/file/rsync matrix
     ssh-openwrt.test.ts # openwrt (dropbear): sh/exec/file basics as root
+  middleware/
+    chroot.test.ts # fake root via /usr bind, assert confinement via read-back
   ops/ # grouped by area, assert final remote state (no cmd-string checks)
     filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke
     accounts.test.ts # redhat: users/groups incl. idempotency + dry-run
