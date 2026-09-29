@@ -44,6 +44,11 @@
       "types": "./dist/reporter/console.d.ts",
       "default": "./dist/reporter/console.js"
     },
+    "./reporter/tui": {
+      "bun": "./src/reporter/tui.ts",
+      "types": "./dist/reporter/tui.d.ts",
+      "default": "./dist/reporter/tui.js"
+    },
     "./connector/local": {
       "bun": "./src/connector/local.ts",
       "types": "./dist/connector/local.d.ts",

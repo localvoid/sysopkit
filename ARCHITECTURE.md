@@ -202,6 +202,7 @@ The default reporter provides:
 - Color-coded output (green ✓, red ✗, yellow ↻) when attached to a TTY
 - Duration formatting per context
 - Buffered output with pause/resume for parallel execution ordering
+- Live footer (TUI) on interactive terminals: one line per concurrent branch, deeper tasks reuse their branch slot for a stable position (`tui: false` or `TERM=dumb` disables)
 - Change entry rendering with before/after diffs
 - Error stack formatting with context hierarchy and command output
 

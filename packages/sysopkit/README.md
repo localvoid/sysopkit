@@ -210,6 +210,8 @@ if (!context().dryRun) {
 
 Verbosity via `SYSOPKIT_VERBOSITY`: `minimal` (0), `normal` (1, default), `trace` (2), `debug` (3, includes utilities).
 
+Live footer (TUI) on interactive terminals shows one line per concurrent branch (deeper tasks reuse their slot). Disable with `tui: false` or `TERM=dumb`.
+
 | Error            | Meaning                                                                  |
 | ---------------- | ------------------------------------------------------------------------ |
 | `OperationError` | Op failure with cause chain                                              |
