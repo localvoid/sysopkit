@@ -4,7 +4,7 @@
  * Entry point for infrastructure automation workflows.
  */
 
-import { createRootContext, runWithContext } from './core/context.js';
+import { createRootContext, runWithContext, type ExecutionContext } from './core/context.js';
 import {
   type Reporter,
   VERBOSITY_DEBUG,
@@ -39,7 +39,7 @@ export type StartResult<T> =
  * execution duration. Catches all errors and returns them in the result.
  */
 export async function start<R>(
-  fn: () => Promise<R>,
+  fn: (ctx: ExecutionContext) => Promise<R>,
   options?: StartOptions,
 ): Promise<StartResult<R>> {
   const startTime = Date.now();

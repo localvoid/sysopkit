@@ -39,7 +39,7 @@ import { task } from 'sysopkit';
 
 await task('demo', async (ctx) => {
   ctx.on(MY_EVENT, (data) => {
-    console.log('received:', data);
+    ctx.info(`received: ${data}`);
   });
 
   await task('subtask', async () => {

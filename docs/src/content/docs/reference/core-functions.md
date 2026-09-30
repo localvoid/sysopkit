@@ -12,7 +12,10 @@ import { start } from 'sysopkit/start';
 ```
 
 ```ts
-async function start<R>(fn: () => Promise<R>, options?: StartOptions): Promise<StartResult<R>>;
+async function start<R>(
+  fn: (ctx: ExecutionContext) => Promise<R>,
+  options?: StartOptions,
+): Promise<StartResult<R>>;
 ```
 
 ### Options

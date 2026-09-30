@@ -75,17 +75,23 @@ await start(async () => {
 In multi-host mode, failures are collected per host. If `maxFailPercent` is exceeded, `apply()` throws `ApplyError` (extends `AggregateError`) containing all per-host results:
 
 ```ts
-import { ApplyError } from 'sysopkit';
+import { start } from 'sysopkit/start';
+import { apply, ApplyError } from 'sysopkit';
 
-try {
-  await apply('setup', hosts.getAll(), fn, { maxFailPercent: 20 });
-} catch (err) {
-  if (err instanceof ApplyError) {
-    for (const result of err.results) {
-      if (!result.success) {
-        console.error(`${result.conn.name} failed:`, result.error);
+await start(async (ctx) => {
+  try {
+    await apply('setup', hosts.getAll(), fn, { maxFailPercent: 20 });
+  } catch (err) {
+    if (err instanceof ApplyError) {
+      for (const result of err.results) {
+        if (!result.success) {
+          ctx.error(`${result.conn.name} failed: ${result.error}`);
+        }
       }
     }
+    throw err;
   }
-}
+});
 ```
+
+Inside `start()` (which `apply` requires) always report via `ctx`/`context()` — never `console.*`. `console.*` is only for code outside `start()`, where no context exists.

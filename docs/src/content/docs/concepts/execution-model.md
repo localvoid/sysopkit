@@ -33,6 +33,24 @@ Each context inherits from its parent:
 - Each context calls `reporter.ctxStart()` on entry and `reporter.ctxEnd()` on exit
 - On error, `reporter.ctxError()` is called and `AbortController` is triggered
 
+## Logging: use the reporter, not `console`
+
+Inside `start()` (anywhere an ambient context exists), never use `console.log/warn/error`. Take the `ctx` callback param instead:
+
+```ts
+await start(async (ctx) => {
+  ctx.info('nginx installed');
+  ctx.warn('legacy config detected');
+  ctx.error(`failed on ${name}: ${err}`);
+});
+```
+
+`task`, `utility`, and `apply` callbacks receive `ctx` the same way — prefer the param; reach for `context()` only in helpers that can't take it.
+
+`ctx.info/warn/error` buffer per context and flush on completion with the hierarchical prefix, respect verbosity filtering, route info to stdout vs warn/error to stderr, cooperate with the live TUI footer, and honor custom `Reporter` implementations passed to `start({ reporter })`. Raw `console.*` bypasses all of that.
+
+`console.*` is only appropriate outside `start()` (e.g. handling the `StartResult` after `start()` returns), where no context exists.
+
 ## Task vs Utility
 
 |               | Task                                | Utility                            |
@@ -61,8 +79,8 @@ Call `context()` to retrieve the current context from `AsyncLocalStorage`:
 import { context } from 'sysopkit';
 
 const ctx = context();
-console.log(ctx.dryRun); // is this a dry run?
-console.log(ctx.name); // current task/utility name
+const isDryRun: boolean = ctx.dryRun; // is this a dry run?
+const taskName: string = ctx.name; // current task/utility name
 ```
 
 Alternatively, receive the context as the closure argument of `task`, `utility`, or `apply`:

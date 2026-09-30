@@ -51,6 +51,26 @@ Each frame calls `reporter.ctxStart` on entry, `reporter.ctxEnd` on exit, and on
 - Root contexts never print a status line. Repeated renders of the same error are deduped when buffered output flushes.
 - Contexts are bound to one reporter instance; reusing a context subtree under a different reporter throws `invalid reporter state`.
 
+## Logging: use the reporter, not `console`
+
+Inside `start()` (anywhere an ambient context exists), never use `console.log/warn/error`. Take the `ctx` callback param instead:
+
+```typescript
+import { start } from 'sysopkit/start';
+
+await start(async (ctx) => {
+  ctx.info('nginx installed');
+  ctx.warn('legacy config detected');
+  ctx.error(`failed on ${name}: ${err}`);
+});
+```
+
+`task`, `utility`, and `apply` callbacks receive `ctx` the same way — prefer the param; reach for `context()` only in helpers that can't take it.
+
+Why: `ctx.info/warn/error` buffer per context and flush on `ctxEnd` with the hierarchical prefix, respect verbosity filtering, route info → stdout vs warn/error → stderr, cooperate with the live TUI footer, and honor custom `Reporter` implementations passed to `start({ reporter })`. Raw `console.*` bypasses all of that — no prefix, wrong ordering vs task status lines, corrupts the TUI footer, and ignores custom reporters.
+
+`console.*` is only appropriate outside `start()` (e.g. handling the `StartResult` after `start()` returns), where no context exists.
+
 ## Dry-run
 
 `dryRun: boolean` is set once at `start()` and inherited down the whole tree; it is never overridden per-level. There is **no central enforcement** — each op branches itself:

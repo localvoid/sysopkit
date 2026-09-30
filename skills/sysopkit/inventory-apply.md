@@ -60,17 +60,23 @@ await apply('name', hosts.getAll(), async (ctx) => { … },
 - Below the threshold, multi-host `apply` **returns** the mixed array without throwing — you must inspect it. `maxFailPercent: 0` still lets the first batch complete before aborting (`failLimit = 0`, strict `>` comparison).
 
 ```typescript
-try {
-  const results = await apply('deploy', conns, fn, { batchSize: 5, maxFailPercent: 20 });
-  for (const r of results) if (!r.success) console.error(r.conn.name, r.error);
-} catch (e) {
-  if (e instanceof ApplyError)
-    for (const r of e.results) {
-      /* per-host detail */
-    }
-  throw e;
-}
+import { start } from 'sysopkit/start';
+
+await start(async (ctx) => {
+  try {
+    const results = await apply('deploy', conns, fn, { batchSize: 5, maxFailPercent: 20 });
+    for (const r of results) if (!r.success) ctx.error(`${r.conn.name}: ${r.error}`);
+  } catch (e) {
+    if (e instanceof ApplyError)
+      for (const r of e.results) {
+        if (!r.success) ctx.error(`${r.conn.name}: ${r.error}`);
+      }
+    throw e;
+  }
+});
 ```
+
+`ctx` is the caller frame — `apply` requires ambient context, so this code already runs inside `start()`. Prefer the callback param over `context()`; reach for `context()` only in helpers that can't take the param. Always report via `ctx`/`context()` there, never `console.*` (see [execution-model](execution-model.md#logging-use-the-reporter-not-console)). `console.*` is only for code outside `start()`, where no context exists.
 
 ## Gotchas
 

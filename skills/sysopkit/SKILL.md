@@ -81,6 +81,7 @@ Rules that always apply:
 ## Watch out
 
 - Outside `start()`, everything throws `No context available`. ([execution-model](execution-model.md))
+- Inside `start()`, never `console.log/warn/error` — use the `ctx` callback param (`start`/`task`/`utility`/`apply` all pass it; `context()` only in helpers that can't take the param). `console.*` bypasses buffering, hierarchy prefixes, verbosity filtering, the TUI footer, and custom reporters; it is only for code outside `start()`. ([execution-model](execution-model.md#logging-use-the-reporter-not-console))
 - `sh`/`bash` throw on non-zero exit **except 64–78**; exit 64 means "not found". Probe via `exitCode`. Interpolate paths with `$_()`. ([ops/shell](ops/shell.md))
 - Dry-run flag is **global** (set once, inherited); enforcement is **per-op**. `curl` ignores it entirely. ([execution-model](execution-model.md), [ops/files](ops/files.md))
 - Multi-host `apply` below the failure threshold **returns** mixed results without throwing — check `r.success`. `connect()` failures abort the whole batch. ([inventory-apply](inventory-apply.md))

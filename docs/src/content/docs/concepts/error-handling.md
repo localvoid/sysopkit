@@ -28,19 +28,23 @@ try {
 When a multi-host `apply()` exceeds its failure threshold, it throws `ApplyError` with every per-host result:
 
 ```ts
-import { ApplyError } from 'sysopkit';
+import { start } from 'sysopkit/start';
+import { apply, ApplyError } from 'sysopkit';
 
-try {
-  await apply('setup', hosts.getAll(), fn, { maxFailPercent: 20 });
-} catch (err) {
-  if (err instanceof ApplyError) {
-    for (const result of err.results) {
-      if (!result.success) {
-        console.error(`${result.conn.name}:`, result.error);
+await start(async (ctx) => {
+  try {
+    await apply('setup', hosts.getAll(), fn, { maxFailPercent: 20 });
+  } catch (err) {
+    if (err instanceof ApplyError) {
+      for (const result of err.results) {
+        if (!result.success) {
+          ctx.error(`${result.conn.name}: ${result.error}`);
+        }
       }
     }
+    throw err;
   }
-}
+});
 ```
 
 ## OperationError
@@ -48,15 +52,19 @@ try {
 Operations wrap their underlying failure cause in `OperationError`:
 
 ```ts
+import { apply } from 'sysopkit';
 import { OperationError } from 'sysopkit';
 
-try {
-  await createFile({ path: '/etc/config', content: 'data' });
-} catch (err) {
-  if (err instanceof OperationError) {
-    console.error('Operation failed:', err.cause);
+await apply('configure', conn, async (ctx) => {
+  try {
+    await createFile({ path: '/etc/config', content: 'data' });
+  } catch (err) {
+    if (err instanceof OperationError) {
+      ctx.error(`Operation failed: ${err.cause}`);
+    }
+    throw err;
   }
-}
+});
 ```
 
 ## ShellError
@@ -64,13 +72,17 @@ try {
 The `sh()` and `bash()` operations throw `ShellError` for non-zero exit codes outside the 64-78 usage-error range:
 
 ```ts
+import { apply } from 'sysopkit';
 import { ShellError } from 'sysopkit/op/sh';
 
-try {
-  await sh('apt install -y nginx');
-} catch (err) {
-  if (err instanceof ShellError) {
-    console.error(`Exit code ${err.exitCode}:`, err.stderr);
+await apply('install nginx', conn, async (ctx) => {
+  try {
+    await sh('apt install -y nginx');
+  } catch (err) {
+    if (err instanceof ShellError) {
+      ctx.error(`Exit code ${err.exitCode}: ${err.stderr}`);
+    }
+    throw err;
   }
-}
+});
 ```
