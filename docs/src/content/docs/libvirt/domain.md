@@ -29,7 +29,7 @@ import {
 
 > **IDEMPOTENT**
 
-Defines a domain from a normalized config. Compares `virsh dumpxml` output field-by-field and redefines only on drift; fields left undefined act as wildcards, so libvirt-assigned values (UUID, generated MACs, emulator paths, auto-added video/memballoon devices) never cause drift.
+Defines a domain from a normalized config. Compares `virsh dumpxml` output field-by-field and redefines only on drift; fields left undefined act as wildcards, so libvirt-assigned values (generated MACs, emulator paths, auto-added video/memballoon devices) never cause drift. A replacement define over an existing name requires the same explicit `<uuid>` — include the `uuid` from `getDomain()` when redefining, otherwise libvirt rejects it.
 
 ```ts
 await defineDomain({
@@ -48,7 +48,7 @@ await defineDomain({
 });
 ```
 
-The normalized model covers type/arch/machine, UEFI (explicit loader paths), direct kernel boot (`kernel`/`initrd`/`cmdline` for `<os>` direct boot, e.g. Live ISOs with an extracted kernel for `virsh console` serial access), CPU mode, boot order, virtio/scsi/sata/ide disks (`disk` and `cdrom` devices — the latter for persistent seed images), network/bridge interfaces, spice/vnc graphics, serial consoles, and the qemu-guest-agent channel. Disk targets default to `vdX`/`sdX` in order; unset interface models default to `virtio`; graphics default to spice with no network listener.
+The normalized model covers type/arch/machine, UUID (round-tripped for redefine), UEFI (explicit loader paths), direct kernel boot (`kernel`/`initrd`/`cmdline` for `<os>` direct boot, e.g. Live ISOs with an extracted kernel for `virsh console` serial access), CPU mode, boot order, virtio/scsi/sata/ide disks (`disk` and `cdrom` devices — the latter for persistent seed images), network/bridge interfaces, spice/vnc graphics, serial consoles, and the qemu-guest-agent channel. Disk targets default to `vdX`/`sdX` in order; unset interface models default to `virtio`; graphics default to spice with no network listener.
 
 ```ts
 await defineDomain({

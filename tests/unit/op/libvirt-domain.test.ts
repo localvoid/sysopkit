@@ -176,11 +176,51 @@ describe('serializeDomainXml', () => {
       }
     }
   });
+
+  test('round-trips uuid and omits it when unset', () => {
+    const xml = serializeDomainXml({
+      ...BASIC,
+      uuid: '9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8',
+    });
+    expect(xml).toContain('<uuid>9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8</uuid>');
+    const nameIdx = xml.indexOf('<name>');
+    const uuidIdx = xml.indexOf('<uuid>');
+    const memoryIdx = xml.indexOf('<memory');
+    expect(nameIdx).toBeGreaterThanOrEqual(0);
+    expect(uuidIdx).toBeGreaterThan(nameIdx);
+    expect(memoryIdx).toBeGreaterThan(uuidIdx);
+    expect(parseDomainXml(xml).uuid).toBe('9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8');
+    expect(serializeDomainXml(BASIC)).not.toContain('<uuid>');
+    expect(parseDomainXml(serializeDomainXml(BASIC)).uuid).toBeUndefined();
+  });
+
+  test('serializes the parsed uuid so redefines converge', () => {
+    const parsed = parseDomainXml(DUMPXML);
+    expect(serializeDomainXml(parsed)).toContain(
+      '<uuid>9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8</uuid>',
+    );
+  });
+
+  test('rejects invalid uuids', () => {
+    for (const uuid of [
+      'not-a-uuid',
+      '9f8a1b2c3d4e5f60718293a4b5c6d7e8',
+      '9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8f',
+      '',
+    ]) {
+      try {
+        serializeDomainXml({ ...BASIC, uuid });
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    }
+  });
 });
 
 const DUMPXML =
   '<domain type="kvm">' +
-  '<name>guest</name><uuid>9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8f</uuid>' +
+  '<name>guest</name><uuid>9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8</uuid>' +
   '<title>My guest</title>' +
   '<memory unit="KiB">2097152</memory><currentMemory unit="KiB">2097152</currentMemory>' +
   '<vcpu placement="static">2</vcpu>' +
@@ -209,6 +249,7 @@ describe('parseDomainXml', () => {
   test('parses dumpxml output into the normalized model', () => {
     expect(parseDomainXml(DUMPXML)).toEqual({
       name: 'guest',
+      uuid: '9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8',
       title: 'My guest',
       memoryMiB: 2048,
       vcpus: 2,
@@ -407,6 +448,20 @@ describe('domainConfigMatches', () => {
     expect(domainConfigMatches(live, { ...live, initrd: '/boot/other.img' })).toBe(false);
     expect(domainConfigMatches(live, { ...live, cmdline: 'console=ttyS1' })).toBe(false);
     expect(domainConfigMatches({ ...BASIC }, { ...live, kernel: '/boot/vmlinuz' })).toBe(false);
+  });
+
+  test('treats unset desired uuid as wildcard and differing uuids as drift', () => {
+    const live = parseDomainXml(DUMPXML);
+    expect(live.uuid).toBe('9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8');
+    expect(domainConfigMatches(live, { ...BASIC })).toBe(true);
+    expect(domainConfigMatches(live, { ...BASIC, uuid: live.uuid })).toBe(true);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        uuid: '11111111-2222-3333-4444-555555555555',
+      }),
+    ).toBe(false);
+    expect(domainConfigMatches({ ...BASIC }, { ...BASIC, uuid: live.uuid })).toBe(false);
   });
 });
 

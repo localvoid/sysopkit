@@ -148,12 +148,14 @@ export interface DomainUefi {
  *
  * Only the modeled subset participates in idempotency checks: fields left
  * undefined act as wildcards when comparing against `virsh dumpxml` output
- * (see `domainConfigMatches`). Libvirt-assigned values (UUID, generated MAC,
+ * (see `domainConfigMatches`). Libvirt-assigned values (generated MAC,
  * emulator path, auto-added video/memballoon) are ignored.
  */
 export interface DomainConf {
   /** Domain name. */
   readonly name: string;
+  /** Stable domain identity (`<uuid>`). Preserved across parse→serialize so redefines converge. */
+  readonly uuid?: string;
   readonly title?: string;
   readonly description?: string;
   /** RAM in MiB (written as `<memory>` and `<currentMemory>`). */
@@ -216,6 +218,14 @@ export function serializeDomainXml(domain: DomainConf): string {
   }
   if (!Number.isInteger(domain.vcpus) || domain.vcpus <= 0) {
     throw new Error(`invalid vcpus '${domain.vcpus}'`);
+  }
+  if (
+    domain.uuid !== undefined &&
+    !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+      domain.uuid,
+    )
+  ) {
+    throw new Error(`invalid uuid '${domain.uuid}'`);
   }
   if (domain.kernel === undefined) {
     if (domain.initrd !== undefined) {
@@ -320,6 +330,7 @@ export function serializeDomainXml(domain: DomainConf): string {
   const root: MutableXmlElement = {
     '@type': domain.type ?? 'kvm',
     'name': domain.name,
+    ...(domain.uuid === undefined ? {} : { uuid: domain.uuid }),
     ...(domain.title === undefined ? {} : { title: domain.title }),
     ...(domain.description === undefined ? {} : { description: domain.description }),
     'memory': { '@unit': 'MiB', '#text': String(domain.memoryMiB) },
@@ -368,6 +379,7 @@ export function parseDomainXml(xml: string): DomainConf {
   if (name === undefined) {
     throw new Error('invalid domain XML: missing <name>');
   }
+  const uuid = childText(root, 'uuid');
   const memoryMiB = _parseSizedElement(childElement(root, 'memory'), 'memory');
   if (memoryMiB === undefined) {
     throw new Error('invalid domain XML: missing <memory>');
@@ -518,6 +530,7 @@ export function parseDomainXml(xml: string): DomainConf {
 
   return {
     name,
+    ...(uuid === undefined ? {} : { uuid }),
     ...(childText(root, 'title') === undefined
       ? {}
       : { title: childText(root, 'title') as string }),
@@ -559,6 +572,9 @@ export function parseDomainXml(xml: string): DomainConf {
  */
 export function domainConfigMatches(current: DomainConf, desired: DomainConf): boolean {
   if (current.name !== desired.name) {
+    return false;
+  }
+  if (desired.uuid !== undefined && desired.uuid !== current.uuid) {
     return false;
   }
   if (desired.type !== undefined && desired.type !== (current.type ?? 'kvm')) {
@@ -852,6 +868,10 @@ export type DefineDomainOptions = VirshOptions &
  * The normalized path compares `virsh dumpxml` output field-by-field
  * (unspecified fields are wildcards) and redefines only on drift. The raw
  * XML path defines by existence unless `update` is set.
+ *
+ * Libvirt requires a replacement define over an existing name to carry the
+ * same explicit `<uuid>` — include the `uuid` from `getDomain()` when
+ * redefining, otherwise the redefine is rejected.
  */
 export async function defineDomain(options: DefineDomainOptions): Promise<void> {
   if ('domain' in options) {

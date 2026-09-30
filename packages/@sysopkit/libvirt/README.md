@@ -66,7 +66,7 @@ await setDomainAutostart({ name: 'guest', autostart: true });
 await startDomain({ name: 'guest' });
 ```
 
-Idempotency compares `virsh dumpxml` output field-by-field; fields left undefined in the desired config act as wildcards, so libvirt-assigned values (UUID, generated MACs, emulator paths, auto-added video/memballoon devices) never cause drift. Devices outside the normalized model (PCI passthrough, TPM, NUMA, ...) are managed through the raw XML path (`defineDomain({ name, xml, update })`).
+Idempotency compares `virsh dumpxml` output field-by-field; fields left undefined in the desired config act as wildcards, so libvirt-assigned values (generated MACs, emulator paths, auto-added video/memballoon devices) never cause drift. A replacement define over an existing name requires the same explicit `<uuid>` — pass the `uuid` from `getDomain()` when redefining, otherwise libvirt rejects it. Devices outside the normalized model (PCI passthrough, TPM, NUMA, ...) are managed through the raw XML path (`defineDomain({ name, xml, update })`).
 
 ## License
 

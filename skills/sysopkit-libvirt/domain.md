@@ -25,6 +25,7 @@ import {
 await defineDomain({
   domain: {
     name: 'guest', memoryMiB: 2048, vcpus: 2,
+    uuid?, // stable identity (<uuid>); round-tripped by parse/serialize so redefines converge; unset matches anything
     arch?: 'x86_64', machine?: 'q35', type?: 'kvm', cpuMode?: 'host-passthrough',
     firmware?: 'bios' | { loader, template?, nvram? }, // explicit OVMF paths; default nvram /var/lib/libvirt/qemu/nvram/<name>_VARS.fd
     kernel?, initrd?, cmdline?, // direct kernel boot (<os>); initrd/cmdline require kernel
@@ -39,6 +40,8 @@ await defineDomain({
 ```
 
 Disk targets default to `vdX`/`sdX` in order (`_targetSuffix`: a..z, aa..). Serializer output is fully explicit (defaulted bus/model/format/listen written out); the parser keeps only the modeled subset. Seed cdrom: `{ device: 'cdrom', source: 'seed.iso', target: 'sda', bus: 'sata', readonly: true }` — an ejected drive parses as `source: ''`.
+
+`defineDomain` is idempotent (redefines only on drift, unset fields are wildcards), but a replacement define over an existing name requires the same explicit `<uuid>` — pass the `uuid` from `getDomain()` when redefining, otherwise libvirt rejects it.
 
 ## Lifecycle and inspection
 
