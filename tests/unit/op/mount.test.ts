@@ -29,7 +29,7 @@ function mockFindmnt(path: string, stdout: string, exitCode = 0) {
     cmd: [
       'sh',
       '-c',
-      `findmnt --json --target ${path};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+      `findmnt --json -o TARGET,SOURCE,FSTYPE,OPTIONS,PROPAGATION --target ${path};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
     ],
     stdout,
     exitCode: exitCode === 1 ? 64 : exitCode,
@@ -82,6 +82,27 @@ describe('mountInfo', () => {
       const result = await mountInfo({ path: '/mnt/data' });
 
       expect(result).toBeNull();
+    });
+  });
+
+  test('returns propagation when findmnt reports it', async () => {
+    await withMockContext(async ({ conn }) => {
+      const json = JSON.stringify({
+        filesystems: [
+          {
+            target: '/mnt/data',
+            source: '/dev/sda1',
+            fstype: 'ext4',
+            options: 'rw,relatime',
+            propagation: 'private,slave',
+          },
+        ],
+      });
+      mockSpawn(conn, [mockFindmnt('/mnt/data', json)]);
+
+      const result = await mountInfo({ path: '/mnt/data' });
+
+      expect(result?.propagation).toBe('private,slave');
     });
   });
 });
@@ -172,6 +193,50 @@ describe('mount command construction', () => {
         expect.unreachable();
       } catch (e) {
         expect((e as Error).message).toContain('fstype is required');
+      }
+    });
+  });
+
+  test('refuses mount without src unless propagation is set', async () => {
+    await withMockContext(async () => {
+      try {
+        await mount({ path: '/mnt/data' });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toContain('src is required');
+      }
+    });
+  });
+
+  test('refuses propagation-only remount with bind/fstype', async () => {
+    await withMockContext(async () => {
+      try {
+        await mount({ path: '/mnt/data', propagation: 'rslave', bind: true });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toContain('propagation-only');
+      }
+    });
+  });
+
+  test('refuses noCanonicalize without bind', async () => {
+    await withMockContext(async () => {
+      try {
+        await mount({ src: 'tmpfs', path: '/mnt/data', fstype: 'tmpfs', noCanonicalize: true });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toContain('noCanonicalize requires bind');
+      }
+    });
+  });
+
+  test('refuses rslave conflicting with propagation', async () => {
+    await withMockContext(async () => {
+      try {
+        await mount({ src: '/dev', path: '/mnt/dev', rslave: true, propagation: 'rprivate' });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toContain('conflicts');
       }
     });
   });

@@ -117,3 +117,4 @@ packages/
 
 - Do NOT run `tsc`, use `bun run check` for type-checking
 - Keep docs and tests up-to-date
+- Validate op inputs inside `task()`/`utility()`, never before it: `runWithContext()` reports failures via `reporter.ctxError(ctx, e)` (`core/context.ts`), so a `throw` outside the task body loses the task frame in the reported context stack. Compute the task name/details defensively (no throws), then refuse first thing inside the callback.

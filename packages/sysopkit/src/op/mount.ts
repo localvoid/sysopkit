@@ -178,6 +178,11 @@ export interface MountInfo {
   readonly source: string;
   readonly fstype: string;
   readonly options: string;
+  /**
+   * Propagation state from the `PROPAGATION` column (e.g. `shared`,
+   * `private,slave`). Absent on older util-linux without the column.
+   */
+  readonly propagation?: string;
 }
 
 /** Configuration for mountInfo operation. */
@@ -188,13 +193,15 @@ export interface MountInfoOptions {
 /**
  * Gets mount information for a path using findmnt. Returns null if not mounted.
  *
+ * The `PROPAGATION` column is requested explicitly: it is absent from the
+ * default JSON output on some util-linux releases (e.g. 2.40).
  * `findmnt --target` reports the containing filesystem for existing paths
  * that are not mount points themselves, so the result is only returned when
  * the reported target matches the requested path exactly.
  */
 export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo | null> {
   const { stdout, exitCode } = await sh(
-    `findmnt --json --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+    `findmnt --json -o TARGET,SOURCE,FSTYPE,OPTIONS,PROPAGATION --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
   );
   if (exitCode !== 0) {
     return null;
@@ -212,6 +219,7 @@ export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo |
         source: fs.source,
         fstype: fs.fstype,
         options: fs.options,
+        ...(fs.propagation !== undefined ? { propagation: fs.propagation } : {}),
       };
     }
   } catch {}
@@ -223,15 +231,36 @@ interface FindmntEntry {
   readonly source: string;
   readonly fstype: string;
   readonly options: string;
+  readonly propagation?: string;
 }
 
 interface FindmntOutput {
   readonly filesystems: FindmntEntry[];
 }
 
+/**
+ * Mount propagation type for `--make-*` flags.
+ *
+ * @see mount(8) - propagation flags
+ */
+export type MountPropagation =
+  | 'shared'
+  | 'rshared'
+  | 'slave'
+  | 'rslave'
+  | 'private'
+  | 'rprivate'
+  | 'unbindable'
+  | 'runbindable';
+
 /** Configuration for mount operation. */
 export interface MountOptions {
-  readonly src: string;
+  /**
+   * Mount source (device, `tmpfs`, or bind source directory/file).
+   * Optional only for a propagation-only remount
+   * (`mount --make-<mode> <path>`); required otherwise.
+   */
+  readonly src?: string;
   readonly path: string;
   /**
    * Filesystem type (e.g. `ext4`, `tmpfs`). Required unless this is a
@@ -248,32 +277,131 @@ export interface MountOptions {
   /**
    * Add `--make-rslave` to a bind mount, so mounts under the source
    * don't propagate into the bind (container/installer API mounts
-   * such as `/dev`). Implies `bind`. Default false.
+   * such as `/dev`). Implies `bind`. Prefer `propagation: 'rslave'`.
+   * Default false.
    */
   readonly rslave?: boolean;
+  /**
+   * Recursive bind-mount (`mount --rbind`) so submounts under `src`
+   * (e.g. `/dev/pts`, `/dev/shm`) propagate into the bind. Implies
+   * `bind`. Combines with `propagation` as
+   * `mount --make-rslave --rbind <src> <path>`. Default false.
+   */
+  readonly rbind?: boolean;
+  /**
+   * Create missing mountpoint parents (`mount --mkdir`,
+   * util-linux ≥ 2.30). Applies to bind and regular mounts, not to
+   * propagation-only remounts. Default false.
+   */
+  readonly mkdir?: boolean;
+  /**
+   * Mount onto the path itself instead of the resolved target
+   * (`mount --no-canonicalize`), e.g. a `resolv.conf` file bind over
+   * a stub symlink. Bind mounts only. Default false.
+   */
+  readonly noCanonicalize?: boolean;
+  /**
+   * Change propagation (`mount --make-<mode>`) either fused with a
+   * mount (`mount --make-rslave --rbind <src> <path>`) or standalone
+   * without `src` (`mount --make-rslave <path>`). Default unset.
+   */
+  readonly propagation?: MountPropagation;
+}
+
+/**
+ * Whether a `findmnt` propagation value already satisfies the requested
+ * `--make-*` mode. Recursive (`r-`) and non-recursive spellings are
+ * treated as equivalent (`rslave` matches `slave`, including combined
+ * values such as `private,slave`); an unknown (absent column) never
+ * matches so the remount still runs.
+ */
+function propagationSatisfied(requested: MountPropagation, current: string | undefined): boolean {
+  if (current === undefined) {
+    return false;
+  }
+  const base = requested.startsWith('r') ? requested.slice(1) : requested;
+  return current
+    .split(',')
+    .map((s) => s.trim())
+    .includes(base);
 }
 
 /**
  * **[IDEMPOTENT]** Mounts filesystem.
  *
- * Regular mounts emit `mount -t <fstype> -o <opts> <src> <path>`;
- * bind mounts emit `mount [--make-rslave] --bind <src> <path>`.
+ * Regular mounts emit `mount [--mkdir] [--make-<mode>] -t <fstype> -o <opts> <src> <path>`;
+ * bind mounts emit `mount [--mkdir] [--no-canonicalize] [--make-<mode>] --bind|--rbind <src> <path>`;
+ * propagation-only remounts emit `mount --make-<mode> <path>`.
  * Skips when `path` already exposes `src` (binds compare file identity
  * via `stat`, since findmnt reports the backing device rather than the
- * source path; regular mounts compare source, fstype and options).
+ * source path; regular mounts compare source, fstype and options;
+ * propagation-only remounts compare the `PROPAGATION` column).
+ *
+ * Bind idempotency compares only file identity: switching `bind` to
+ * `rbind` (or changing propagation) on an already-bound path is not
+ * detected — detach with `umount({ recursive: true })` first.
  */
 export async function mount(o: MountOptions): Promise<void> {
   const { src, path } = o;
-  const bind = o.bind === true || o.rslave === true;
-  const rslave = o.rslave === true;
+  const rbind = o.rbind === true;
+  const mkdir = o.mkdir === true;
+  const noCanonicalize = o.noCanonicalize === true;
   const fstype = o.fstype;
   const opts = o.opts ?? 'defaults';
-  if (!bind && fstype === undefined) {
-    throw new Error('refusing: fstype is required unless bind is set');
-  }
+  // Resolved without throwing so the task name is always available;
+  // conflicts are refused inside the task body (a throw outside task()
+  // would miss the task frame in the reported context stack).
+  const propagation: MountPropagation | undefined =
+    o.propagation ?? (o.rslave === true ? 'rslave' : undefined);
+  const name =
+    src === undefined
+      ? propagation !== undefined
+        ? `mount --make-${propagation} ${path}`
+        : `mount ${path}`
+      : `mount ${src} → ${path}`;
   return task(
-    `mount ${src} → ${path}`,
+    name,
     async (ctx) => {
+      if (o.rslave === true && o.propagation !== undefined && o.propagation !== 'rslave') {
+        throw new Error(`refusing: rslave conflicts with propagation '${o.propagation}'`);
+      }
+
+      if (src === undefined) {
+        if (propagation === undefined) {
+          throw new Error('refusing: src is required unless propagation is set');
+        }
+        if (
+          o.bind === true ||
+          rbind ||
+          fstype !== undefined ||
+          o.opts !== undefined ||
+          noCanonicalize ||
+          mkdir
+        ) {
+          throw new Error('refusing: propagation-only remount takes no src, bind, fstype, or mkdir');
+        }
+        const currentInfo = await mountInfo({ path });
+        if (currentInfo !== null && propagationSatisfied(propagation, currentInfo.propagation)) {
+          return;
+        }
+        if (!ctx.dryRun) {
+          await sh(`mount --make-${propagation} ${$_(path)}`);
+        }
+        emitChanged({ type: 'mount', resource: path, property: 'state', to: 'mounted' });
+        return;
+      }
+
+      const bind = o.bind === true || o.rslave === true || rbind;
+      if (!bind && fstype === undefined) {
+        throw new Error('refusing: fstype is required unless bind is set');
+      }
+      if (noCanonicalize && !bind) {
+        throw new Error('refusing: noCanonicalize requires bind');
+      }
+      const mkdirFlag = mkdir ? ' --mkdir' : '';
+      const noCanonicalizeFlag = noCanonicalize ? ' --no-canonicalize' : '';
+      const propagationFlag = propagation !== undefined ? ` --make-${propagation}` : '';
+      const bindKind = rbind ? '--rbind' : '--bind';
       const currentInfo = await mountInfo({ path });
       if (currentInfo !== null) {
         const srcMatch =
@@ -285,6 +413,8 @@ export async function mount(o: MountOptions): Promise<void> {
           // findmnt reports the backing device for binds (e.g. `udev`
           // for a `/dev` bind), never the source path — compare file
           // identity instead: a bound path exposes the source's inode.
+          // This holds for --rbind and --no-canonicalize as well (both
+          // ends resolve to the same inode either way).
           const { stdout: ids } = await sh(
             `stat -c '%d %i' ${$_(src)}; stat -c '%d %i' ${$_(path)}`,
           );
@@ -302,14 +432,32 @@ export async function mount(o: MountOptions): Promise<void> {
 
       if (!ctx.dryRun) {
         if (bind) {
-          await sh(`mount${rslave ? ' --make-rslave' : ''} --bind ${$_(src)} ${$_(path)}`);
+          await sh(
+            `mount${mkdirFlag}${noCanonicalizeFlag}${propagationFlag} ${bindKind} ${$_(src)} ${$_(path)}`,
+          );
         } else {
-          await sh(`mount -t ${$_(fstype as string)} -o ${$_(opts)} ${$_(src)} ${$_(path)}`);
+          await sh(
+            `mount${mkdirFlag}${propagationFlag} -t ${$_(fstype as string)} -o ${$_(opts)} ${$_(src)} ${$_(path)}`,
+          );
         }
       }
       emitChanged({ type: 'mount', resource: path, property: 'state', to: 'mounted' });
     },
-    { details: () => ({ src, fstype, opts }), verbosity: VERBOSITY_NORMAL },
+    {
+      details: () =>
+        src === undefined
+          ? { path, propagation }
+          : {
+              src,
+              fstype,
+              opts,
+              ...(rbind ? { rbind: 'true' } : {}),
+              ...(mkdir ? { mkdir: 'true' } : {}),
+              ...(noCanonicalize ? { noCanonicalize: 'true' } : {}),
+              propagation,
+            },
+      verbosity: VERBOSITY_NORMAL,
+    },
   );
 }
 

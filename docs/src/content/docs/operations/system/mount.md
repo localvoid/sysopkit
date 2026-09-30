@@ -21,6 +21,16 @@ Bind-mounts (idempotent via file identity — a bound path exposes the source's 
 await mount({ src: '/srv/data', path: '/mnt/data', bind: true });
 // installer API mounts: don't propagate submounts into the bind
 await mount({ src: '/dev', path: '/target/dev', rslave: true });
+// recursive bind so /dev/pts, /dev/shm propagate; --mkdir creates parents
+await mount({ src: '/dev', path: '/target/dev', rbind: true, mkdir: true });
+// file bind over a stub symlink without resolving it first
+await mount({ src: '/run/systemd/resolve/stub-resolv.conf', path: '/target/etc/resolv.conf', bind: true, noCanonicalize: true });
+```
+
+Propagation-only remount (no `src`; skips when `findmnt` already reports it):
+
+```ts
+await mount({ path: '/target/dev', propagation: 'rslave' });
 ```
 
 ## umount()
