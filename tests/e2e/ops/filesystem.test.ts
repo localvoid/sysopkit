@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { trackChanged } from '@sysopkit/test-utils';
 import { exec } from 'sysopkit/op/exec';
 import {
+  cp,
   createDir,
   createFile,
   createLink,
@@ -218,6 +219,61 @@ describe('filesystem ops', () => {
       await sh(`(sleep 0.3; echo 'Server started' >> ${$_(p)}) &`);
       await waitFileContent({ path: p, regex: 'Server started', delay: 50 });
       expect((await readFile(p)).includes('Server started')).toBe(true);
+    });
+  });
+
+  test('cp copies a file', async () => {
+    await sharedPodman(shared, async () => {
+      const src = remoteTempPath('fs-cp-src-');
+      const dst = remoteTempPath('fs-cp-dst-');
+      await writeFile(src, 'copy me\n');
+      const t = trackChanged();
+      await cp({ src, dst });
+      expect(t.changed).toBe(true);
+      expect(await readFile(dst)).toBe('copy me\n');
+      expect(await readFile(src)).toBe('copy me\n');
+    });
+  });
+
+  test('cp copies directories recursively with reflink', async () => {
+    await sharedPodman(shared, async () => {
+      const src = remoteTempPath('fs-cpdir-src-');
+      const dst = remoteTempPath('fs-cpdir-dst-');
+      await sh(
+        `mkdir -p ${$_(src)}/sub && echo one > ${$_(src)}/a.txt && echo two > ${$_(src)}/sub/b.txt`,
+      );
+      await cp({ src, dst, recursive: true, reflink: 'auto', sparse: 'auto' });
+      expect(await readFile(`${dst}/a.txt`)).toBe('one\n');
+      expect(await readFile(`${dst}/sub/b.txt`)).toBe('two\n');
+    });
+  });
+
+  test('cp copies multiple sources into a directory', async () => {
+    await sharedPodman(shared, async () => {
+      const a = remoteTempPath('fs-cpmulti-a-');
+      const b = remoteTempPath('fs-cpmulti-b-');
+      const dir = remoteTempPath('fs-cpmulti-dst-');
+      await writeFile(a, 'a\n');
+      await writeFile(b, 'b\n');
+      await sh(`mkdir -p ${$_(dir)}`);
+      await cp({ src: [a, b], dst: dir, force: true });
+      expect(await readFile(`${dir}/${a.split('/').pop()}`)).toBe('a\n');
+      expect(await readFile(`${dir}/${b.split('/').pop()}`)).toBe('b\n');
+    });
+  });
+
+  test('cp refuses invalid reflink mode', async () => {
+    await sharedPodman(shared, async () => {
+      try {
+        await cp({
+          src: remoteTempPath('fs-cp-bad-'),
+          dst: remoteTempPath('fs-cp-bad-dst-'),
+          reflink: 'sometimes' as never,
+        });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toContain('invalid reflink mode');
+      }
     });
   });
 

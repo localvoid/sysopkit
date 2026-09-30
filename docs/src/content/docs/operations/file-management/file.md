@@ -5,6 +5,7 @@ description: Manage files, directories, and symlinks idempotently.
 
 ```ts
 import {
+  cp,
   createFile,
   deleteFile,
   readFile,
@@ -79,6 +80,18 @@ await deleteDir({ path: '/tmp/old', recursive: true });
 > **IDEMPOTENT**
 
 Creates or removes symbolic links. `createLink` compares target via `readlink`.
+
+## cp()
+
+Copies files or directories with `cp`. Always copies and emits a change event (non-idempotent, skipped in dry-run like `tar`). Accepts a single source or an array of sources copied into a destination directory:
+
+```ts
+await cp({ src: '/etc/app.conf', dst: '/backup/app.conf' });
+await cp({ src: '/var/www', dst: '/backup/www', recursive: true, reflink: 'auto' });
+await cp({ src: ['/etc/a.conf', '/etc/b.conf'], dst: '/backup/', force: true });
+```
+
+Options: `recursive` (`-r`), `force` (`-f`), `archive` (`-a`), `preserve` (`-p`), `reflink` / `sparse` (`--reflink=` / `--sparse=` with `always` | `auto` | `never`, GNU coreutils only).
 
 ## getFileStat()
 

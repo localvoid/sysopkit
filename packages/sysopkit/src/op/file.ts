@@ -6,7 +6,7 @@
  * These helpers wrap standard Unix commands for file manipulation:
  * - `cat` for writing files
  * - `test` for file type checks
- * - `mkdir`, `ln`, `chmod`, `chown`, `touch`, `mv`, `rm` for file operations
+ * - `mkdir`, `ln`, `chmod`, `chown`, `touch`, `mv`, `rm`, `cp` for file operations
  * - `stat` for file metadata
  */
 
@@ -605,6 +605,109 @@ export async function deleteLink({ path }: DeleteLinkOptions): Promise<void> {
       }
     },
     { verbosity: VERBOSITY_NORMAL },
+  );
+}
+
+/** Reflink (copy-on-write clone) mode for `cp --reflink`. */
+export type CpReflink = 'always' | 'auto' | 'never';
+
+/** Sparse detection mode for `cp --sparse`. */
+export type CpSparse = 'always' | 'auto' | 'never';
+
+/** Configuration for cp operation. */
+export interface CpOptions {
+  readonly src: string | string[];
+  readonly dst: string;
+  /** Copy directories recursively (`-r`). Required when copying directories. */
+  readonly recursive?: boolean;
+  /** Overwrite existing destinations (`-f`). */
+  readonly force?: boolean;
+  /** Archive mode (`-a`, same as `-dR --preserve=all`). */
+  readonly archive?: boolean;
+  /** Preserve mode, ownership and timestamps (`-p`). */
+  readonly preserve?: boolean;
+  /** Clone files copy-on-write (`--reflink=`). GNU coreutils only. */
+  readonly reflink?: CpReflink;
+  /** Detect sparse files (`--sparse=`). GNU coreutils only. */
+  readonly sparse?: CpSparse;
+}
+
+/**
+ * Copies files or directories with `cp`.
+ *
+ * Supports multiple sources copied into a destination directory.
+ * Always copies and emits a change event (non-idempotent); skip it
+ * in dry-run like `tar`. GNU-only flags (`--reflink`, `--sparse`)
+ * are unavailable on busybox targets.
+ *
+ * @see cp(1) - copy files and directories
+ */
+export async function cp(o: CpOptions): Promise<void> {
+  // Resolved without throwing so the task name is always available;
+  // conflicts are refused inside the task body (a throw outside task()
+  // would miss the task frame in the reported context stack).
+  const srcs = Array.isArray(o.src) ? o.src : [o.src];
+  const name = `cp ${srcs.join(' ')} → ${o.dst}`;
+  return task(
+    name,
+    async (ctx) => {
+      const dst = o.dst;
+      if (typeof dst !== 'string' || dst === '') {
+        throw new Error('refusing: dst is required');
+      }
+      if (srcs.length === 0) {
+        throw new Error('refusing: src is required');
+      }
+      for (const s of srcs) {
+        if (typeof s !== 'string' || s === '') {
+          throw new Error('refusing: src is required');
+        }
+      }
+      if (
+        o.reflink !== undefined &&
+        o.reflink !== 'always' &&
+        o.reflink !== 'auto' &&
+        o.reflink !== 'never'
+      ) {
+        throw new Error(`refusing: invalid reflink mode '${String(o.reflink)}'`);
+      }
+      if (
+        o.sparse !== undefined &&
+        o.sparse !== 'always' &&
+        o.sparse !== 'auto' &&
+        o.sparse !== 'never'
+      ) {
+        throw new Error(`refusing: invalid sparse mode '${String(o.sparse)}'`);
+      }
+
+      let cmd = 'cp';
+      if (o.recursive === true) cmd += ' -r';
+      if (o.force === true) cmd += ' -f';
+      if (o.archive === true) cmd += ' -a';
+      if (o.preserve === true) cmd += ' -p';
+      if (o.reflink !== undefined) cmd += ` --reflink=${o.reflink}`;
+      if (o.sparse !== undefined) cmd += ` --sparse=${o.sparse}`;
+      for (const s of srcs) {
+        cmd += ` ${$_(s)}`;
+      }
+      cmd += ` ${$_(dst)}`;
+
+      if (!ctx.dryRun) await sh(cmd);
+      emitChanged({ type: 'cp', resource: dst, property: 'copied' });
+    },
+    {
+      details: () => ({
+        src: srcs.join(' '),
+        dst: o.dst,
+        ...(o.recursive === true ? { recursive: 'true' } : {}),
+        ...(o.force === true ? { force: 'true' } : {}),
+        ...(o.archive === true ? { archive: 'true' } : {}),
+        ...(o.preserve === true ? { preserve: 'true' } : {}),
+        ...(o.reflink !== undefined ? { reflink: o.reflink } : {}),
+        ...(o.sparse !== undefined ? { sparse: o.sparse } : {}),
+      }),
+      verbosity: VERBOSITY_NORMAL,
+    },
   );
 }
 

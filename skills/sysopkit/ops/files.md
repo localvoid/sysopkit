@@ -1,7 +1,7 @@
 # File ops: files, rsync, tar, curl, temp
 
 ```typescript
-import { createFile, createDir, createLink, sha256 } from 'sysopkit/op/file';
+import { createFile, createDir, createLink, cp, sha256 } from 'sysopkit/op/file';
 import { rsyncPush, rsyncPull } from 'sysopkit/op/rsync';
 import { tar, untar } from 'sysopkit/op/tar';
 import { curl } from 'sysopkit/op/curl';
@@ -11,14 +11,17 @@ import { withTempFile, withTempDir } from 'sysopkit/op/temp';
 ## Idempotent file ops (`sysopkit/op/file`)
 
 ```typescript
-import { createFile, createDir, createLink, deleteFile, sha256 } from 'sysopkit/op/file';
+import { createFile, createDir, createLink, deleteFile, cp, sha256 } from 'sysopkit/op/file';
 
 await createFile({ path: '/etc/app.conf', content, mode?, user?, group?, atime?, mtime?, attributes? });
 await createDir({ path: '/var/lib/app', recursive?, mode?, user?, group? });
 await createLink({ path: '/etc/app.current', target: '/etc/app.v2' });
+await cp({ src: '/var/www', dst: '/backup/www', recursive?, force?, archive?, preserve?, reflink?, sparse? });
 ```
 
 `createFile`, `createDir`, `createLink`, `deleteFile`, `deleteDir`, `deleteLink`, `touchFile` are **idempotent**: check-then-act via `getPathInfo` bitmask, local-vs-remote `sha256` comparison, `readlink`/`stat` diffs; only `chmod/chown/touch/chattr/mkdir/ln/rm` on diff, `emitChanged()` only on real change. In dry-run they check state and emit, but skip mutation. `content` may be string or bytes.
+
+`cp` is a **non-idempotent** task: it always copies (single `src` or `src[]` into a directory) and emits `copied`, skipping the command in dry-run like `tar`. `reflink`/`sparse` (`always` | `auto` | `never`) are GNU-only — unavailable on busybox targets.
 
 Read-only helpers (run even in dry-run): `getPathInfo`, `readFile` / `readFileBuffer` (throw) and `tryReadFile` / `tryReadFileBuffer` (`undefined` on exit 64), `getFileStat`, `sha256`.
 
