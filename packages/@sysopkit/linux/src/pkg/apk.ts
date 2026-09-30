@@ -97,18 +97,25 @@ export interface RemovePackagesOptions {
 /**
  * Removes packages using apk.
  *
- * Dependencies that were installed for the removed packages and are no
- * longer needed are purged as well, and reported as removed. Re-running for
- * absent packages is a no-op. In dry-run mode, uses `--simulate` to preview
- * which packages would be removed without applying the change.
+ * **[IDEMPOTENT]** Missing packages are skipped (apk exits non-zero for
+ * `No such package`, so re-running for absent packages is a no-op without
+ * throwing). Dependencies that were installed for the removed packages and
+ * are no longer needed are purged as well, and reported as removed. In
+ * dry-run mode, uses `--simulate` to preview which packages would be removed
+ * without applying the change.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
   const { packages } = options;
   return task(
     'apk remove',
     async (ctx) => {
+      const installed = new Set((await getInstalledPackages()).map((p) => p.name));
+      const targets = packages.filter((p) => installed.has(p));
+      if (targets.length === 0) {
+        return;
+      }
       const { stdout } = await sh(
-        `apk del${ctx.dryRun ? ' --simulate' : ''} ${packages.map($_).join(' ')}`,
+        `apk del${ctx.dryRun ? ' --simulate' : ''} ${targets.map($_).join(' ')}`,
       );
       const pkgs = _parseProgress(stdout, PURGING_LINE_RE);
       if (pkgs.length > 0) {

@@ -33,7 +33,7 @@ describe('pkg/dnf5 (fedora)', () => {
     'installs and removes a tiny package',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['ed'] }).catch(() => {});
+        await removePackages({ packages: ['ed'] });
 
         const t1 = trackChanged();
         await installPackages({ packages: ['ed'] });
@@ -56,7 +56,7 @@ describe('pkg/dnf5 (fedora)', () => {
     'remove cleans unused dependencies natively',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['jq'] }).catch(() => {});
+        await removePackages({ packages: ['jq'] });
         const before = await installedNames();
 
         const installed = await collectChanges(() => installPackages({ packages: ['jq'] }));

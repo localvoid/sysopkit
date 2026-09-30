@@ -34,7 +34,7 @@ describe('pkg/apk (alpine-based, on openwrt)', () => {
     'installs and removes a tiny package',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['nano'] }).catch(() => {});
+        await removePackages({ packages: ['nano'] });
 
         const t1 = trackChanged();
         await installPackages({ packages: ['nano'] });
@@ -59,7 +59,7 @@ describe('pkg/apk (alpine-based, on openwrt)', () => {
     'install reports change in dry-run without installing',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['nano'] }).catch(() => {});
+        await removePackages({ packages: ['nano'] });
       });
       await sharedPodman(
         shared,
@@ -79,7 +79,7 @@ describe('pkg/apk (alpine-based, on openwrt)', () => {
     'remove purges unused dependencies natively',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['nano'] }).catch(() => {});
+        await removePackages({ packages: ['nano'] });
         const before = await installedNames();
 
         await installPackages({ packages: ['nano'] });

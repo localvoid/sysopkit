@@ -33,7 +33,7 @@ describe('pkg/pacman (arch)', () => {
     'installs and removes a tiny package',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['ed'] }).catch(() => {});
+        await removePackages({ packages: ['ed'] });
 
         const t1 = trackChanged();
         await installPackages({ packages: ['ed'] });
@@ -58,7 +58,7 @@ describe('pkg/pacman (arch)', () => {
     'install reports change in dry-run without installing',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['ed'] }).catch(() => {});
+        await removePackages({ packages: ['ed'] });
       });
       await sharedPodman(
         shared,
@@ -78,7 +78,7 @@ describe('pkg/pacman (arch)', () => {
     'autoremove removes dependencies, plain remove keeps them',
     async () => {
       await sharedPodman(shared, async () => {
-        await removePackages({ packages: ['jq'] }).catch(() => {});
+        await removePackages({ packages: ['jq'] });
         const before = await installedNames();
 
         await installPackages({ packages: ['jq'] });

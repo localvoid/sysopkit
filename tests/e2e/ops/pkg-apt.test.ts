@@ -34,7 +34,7 @@ describe('pkg/apt (debian)', () => {
     async () => {
       await sharedPodman(shared, async () => {
         await sh('apt-get update -qq');
-        await removePackages({ packages: ['ed'] }).catch(() => {});
+        await removePackages({ packages: ['ed'] });
 
         const t1 = trackChanged();
         await installPackages({ packages: ['ed'] });
@@ -58,7 +58,7 @@ describe('pkg/apt (debian)', () => {
     async () => {
       await sharedPodman(shared, async () => {
         await sh('apt-get update -qq');
-        await removePackages({ packages: ['jq'] }).catch(() => {});
+        await removePackages({ packages: ['jq'] });
         const before = await installedNames();
 
         await installPackages({ packages: ['jq'] });

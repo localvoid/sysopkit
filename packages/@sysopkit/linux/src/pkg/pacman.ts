@@ -105,26 +105,33 @@ export interface RemovePackagesOptions {
 /**
  * Removes packages using pacman.
  *
- * Emits change events for packages that are removed. Dependencies pulled in
- * for the removed packages are left behind unless `autoremove` is set
- * (matching `apt-get remove` semantics); use `-Rns` manually when recursive
- * removal including configuration files is wanted. In dry-run mode, uses
- * `-p` (print-only) to preview which packages would be removed without
- * applying the change.
+ * **[IDEMPOTENT]** Missing packages are skipped (pacman exits non-zero for
+ * `target not found`, so re-running for absent packages is a no-op without
+ * throwing). Emits change events for packages that are removed. Dependencies
+ * pulled in for the removed packages are left behind unless `autoremove` is
+ * set (matching `apt-get remove` semantics); use `-Rns` manually when
+ * recursive removal including configuration files is wanted. In dry-run
+ * mode, uses `-p` (print-only) to preview which packages would be removed
+ * without applying the change.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
   const { packages, autoremove = false } = options;
   return task(
     'pacman remove',
     async (ctx) => {
+      const installed = new Set((await getInstalledPackages()).map((p) => p.name));
+      const targets = packages.filter((p) => installed.has(p));
+      if (targets.length === 0) {
+        return;
+      }
       const recursive = autoremove ? 's' : '';
       const { stdout } = await sh(
         ctx.dryRun
-          ? `LANG=en_US.UTF-8 pacman -R${recursive}p --print-format '%n' ${packages.map($_).join(' ')}`
-          : `LANG=en_US.UTF-8 pacman -R${recursive} --noconfirm ${packages.map($_).join(' ')}`,
+          ? `LANG=en_US.UTF-8 pacman -R${recursive}p --print-format '%n' ${targets.map($_).join(' ')}`
+          : `LANG=en_US.UTF-8 pacman -R${recursive} --noconfirm ${targets.map($_).join(' ')}`,
       );
       const pkgs = ctx.dryRun
-        ? _parsePreview(stdout, packages)
+        ? _parsePreview(stdout, targets)
         : _parseTransaction(stdout, REMOVING_LINE_RE);
       if (pkgs.length > 0) {
         emitChanged(
