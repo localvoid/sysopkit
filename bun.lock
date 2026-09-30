@@ -16,6 +16,16 @@
       "name": "@sysopkit/cli",
       "version": "0.2.0",
     },
+    "packages/@sysopkit/libvirt": {
+      "name": "@sysopkit/libvirt",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@sysopkit/test-utils": "workspace:*",
+      },
+      "peerDependencies": {
+        "sysopkit": "workspace:^",
+      },
+    },
     "packages/@sysopkit/linux": {
       "name": "@sysopkit/linux",
       "version": "0.6.0",
@@ -51,6 +61,7 @@
     "tests": {
       "name": "sysopkit-tests",
       "devDependencies": {
+        "@sysopkit/libvirt": "workspace:*",
         "@sysopkit/linux": "workspace:*",
         "@sysopkit/openwrt": "workspace:*",
         "@sysopkit/test-utils": "workspace:*",
@@ -148,6 +159,8 @@
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.85.0", "", { "os": "win32", "cpu": "x64" }, "sha512-pBebIPUpKKhWrhSMWhy8TdAZBewiXnfxmaAGxhzxM1068GagqFaTwgKlU6e+UyJ2sPR+VoHouhXuGJkQjsrDvA=="],
 
     "@sysopkit/cli": ["@sysopkit/cli@workspace:packages/@sysopkit/cli"],
+
+    "@sysopkit/libvirt": ["@sysopkit/libvirt@workspace:packages/@sysopkit/libvirt"],
 
     "@sysopkit/linux": ["@sysopkit/linux@workspace:packages/@sysopkit/linux"],
 

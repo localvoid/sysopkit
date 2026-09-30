@@ -1,0 +1,14 @@
+{
+  "extends": "../../../tsconfig.composite.json",
+  "compilerOptions": {
+    "types": ["node", "bun"]
+  },
+  "references": [
+    {
+      "path": "../../sysopkit"
+    },
+    {
+      "path": "../test-utils"
+    }
+  ]
+}

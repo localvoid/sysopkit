@@ -154,6 +154,11 @@
       "types": "./dist/op/tar.d.ts",
       "default": "./dist/op/tar.js"
     },
+    "./op/temp": {
+      "bun": "./src/op/temp.ts",
+      "types": "./dist/op/temp.d.ts",
+      "default": "./dist/op/temp.js"
+    },
     "./op/users": {
       "bun": "./src/op/users.ts",
       "types": "./dist/op/users.d.ts",

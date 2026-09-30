@@ -68,6 +68,7 @@ Idempotent where marked. Non-idempotent helpers (`sh`, `exec`, `curl`, …) run 
 | `rsync` | `sysopkit/op/rsync` | `rsyncPush(options)`, `rsyncPull(options)` |
 | `curl` | `sysopkit/op/curl` | `curl({ url, … })` |
 | `tar` | `sysopkit/op/tar` | `tar({ src, dst })`, `untar({ src, dst })` |
+| `temp` | `sysopkit/op/temp` | `withTempFile(fn, opts?)`, `withTempDir(fn, opts?)` (scoped cleanup) |
 | `ini` | `sysopkit/op/ini` | `serializeIni(data)` (typed sections) |
 | `mount` | `sysopkit/op/mount` | `mount({ src, path, … })`, `umount({ path })`, `mountInfo({ path })`, `parseFstab`, `serializeFstab` |
 | `proc` | `sysopkit/op/proc` | `waitProcess({ pid, … })` |

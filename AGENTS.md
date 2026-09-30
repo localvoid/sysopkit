@@ -89,6 +89,7 @@ packages/
   @sysopkit/linux/
   @sysopkit/openwrt/
   @sysopkit/cli/
+  @sysopkit/libvirt/ # Bun-only: libvirt domain/network/storage ops over virsh + Bun.XML
   @sysopkit/test-utils/
   package.json
 ```

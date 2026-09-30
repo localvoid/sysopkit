@@ -1,0 +1,52 @@
+{
+  "name": "@sysopkit/libvirt",
+  "version": "0.1.0",
+  "description": "Libvirt virtualization operations for SysopKit (Bun-only)",
+  "keywords": [
+    "sysopkit"
+  ],
+  "homepage": "https://www.sysopkit.com",
+  "bugs": "https://github.com/localvoid/sysopkit/issues",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Boris Kaul <localvoid@gmail.com> (https://github.com/localvoid)",
+  "repository": "github:localvoid/sysopkit",
+  "files": [
+    "dist",
+    "src",
+    "!dist/**/*.tsbuildinfo",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "true",
+  "exports": {
+    "./domain": {
+      "bun": "./src/domain.ts",
+      "types": "./dist/domain.d.ts",
+      "default": "./dist/domain.js"
+    },
+    "./network": {
+      "bun": "./src/network.ts",
+      "types": "./dist/network.d.ts",
+      "default": "./dist/network.js"
+    },
+    "./storage": {
+      "bun": "./src/storage.ts",
+      "types": "./dist/storage.d.ts",
+      "default": "./dist/storage.js"
+    },
+    "./xml": {
+      "bun": "./src/xml.ts",
+      "types": "./dist/xml.d.ts",
+      "default": "./dist/xml.js"
+    }
+  },
+  "devDependencies": {
+    "@sysopkit/test-utils": "workspace:*"
+  },
+  "peerDependencies": {
+    "sysopkit": "workspace:^"
+  }
+}

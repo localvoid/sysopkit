@@ -6,6 +6,7 @@
     "clean": "rm -rf ./node_modules"
   },
   "devDependencies": {
+    "@sysopkit/libvirt": "workspace:*",
     "@sysopkit/linux": "workspace:*",
     "@sysopkit/openwrt": "workspace:*",
     "@sysopkit/test-utils": "workspace:*",

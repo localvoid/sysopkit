@@ -76,6 +76,7 @@ Rules that always apply:
 | Linux systemd: services, hostname/timezone, journal, networkd units | [ops/linux-systemd.md](ops/linux-systemd.md) |
 | Linux config files (sysctl, sudoers, limits) and host facts (os, cpu, mem, disk) | [ops/linux-config.md](ops/linux-config.md) |
 | OpenWrt UCI configs | `sysopkit-openwrt` skill |
+| Libvirt domains, networks, storage (Bun-only) | `sysopkit-libvirt` skill |
 
 ## Watch out
 
@@ -88,6 +89,7 @@ Rules that always apply:
 - `sudo` without a password uses `-n` (fails fast); `expectStderrPrompt` watches stderr only, fires once. ([middleware/sudo](middleware/sudo.md), [middleware/others](middleware/others.md))
 - `chroot` only prefixes argv — set up the root and API mounts yourself, use chroot-relative paths in scope, nest inside `sudo`. ([middleware/chroot](middleware/chroot.md))
 - `onChange` dies with its scope; handlers must not throw. ([events-changes](events-changes.md))
+- Never feed a command through `cmd /dev/stdin` with `stdin` content — child stdio can be a socket, which can't be reopened by path (ENXIO, then EPIPE on the orphaned write). Stage through a real file (`withTempFile`). ([ops/files](ops/files.md))
 - `rsync` defaults to `--delete`; `restartService` is unconditional — gate it behind `onChange`. ([ops/files](ops/files.md), [ops/linux-systemd](ops/linux-systemd.md))
 
 ## Repo map (import subpaths)
@@ -96,6 +98,7 @@ Rules that always apply:
 - `sysopkit/inventory`, `sysopkit` — orchestration (`resolveInventory`), host management (`apply`)
 - `sysopkit/connector/local`, `sysopkit/connector/ssh`, `sysopkit/connector/podman` — transports
 - `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd`, `sysopkit/middleware/chroot` — wrappers
-- `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh`, `sysopkit/op/which` — core ops
+- `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/temp`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh`, `sysopkit/op/which` — core ops
 - `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`, `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
+- `@sysopkit/libvirt/domain`, `@sysopkit/libvirt/network`, `@sysopkit/libvirt/storage`, `@sysopkit/libvirt/xml` — libvirt ops (Bun-only), see the `sysopkit-libvirt` skill
 - OpenWrt UCI — see the `sysopkit-openwrt` skill

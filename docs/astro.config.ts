@@ -80,6 +80,7 @@ export default defineConfig({
                 'operations/file-management/file',
                 'operations/file-management/rsync',
                 'operations/file-management/tar',
+                'operations/file-management/temp',
               ],
             },
             {
@@ -144,6 +145,11 @@ export default defineConfig({
             'linux/fwupd',
             'linux/iwd',
           ],
+        },
+        {
+          label: 'Virtualization',
+          collapsed: true,
+          items: ['libvirt/domain', 'libvirt/network', 'libvirt/storage', 'libvirt/xml'],
         },
         {
           label: 'Reference',

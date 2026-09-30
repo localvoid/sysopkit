@@ -22,6 +22,7 @@ import {
 } from 'sysopkit/op/file';
 import { $_, sh } from 'sysopkit/op/sh';
 import { tar, untar } from 'sysopkit/op/tar';
+import { withTempDir, withTempFile } from 'sysopkit/op/temp';
 
 import {
   remoteTempPath,
@@ -227,6 +228,52 @@ describe('filesystem ops', () => {
       const { stdout, exitCode } = await exec(['cat', p]);
       expect(exitCode).toBe(0);
       expect(stdout).toBe('via-op\n');
+    });
+  });
+
+  test('withTempFile writes content and cleans up', async () => {
+    await sharedPodman(shared, async () => {
+      let tmp = '';
+      await withTempFile(
+        async (path) => {
+          tmp = path;
+          expect(path.startsWith('/tmp/')).toBe(true);
+          expect((await getPathInfo(path))?.type).toBe('file');
+          expect(await readFile(path)).toBe('temp-data\n');
+        },
+        { content: 'temp-data\n' },
+      );
+      expect(await getPathInfo(tmp)).toBeUndefined();
+    });
+  });
+
+  test('withTempFile cleans up when callback throws', async () => {
+    await sharedPodman(shared, async () => {
+      let tmp = '';
+      try {
+        await withTempFile(async (path) => {
+          tmp = path;
+          expect((await getPathInfo(path))?.type).toBe('file');
+          throw new Error('boom');
+        });
+        expect.unreachable();
+      } catch (e) {
+        expect((e as Error).message).toBe('boom');
+      }
+      expect(await getPathInfo(tmp)).toBeUndefined();
+    });
+  });
+
+  test('withTempDir stages files and cleans up', async () => {
+    await sharedPodman(shared, async () => {
+      let tmp = '';
+      await withTempDir(async (dir) => {
+        tmp = dir;
+        expect((await getPathInfo(dir))?.type).toBe('dir');
+        await writeFile(`${dir}/a.txt`, 'a\n');
+        expect(await readFile(`${dir}/a.txt`)).toBe('a\n');
+      });
+      expect(await getPathInfo(tmp)).toBeUndefined();
     });
   });
 });

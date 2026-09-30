@@ -1,10 +1,11 @@
-# File ops: files, rsync, tar, curl
+# File ops: files, rsync, tar, curl, temp
 
 ```typescript
 import { createFile, createDir, createLink, sha256 } from 'sysopkit/op/file';
 import { rsyncPush, rsyncPull } from 'sysopkit/op/rsync';
 import { tar, untar } from 'sysopkit/op/tar';
 import { curl } from 'sysopkit/op/curl';
+import { withTempFile, withTempDir } from 'sysopkit/op/temp';
 ```
 
 ## Idempotent file ops (`sysopkit/op/file`)
@@ -43,3 +44,19 @@ await curl({ url, path, user?, headers?, cookies?, insecure?, fail?, followRedir
 ```
 
 Both **non-idempotent**. `tar`/`untar` skip the command in dry-run but still emit `packed`/`extracted`. `curl` (`curl [-f -L -sS -u -H -b -k] -o path url`) has **no** dry-run guard — it always downloads. `fail` (`-f`) throws on HTTP >=400 instead of saving the error page, `followRedirects` (`-L`) follows 302s, `silent` (`-sS`, default true) hides progress but keeps errors.
+
+## temp files and dirs (`sysopkit/op/temp`)
+
+```typescript
+await withTempFile(
+  async (path) => {
+    await sh(`virsh define ${$_(path)}`);
+  },
+  { content: xml, template? },
+);
+await withTempDir(async (dir) => { /* stage files, read results back */ });
+```
+
+`mktemp` + optional `content` write, callback, `rm -f` / `rm -rf` in `finally` (cleanup survives callback throws). Bare plumbing like `writeFile`: no `dryRun` check, no change events — gate and report in your own task. Cleanup needs a live connection (`/tmp` aging reclaims orphans after a mid-op disconnect).
+
+**Pitfall:** never substitute `cmd /dev/stdin` with `stdin` content for file-needing commands — child stdio may be a socket, which fails reopen-by-path with ENXIO while the orphaned parent write dies with EPIPE. This is why the libvirt package stages XML through temp files.
