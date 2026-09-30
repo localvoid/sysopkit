@@ -49,7 +49,7 @@ Requires ambient context (throws outside `start()`). Checks `signal.throwIfAbort
 | `TimeoutError` | `timeout()` exceeded | — |
 | `ApplyError` | Multi-host failure; extends `AggregateError` | per-host `results` |
 
-- `start()` catches everything into `{ success: false, error }` — narrow with `instanceof` / `isAbortError(err)` (name-based, realm-safe).
+- `start()` catches everything into `{ success: false, error }` — narrow with `instanceof` / `isAbortError(err)` (name-based, realm-safe). `main()` behaves the same but additionally sets `process.exitCode = 1` and rethrows the error at debug verbosity.
 - `retry` + `timeout` composition: expiry aborts with `TimeoutError` as the signal reason, which surfaces wherever the op checks cancellation (e.g. `sleep` rejects with it). `retry` only skips `AbortError`, so a `TimeoutError` **is retried** by default. Put `timeout` inside `retry` for per-attempt timeouts, or pass `retryOn: (e) => !(e instanceof TimeoutError)` / filter by name to stop after the first timeout.
 - `ctx.abort(reason?)` reports and throws `AbortError` — prefer it over throwing raw errors when user code decides to cancel.
 - `ShellError.stdout/stderr` are decoded strings even when the op ran with `'buffer'` output.

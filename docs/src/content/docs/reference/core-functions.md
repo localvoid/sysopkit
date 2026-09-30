@@ -1,6 +1,6 @@
 ---
 title: Core Functions
-description: Reference for start, task, utility, context, emit, onChange, latch, and middleware.
+description: Reference for start, main, task, utility, context, emit, onChange, latch, and middleware.
 ---
 
 ## start()
@@ -36,6 +36,27 @@ type StartResult<T> =
 ```
 
 Always returns a result — never throws. Check `result.success` to determine outcome.
+
+## main()
+
+CLI script entry point. Same as `start()` but also sets `process.exitCode` (`1` on failure, `0` on success when no exit code is set yet) and returns the `StartResult` unchanged. Never calls `process.exit()`, so reporter output flushes and `await using` cleanup completes. At debug verbosity it rethrows the failure after setting the exit code, so bugs surface with a full stack trace.
+
+```ts
+import { main } from 'sysopkit/start';
+```
+
+```ts
+async function main<R>(
+  fn: (ctx: ExecutionContext) => Promise<R>,
+  options?: StartOptions,
+): Promise<StartResult<R>>;
+```
+
+```ts
+await main(async () => {
+  // ... automation logic ...
+});
+```
 
 ---
 

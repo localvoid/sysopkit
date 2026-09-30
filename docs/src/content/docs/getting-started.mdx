@@ -28,7 +28,7 @@ Create a file named `setup.ts` with the following content. It defines a two-host
 ```ts
 import { apply, task } from 'sysopkit';
 import { resolveInventory } from 'sysopkit/inventory';
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { createFile } from 'sysopkit/op/file';
 import { sh } from 'sysopkit/op/sh';
@@ -44,7 +44,7 @@ const INVENTORY = {
   },
 };
 
-await start(async () => {
+await main(async () => {
   await using hosts = resolveInventory(INVENTORY);
 
   await apply('setup nginx', hosts.getByGroup('web'), async () => {

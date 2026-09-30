@@ -22,13 +22,13 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 ```ts title="setup.ts"
 import { apply } from 'sysopkit';
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { createFile } from 'sysopkit/op/file';
 import { sh } from 'sysopkit/op/sh';
 
-await start(async () => {
+await main(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
 
   await apply('setup nginx', c, async () => {

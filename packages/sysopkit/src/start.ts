@@ -66,6 +66,46 @@ export async function start<R>(
   }
 }
 
+/**
+ * CLI script entry point.
+ *
+ * Calls `start()`, sets `process.exitCode` (`1` on failure, `0` on success
+ * when no exit code is set yet), and returns the `StartResult` unchanged.
+ * Never calls `process.exit()`, so reporter output flushes and `await using`
+ * cleanup completes. The reporter already printed the failure details, so
+ * callers don't need to log or rethrow.
+ *
+ * At debug verbosity the failure is rethrown after setting the exit code,
+ * so bugs surface with a full stack trace instead of only the reporter
+ * summary.
+ *
+ * @throws The original error when verbosity is debug and execution failed.
+ */
+export async function main<R>(
+  fn: (ctx: ExecutionContext) => Promise<R>,
+  options?: StartOptions,
+): Promise<StartResult<R>> {
+  const result = await start(fn, options);
+  if (result.success) {
+    process.exitCode ??= 0;
+    return result;
+  }
+  process.exitCode = 1;
+  if (_isDebug(options?.reporter)) {
+    throw result.error;
+  }
+  return result;
+}
+
+/** True when the effective verbosity is debug (custom reporter wins, else env). */
+function _isDebug(reporter: Reporter | undefined): boolean {
+  const verbosity = (reporter as { verbosity?: unknown } | undefined)?.verbosity;
+  if (typeof verbosity === 'number') {
+    return verbosity >= VERBOSITY_DEBUG;
+  }
+  return _currentVerbosity() >= VERBOSITY_DEBUG;
+}
+
 /** Reads SYSOPKIT_VERBOSITY env var and returns the corresponding verbosity level. */
 function _currentVerbosity() {
   const v = process.env['SYSOPKIT_VERBOSITY'];

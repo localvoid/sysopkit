@@ -21,13 +21,13 @@ bun add sysopkit
 
 ```typescript
 import { apply } from 'sysopkit';
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { resolveInventory } from 'sysopkit/inventory';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { sh } from 'sysopkit/op/sh';
 import { createFile } from 'sysopkit/op/file';
 
-const result = await start(async () => {
+await main(async () => {
   await using hosts = resolveInventory({
     groups: {
       web: {
@@ -48,11 +48,9 @@ const result = await start(async () => {
     });
   });
 });
-
-if (!result.success) throw result.error;
 ```
 
-`start()` creates the root context, runs `fn`, and returns `{ success, result | error, duration }`. It never throws — check `result.success` yourself.
+`main()` is the CLI script entry point: it runs the workflow, sets `process.exitCode` (`1` on failure), and returns the `StartResult`. At debug verbosity it rethrows the failure after setting the exit code, so bugs surface with a full stack trace. Use `start()` instead when you need to handle the `{ success, result | error, duration }` result yourself — it never throws and never touches the exit code.
 
 ## Operations
 

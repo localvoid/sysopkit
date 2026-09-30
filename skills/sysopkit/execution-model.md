@@ -18,13 +18,13 @@ Each child inherits: `reporter`, `connector`, `AbortSignal` (composed with the p
 ## Entry point
 
 ```typescript
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 
-const result = await start(fn, { reporter?, dryRun?, signal?, vars? });
+await main(fn, { reporter?, dryRun?, signal?, vars? });
 ```
 
 - Creates the root context, enters the ALS scope via `runWithContext()`, runs `fn`.
-- **Never throws.** Returns `{ success: true, result, duration }` or `{ success: false, error, duration }`. Always check `result.success`.
+- `main()` is the CLI script entry point: sets `process.exitCode` (`1` on failure, `0` on success when unset) and returns `{ success: true, result, duration }` or `{ success: false, error, duration }`. At debug verbosity it rethrows the failure after setting the exit code. Use `start()` instead when you need to handle the result yourself — it never throws and never touches the exit code.
 - `dryRun` defaults to the `SYSOPKIT_DRY_RUN` env var.
 - Verbosity comes from `SYSOPKIT_VERBOSITY`: `minimal` (0), `normal` (1, default), `trace` (2), `debug` (3, includes utilities). Invalid values log to stderr.
 - Registers a one-shot `SIGINT` handler that aborts the run.

@@ -12,12 +12,12 @@ This tutorial walks through a complete automation scenario: provisioning a web s
 
 ## Step 1: Create the Entry Point
 
-Every SysopKit script starts with `start()`, which creates a root execution context:
+Every SysopKit script starts with `main()`, which creates a root execution context, runs your workflow, and sets `process.exitCode` on failure:
 
 ```ts
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 
-await start(async () => {
+await main(async () => {
   // Your automation logic here
 });
 ```
@@ -27,10 +27,10 @@ await start(async () => {
 Define the target host with an SSH connector.
 
 ```ts
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
 
-await start(async () => {
+await main(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
 });
 ```
@@ -43,11 +43,11 @@ Use `apply()` to run operations against one or more hosts:
 
 ```ts
 import { apply } from 'sysopkit';
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
 import { sh } from 'sysopkit/op/sh';
 
-await start(async () => {
+await main(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
 
   await apply('provision web', c, async () => {
@@ -144,7 +144,7 @@ await sudo(async () => {
 
 ```ts
 import { apply, task, onChange, latch } from 'sysopkit';
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { createFile } from 'sysopkit/op/file';
@@ -156,7 +156,7 @@ const NGINX_CONFIG = `server {
   index index.html;
 }`;
 
-await start(async () => {
+await main(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
 
   await apply('provision web', c, async () => {

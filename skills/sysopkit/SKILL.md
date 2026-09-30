@@ -11,12 +11,12 @@ TypeScript-first infrastructure automation (programmatic Ansible alternative). Z
 
 ```typescript
 import { apply } from 'sysopkit';
-import { start } from 'sysopkit/start';
+import { main } from 'sysopkit/start';
 import { resolveInventory } from 'sysopkit/inventory';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { sh } from 'sysopkit/op/sh';
 
-const result = await start(async () => {
+await main(async () => {
   await using hosts = resolveInventory({
     groups: {
       web: { hosts: { 'web-1': { host: '192.168.1.10', user: 'admin' } } },
@@ -28,14 +28,13 @@ const result = await start(async () => {
     });
   });
 });
-if (!result.success) throw result.error;
 ```
 
 Rules that always apply:
 
-- Everything runs inside `start()` — there is no ambient context outside it.
+- Everything runs inside `start()`/`main()` — there is no ambient context outside it.
 - Connectors are `AsyncDisposable` — always `await using` them (or the inventory).
-- `start()` never throws; it returns `{ success, result | error, duration }`.
+- `start()` never throws; it returns `{ success, result | error, duration }`. `main()` is the CLI entry point: same result plus `process.exitCode` handling (`1` on failure), and it rethrows the failure at debug verbosity.
 - `apply()` with one connector throws `ApplyError` on failure; with an array it returns per-host results and throws only past `maxFailPercent`.
 
 ## Router — read the page that matches the task
@@ -80,7 +79,7 @@ Rules that always apply:
 
 ## Watch out
 
-- Outside `start()`, everything throws `No context available`. ([execution-model](execution-model.md))
+- Outside `start()`/`main()`, everything throws `No context available`. ([execution-model](execution-model.md))
 - Inside `start()`, never `console.log/warn/error` — use the `ctx` callback param (`start`/`task`/`utility`/`apply` all pass it; `context()` only in helpers that can't take the param). `console.*` bypasses buffering, hierarchy prefixes, verbosity filtering, the TUI footer, and custom reporters; it is only for code outside `start()`. ([execution-model](execution-model.md#logging-use-the-reporter-not-console))
 - `sh`/`bash` throw on non-zero exit **except 64–78**; exit 64 means "not found". Probe via `exitCode`. Interpolate paths with `$_()`. ([ops/shell](ops/shell.md))
 - Dry-run flag is **global** (set once, inherited); enforcement is **per-op**. `curl` ignores it entirely. ([execution-model](execution-model.md), [ops/files](ops/files.md))
@@ -95,7 +94,7 @@ Rules that always apply:
 
 ## Repo map (import subpaths)
 
-- `sysopkit/start`, `sysopkit` — entry point, context tree (`start`, `task`, `utility`, `emit`)
+- `sysopkit/start`, `sysopkit` — entry point, context tree (`start`, `main`, `task`, `utility`, `emit`)
 - `sysopkit/inventory`, `sysopkit` — orchestration (`resolveInventory`), host management (`apply`)
 - `sysopkit/connector/local`, `sysopkit/connector/ssh`, `sysopkit/connector/podman` — transports
 - `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd`, `sysopkit/middleware/chroot` — wrappers
