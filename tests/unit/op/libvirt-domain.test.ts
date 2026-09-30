@@ -114,6 +114,68 @@ describe('serializeDomainXml', () => {
         '<target dev="sda" bus="sata"/><readonly/>',
     );
   });
+
+  test('serializes direct kernel boot in schema order (BIOS)', () => {
+    const xml = serializeDomainXml({
+      ...BASIC,
+      kernel: '/boot/vmlinuz',
+      initrd: '/boot/initrd.img',
+      cmdline: 'console=ttyS0',
+    });
+    expect(xml).toContain(
+      '<kernel>/boot/vmlinuz</kernel><initrd>/boot/initrd.img</initrd>' +
+        '<cmdline>console=ttyS0</cmdline>',
+    );
+    const typeIdx = xml.indexOf('<type arch=');
+    const kernelIdx = xml.indexOf('<kernel>');
+    const initrdIdx = xml.indexOf('<initrd>');
+    const cmdlineIdx = xml.indexOf('<cmdline>');
+    const bootIdx = xml.indexOf('<boot dev=');
+    expect(typeIdx).toBeGreaterThanOrEqual(0);
+    expect(kernelIdx).toBeGreaterThan(typeIdx);
+    expect(initrdIdx).toBeGreaterThan(kernelIdx);
+    expect(cmdlineIdx).toBeGreaterThan(initrdIdx);
+    expect(bootIdx).toBeGreaterThan(cmdlineIdx);
+  });
+
+  test('serializes direct kernel boot after loader/nvram (UEFI)', () => {
+    const xml = serializeDomainXml({
+      ...BASIC,
+      firmware: { loader: '/usr/share/edk2/ovmf/OVMF_CODE.fd' },
+      kernel: '/boot/vmlinuz',
+      initrd: '/boot/initrd.img',
+      cmdline: 'console=ttyS0',
+    });
+    const loaderIdx = xml.indexOf('<loader');
+    const nvramIdx = xml.indexOf('<nvram>');
+    const kernelIdx = xml.indexOf('<kernel>');
+    const bootIdx = xml.indexOf('<boot dev=');
+    expect(loaderIdx).toBeGreaterThanOrEqual(0);
+    expect(nvramIdx).toBeGreaterThan(loaderIdx);
+    expect(kernelIdx).toBeGreaterThan(nvramIdx);
+    expect(bootIdx).toBeGreaterThan(kernelIdx);
+  });
+
+  test('omits direct kernel boot elements when unset', () => {
+    const xml = serializeDomainXml(BASIC);
+    expect(xml).not.toContain('<kernel>');
+    expect(xml).not.toContain('<initrd>');
+    expect(xml).not.toContain('<cmdline>');
+  });
+
+  test('rejects initrd/cmdline without kernel', () => {
+    for (const bad of [
+      { ...BASIC, initrd: '/boot/initrd.img' },
+      { ...BASIC, cmdline: 'console=ttyS0' },
+    ]) {
+      try {
+        serializeDomainXml(bad);
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    }
+  });
 });
 
 const DUMPXML =
@@ -220,6 +282,32 @@ describe('parseDomainXml', () => {
     expect(parseDomainXml(serializeDomainXml(full))).toEqual(full);
   });
 
+  test('round-trips direct kernel boot fields', () => {
+    const conf: DomainConf = {
+      ...BASIC,
+      kernel: '/boot/vmlinuz',
+      initrd: '/boot/initrd.img',
+      cmdline: 'console=ttyS0 root=/dev/vda1',
+    };
+    const parsed = parseDomainXml(serializeDomainXml(conf));
+    expect(parsed.kernel).toBe('/boot/vmlinuz');
+    expect(parsed.initrd).toBe('/boot/initrd.img');
+    expect(parsed.cmdline).toBe('console=ttyS0 root=/dev/vda1');
+    expect(parsed).toEqual(parseDomainXml(serializeDomainXml(parsed)));
+  });
+
+  test('parses direct kernel boot fields from dumpxml order', () => {
+    const conf = parseDomainXml(
+      '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu>' +
+        '<os><type arch="x86_64">hvm</type>' +
+        '<kernel>/boot/vmlinuz</kernel><initrd>/boot/initrd.img</initrd>' +
+        '<cmdline>console=ttyS0</cmdline><boot dev="hd"/></os></domain>',
+    );
+    expect(conf.kernel).toBe('/boot/vmlinuz');
+    expect(conf.initrd).toBe('/boot/initrd.img');
+    expect(conf.cmdline).toBe('console=ttyS0');
+  });
+
   test('parses ejected cdroms as sourceless entries', () => {
     const conf = parseDomainXml(
       '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
@@ -295,6 +383,30 @@ describe('domainConfigMatches', () => {
         disks: [{ source: '/var/lib/libvirt/images/guest.qcow2', device: 'disk' }],
       }),
     ).toBe(true);
+  });
+
+  test('treats unset direct kernel boot fields as wildcards', () => {
+    const live: DomainConf = {
+      ...BASIC,
+      kernel: '/boot/vmlinuz',
+      initrd: '/boot/initrd.img',
+      cmdline: 'console=ttyS0',
+    };
+    expect(domainConfigMatches(live, { ...BASIC })).toBe(true);
+    expect(domainConfigMatches(live, { ...live })).toBe(true);
+  });
+
+  test('detects drift in direct kernel boot fields', () => {
+    const live: DomainConf = {
+      ...BASIC,
+      kernel: '/boot/vmlinuz',
+      initrd: '/boot/initrd.img',
+      cmdline: 'console=ttyS0',
+    };
+    expect(domainConfigMatches(live, { ...live, kernel: '/boot/other' })).toBe(false);
+    expect(domainConfigMatches(live, { ...live, initrd: '/boot/other.img' })).toBe(false);
+    expect(domainConfigMatches(live, { ...live, cmdline: 'console=ttyS1' })).toBe(false);
+    expect(domainConfigMatches({ ...BASIC }, { ...live, kernel: '/boot/vmlinuz' })).toBe(false);
   });
 });
 

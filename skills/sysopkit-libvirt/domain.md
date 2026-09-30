@@ -27,6 +27,7 @@ await defineDomain({
     name: 'guest', memoryMiB: 2048, vcpus: 2,
     arch?: 'x86_64', machine?: 'q35', type?: 'kvm', cpuMode?: 'host-passthrough',
     firmware?: 'bios' | { loader, template?, nvram? }, // explicit OVMF paths; default nvram /var/lib/libvirt/qemu/nvram/<name>_VARS.fd
+    kernel?, initrd?, cmdline?, // direct kernel boot (<os>); initrd/cmdline require kernel
     bootDevices?: ['hd'], // default
     disks: [{ source, target?, bus?: 'virtio', format?: 'qcow2', kind?: 'file', device?: 'disk'|'cdrom', readonly?, bootOrder? }],
     networks: [{ type?: 'network', source, model?: 'virtio', mac?, bootOrder? }],

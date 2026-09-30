@@ -168,6 +168,12 @@ export interface DomainConf {
   readonly machine?: string;
   /** Firmware. Default: `bios`. */
   readonly firmware?: 'bios' | DomainUefi;
+  /** Host path to a kernel image for direct boot (`<os><kernel>`). */
+  readonly kernel?: string;
+  /** Host path to a ramdisk for direct boot (`<os><initrd>`). Requires `kernel`. */
+  readonly initrd?: string;
+  /** Kernel command line for direct boot (`<os><cmdline>`). Requires `kernel`. */
+  readonly cmdline?: string;
   /** CPU mode (`<cpu mode="..."/>`). When omitted, no `<cpu>` is written. */
   readonly cpuMode?: 'host-passthrough' | 'host-model';
   /** Boot device order. Default: `['hd']`. */
@@ -211,6 +217,14 @@ export function serializeDomainXml(domain: DomainConf): string {
   if (!Number.isInteger(domain.vcpus) || domain.vcpus <= 0) {
     throw new Error(`invalid vcpus '${domain.vcpus}'`);
   }
+  if (domain.kernel === undefined) {
+    if (domain.initrd !== undefined) {
+      throw new Error('domain initrd requires kernel');
+    }
+    if (domain.cmdline !== undefined) {
+      throw new Error('domain cmdline requires kernel');
+    }
+  }
 
   const arch = domain.arch ?? 'x86_64';
   const bootDevices = domain.bootDevices ?? ['hd'];
@@ -223,7 +237,6 @@ export function serializeDomainXml(domain: DomainConf): string {
       ...(domain.machine === undefined ? {} : { '@machine': domain.machine }),
       '#text': 'hvm',
     },
-    boot: bootDevices.map((dev) => ({ '@dev': dev })),
   };
   if (typeof domain.firmware === 'object') {
     os['loader'] = {
@@ -239,6 +252,16 @@ export function serializeDomainXml(domain: DomainConf): string {
     }
     os['nvram'] = nvram;
   }
+  if (domain.kernel !== undefined) {
+    os['kernel'] = domain.kernel;
+  }
+  if (domain.initrd !== undefined) {
+    os['initrd'] = domain.initrd;
+  }
+  if (domain.cmdline !== undefined) {
+    os['cmdline'] = domain.cmdline;
+  }
+  os['boot'] = bootDevices.map((dev) => ({ '@dev': dev }));
 
   const devices: MutableXmlElement = {
     disk: disks.map((disk, i) => {
@@ -389,6 +412,10 @@ export function parseDomainXml(xml: string): DomainConf {
     }
   }
 
+  const kernel = isXmlElement(osEl) ? childText(osEl, 'kernel') : undefined;
+  const initrd = isXmlElement(osEl) ? childText(osEl, 'initrd') : undefined;
+  const cmdline = isXmlElement(osEl) ? childText(osEl, 'cmdline') : undefined;
+
   const cpuEl = childElement(root, 'cpu');
   const cpuMode = isXmlElement(cpuEl) ? xmlAttr(cpuEl, 'mode') : undefined;
 
@@ -503,6 +530,9 @@ export function parseDomainXml(xml: string): DomainConf {
     ...(arch === 'x86_64' ? {} : { arch }),
     ...(machine === undefined ? {} : { machine }),
     firmware,
+    ...(kernel === undefined ? {} : { kernel }),
+    ...(initrd === undefined ? {} : { initrd }),
+    ...(cmdline === undefined ? {} : { cmdline }),
     ...(cpuMode === 'host-passthrough' || cpuMode === 'host-model' ? { cpuMode } : {}),
     ...(boot.length === 0 ? {} : { bootDevices: boot as ('hd' | 'cdrom' | 'network')[] }),
     ...(disks.length === 0 ? {} : { disks }),
@@ -553,6 +583,15 @@ export function domainConfigMatches(current: DomainConf, desired: DomainConf): b
     desired.firmware !== undefined &&
     !_firmwareMatches(current.firmware ?? 'bios', desired.firmware)
   ) {
+    return false;
+  }
+  if (desired.kernel !== undefined && desired.kernel !== current.kernel) {
+    return false;
+  }
+  if (desired.initrd !== undefined && desired.initrd !== current.initrd) {
+    return false;
+  }
+  if (desired.cmdline !== undefined && desired.cmdline !== current.cmdline) {
     return false;
   }
   if (desired.cpuMode !== undefined && desired.cpuMode !== current.cpuMode) {
