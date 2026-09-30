@@ -42,10 +42,10 @@ await createFile({
 - `@sysopkit/linux/os`: `getOSInfo()` → `{ name, version, id, versionId }` from `/etc/os-release` — branch package managers off this (see `linux-packages.md`).
 - `@sysopkit/linux/disk`: `lsblk()` → `BlockDeviceEntry[]` (`lsblk --json -b`).
 - `@sysopkit/linux/cpu`: `lscpu()` → `CpuInfo` (`lscpu --json`); `@sysopkit/linux/mem`: `getMemInfo()` → `MemInfo` (from `/proc/meminfo`).
-- `@sysopkit/linux/kernel`: `dmesg(options?)`, `lsmod()` (via `/proc/modules`), `modinfo(module)`, `MODPROBE_D` (`/etc/modprobe.d`), `kexecLoad({ kernel, initrd?, cmdline?, syscall? })` (`syscall: 'file'` for locked-down Secure Boot) + `kexecExec()`.
+- `@sysopkit/linux/kernel`: `dmesg(options?)`, `lsmod()` (via `/proc/modules`), `modinfo(module)`, `MODPROBE_D` (`/etc/modprobe.d`), `kexecLoad({ kernel, initrd?, cmdline?, syscall? })` (`syscall: 'file'` for locked-down Secure Boot) + `kexecExec({ detach?, delaySec?, skipLoadedCheck? }?)` (detached by default: backgrounds the jump and returns on handoff; verify out-of-band).
 - `@sysopkit/linux/tuned`: `setTuneProfile({ profile })` (`tuned-adm profile/off`), `_getActiveProfile()` (reads `/etc/tuned/active_profile`; underscore = internal helper, prefer `setTuneProfile`).
 
 ## Pitfalls
 
 - Serializers do not validate (a bad sudoers rule is written faithfully) — validate high-risk files after writing (e.g. `visudo -c` via `sh`) before reporting success.
-- `kexecExec()` reboots the target into the loaded kernel — never run it unconditionally in a playbook; gate behind an explicit flag.
+- `kexecExec()` reboots the target into the loaded kernel — never run it unconditionally in a playbook; gate behind an explicit flag. It detaches by default (returns on handoff, success unobservable — verify via out-of-band state such as `/proc/cmdline`).

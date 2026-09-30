@@ -62,8 +62,21 @@ await kexecLoad({
 
 ## kexecExec()
 
-Executes the loaded kernel, rebooting the system immediately using `kexec -e`.
+Executes the loaded kernel, rebooting the system immediately.
 
 ```ts
 await kexecExec();
 ```
+
+Detached mode is the default: the exec is remote-backgrounded with stdin/stdout/stderr detached (so the calling SSH session can close first) after a `delaySec` handoff delay (default `3`), and the call returns on handoff. The jump severs the transport by design, so success is unobservable — verify via out-of-band state (e.g. wait for the new kernel's `/proc/cmdline`), never via this call's result.
+
+```ts
+// Jump and return on handoff (defaults: detach: true, delaySec: 3).
+await kexecExec();
+
+// Foreground kexec -e: the transport dies with the jump, so success
+// surfaces as a transport error, indistinguishable from genuine failure.
+await kexecExec({ detach: false });
+```
+
+`kexecExec()` fails fast with "no kernel loaded" unless `/sys/kernel/kexec_loaded` reads `1` (i.e. `kexecLoad()` ran first); pass `skipLoadedCheck: true` to bypass the check.

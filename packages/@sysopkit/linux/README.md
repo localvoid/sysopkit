@@ -24,7 +24,7 @@ bun add @sysopkit/linux sysopkit
 | `pkg/dnf5` | `@sysopkit/linux/pkg/dnf5` | **Idempotent** `installPackages` (`weakDependencies?`), `removePackages` (unused deps cleaned natively); `getInstalledPackages()` |
 | `pkg/rpm` | `@sysopkit/linux/pkg/rpm` | **Idempotent** `importRpmKey({ name, content })`; `hasRpmKey(key)`, `getRpmKeys()`, `getRpmVars(vars)` |
 | `pkg/pacman` | `@sysopkit/linux/pkg/pacman` | **Idempotent** `installPackages`, `removePackages` (`autoremove?`, dry-run previews); `getInstalledPackages()` |
-| `kernel` | `@sysopkit/linux/kernel` | `lsmod()`, `modinfo(module)`, `dmesg(opts?)`, `kexecLoad({ kernel, initrd?, cmdline?, syscall? })`, `kexecExec()` |
+| `kernel` | `@sysopkit/linux/kernel` | `lsmod()`, `modinfo(module)`, `dmesg(opts?)`, `kexecLoad({ kernel, initrd?, cmdline?, syscall? })`, `kexecExec({ detach?, delaySec?, skipLoadedCheck? }?)` (detached by default) |
 | `sysctl` | `@sysopkit/linux/sysctl` | `parseSysctlConf`, `serializeSysctlConf` |
 | `limits` | `@sysopkit/linux/limits` | `parseLimitsConf`, `serializeLimitsConf` (`/etc/security/limits.conf`) |
 | `sudoers` | `@sysopkit/linux/sudoers` | `serializeSudoersConf(rules)` |
