@@ -378,7 +378,9 @@ export async function mount(o: MountOptions): Promise<void> {
           noCanonicalize ||
           mkdir
         ) {
-          throw new Error('refusing: propagation-only remount takes no src, bind, fstype, or mkdir');
+          throw new Error(
+            'refusing: propagation-only remount takes no src, bind, fstype, or mkdir',
+          );
         }
         const currentInfo = await mountInfo({ path });
         if (currentInfo !== null && propagationSatisfied(propagation, currentInfo.propagation)) {
