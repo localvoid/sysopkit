@@ -29,11 +29,17 @@ const ANSI_PATTERN = /\x1b\[[0-9;?]*[A-Za-z]/g;
  * - `false` always disables, `true` always enables (forced, even without TTY).
  * - `'auto'` (default) enables only when `isTTY` is true, unless the standard
  *   `TERM=dumb` variable indicates a non-capable terminal.
+ *
+ * `isTTY` defaults to `undefined` (disabled in auto mode) so the function
+ * stays pure: callers pass the ambient TTY state explicitly. Explicitly
+ * passing `undefined` must behave the same as omitting the argument —
+ * relying on a `process.stderr?.isTTY` default would make the result depend
+ * on the ambient terminal and break unit tests under a TTY.
  */
 export function resolveTuiEnabled(
   mode: TuiMode | undefined,
   env: Record<string, string | undefined> = process.env,
-  isTTY: boolean | undefined = process.stderr?.isTTY,
+  isTTY?: boolean,
 ): boolean {
   if (mode === false) {
     return false;

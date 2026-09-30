@@ -31,29 +31,13 @@ export interface DmesgOptions {
 }
 
 /**
- * Retrieves kernel ring buffer messages using dmesg.
+ * Parses `dmesg --json` stdout, falling back to plain-text lines.
  *
- * Parses JSON output when available, falls back to plain text lines.
+ * Pure (no connector).
  */
-export async function dmesg(options?: DmesgOptions): Promise<DmesgEntry[]> {
-  const { level, facility, since, until } = options ?? {};
-
-  let cmd = `dmesg --json`;
-  if (level) {
-    const levels = Array.isArray(level) ? level.join(',') : level;
-    cmd += ` -l ${$_(levels)}`;
-  }
-  if (facility) {
-    const facilities = Array.isArray(facility) ? facility.join(',') : facility;
-    cmd += ` -f ${$_(facilities)}`;
-  }
-  if (since) cmd += `--since ${$_(since)}`;
-  if (until) cmd += `--until ${$_(until)}`;
-
-  const { stdout } = await sh(cmd);
-
+export function parseDmesgOutput(stdout: string): DmesgEntry[] {
   try {
-    const parsed = JSON.parse(stdout);
+    const parsed: unknown = JSON.parse(stdout);
     if (!Array.isArray(parsed)) {
       return [];
     }
@@ -83,6 +67,31 @@ export async function dmesg(options?: DmesgOptions): Promise<DmesgEntry[]> {
   }
 }
 
+/**
+ * Retrieves kernel ring buffer messages using dmesg.
+ *
+ * Parses JSON output when available, falls back to plain text lines.
+ */
+export async function dmesg(options?: DmesgOptions): Promise<DmesgEntry[]> {
+  const { level, facility, since, until } = options ?? {};
+
+  let cmd = `dmesg --json`;
+  if (level) {
+    const levels = Array.isArray(level) ? level.join(',') : level;
+    cmd += ` -l ${$_(levels)}`;
+  }
+  if (facility) {
+    const facilities = Array.isArray(facility) ? facility.join(',') : facility;
+    cmd += ` -f ${$_(facilities)}`;
+  }
+  if (since) cmd += `--since ${$_(since)}`;
+  if (until) cmd += `--until ${$_(until)}`;
+
+  const { stdout } = await sh(cmd);
+
+  return parseDmesgOutput(stdout);
+}
+
 export const MODPROBE_D = '/etc/modprobe.d';
 
 /** A loaded kernel module entry from /proc/modules. */
@@ -94,12 +103,11 @@ export interface LsmodEntry {
 }
 
 /**
- * Lists currently loaded kernel modules.
+ * Parses `/proc/modules` content into loaded-module entries.
  *
- * Parses /proc/modules directly instead of invoking lsmod for better performance.
+ * Pure (no connector).
  */
-export async function lsmod(): Promise<LsmodEntry[]> {
-  const raw = await readFile('/proc/modules');
+export function parseLsmodOutput(raw: string): LsmodEntry[] {
   const lines = raw
     .trim()
     .split('\n')
@@ -121,6 +129,16 @@ export async function lsmod(): Promise<LsmodEntry[]> {
   return entries;
 }
 
+/**
+ * Lists currently loaded kernel modules.
+ *
+ * Parses /proc/modules directly instead of invoking lsmod for better performance.
+ */
+export async function lsmod(): Promise<LsmodEntry[]> {
+  const raw = await readFile('/proc/modules');
+  return parseLsmodOutput(raw);
+}
+
 /** Detailed information about a kernel module. */
 export interface ModprobeInfo {
   readonly filename: string;
@@ -130,6 +148,44 @@ export interface ModprobeInfo {
   readonly alias: string[];
   readonly depends: string[];
   readonly parm: Record<string, string>;
+}
+
+/**
+ * Assembles `ModprobeInfo` from raw `modinfo -F` field outputs.
+ *
+ * Pure (no connector).
+ */
+export function parseModinfoResults(results: Record<string, string>): ModprobeInfo {
+  const alias = (results.alias ?? '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s);
+  const depends = (results.depends ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s);
+  const parm: Record<string, string> = {};
+
+  for (const line of (results.parm ?? '').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx !== -1) {
+      const name = trimmed.slice(0, colonIdx).trim();
+      const desc = trimmed.slice(colonIdx + 1).trim();
+      parm[name] = desc;
+    }
+  }
+
+  return {
+    filename: results.filename ?? '',
+    license: results.license ?? '',
+    description: results.description ?? '',
+    author: results.author ?? '',
+    alias,
+    depends,
+    parm,
+  };
 }
 
 /**
@@ -147,36 +203,7 @@ export async function modinfo(module: string): Promise<ModprobeInfo> {
     results[field] = stdout.trim();
   }
 
-  const alias = results.alias
-    .split('\n')
-    .map((s) => s.trim())
-    .filter((s) => s);
-  const depends = results.depends
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s);
-  const parm: Record<string, string> = {};
-
-  for (const line of results.parm.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const colonIdx = trimmed.indexOf(':');
-    if (colonIdx !== -1) {
-      const name = trimmed.slice(0, colonIdx).trim();
-      const desc = trimmed.slice(colonIdx + 1).trim();
-      parm[name] = desc;
-    }
-  }
-
-  return {
-    filename: results.filename,
-    license: results.license,
-    description: results.description,
-    author: results.author,
-    alias,
-    depends,
-    parm,
-  };
+  return parseModinfoResults(results);
 }
 
 /** Which kexec syscall to use when loading a kernel. */

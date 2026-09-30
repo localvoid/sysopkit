@@ -191,22 +191,13 @@ export interface MountInfoOptions {
 }
 
 /**
- * Gets mount information for a path using findmnt. Returns null if not mounted.
+ * Parses `findmnt --json` output for a single target.
  *
- * The `PROPAGATION` column is requested explicitly: it is absent from the
- * default JSON output on some util-linux releases (e.g. 2.40).
- * `findmnt --target` reports the containing filesystem for existing paths
- * that are not mount points themselves, so the result is only returned when
- * the reported target matches the requested path exactly.
+ * Pure (no connector): returns null for invalid JSON, empty output,
+ * or when the reported target does not match the requested path exactly
+ * (`findmnt --target` reports the containing filesystem for non-mounts).
  */
-export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo | null> {
-  const { stdout, exitCode } = await sh(
-    `findmnt --json -o TARGET,SOURCE,FSTYPE,OPTIONS,PROPAGATION --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
-  );
-  if (exitCode !== 0) {
-    return null;
-  }
-
+export function parseFindmntInfo(stdout: string, path: string): MountInfo | null {
   try {
     const parsed = JSON.parse(stdout) as FindmntOutput;
     if (parsed.filesystems && parsed.filesystems.length > 0) {
@@ -224,6 +215,26 @@ export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo |
     }
   } catch {}
   return null;
+}
+
+/**
+ * Gets mount information for a path using findmnt. Returns null if not mounted.
+ *
+ * The `PROPAGATION` column is requested explicitly: it is absent from the
+ * default JSON output on some util-linux releases (e.g. 2.40).
+ * `findmnt --target` reports the containing filesystem for existing paths
+ * that are not mount points themselves, so the result is only returned when
+ * the reported target matches the requested path exactly.
+ */
+export async function mountInfo({ path }: MountInfoOptions): Promise<MountInfo | null> {
+  const { stdout, exitCode } = await sh(
+    `findmnt --json -o TARGET,SOURCE,FSTYPE,OPTIONS,PROPAGATION --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+  );
+  if (exitCode !== 0) {
+    return null;
+  }
+
+  return parseFindmntInfo(stdout, path);
 }
 
 interface FindmntEntry {
@@ -315,7 +326,10 @@ export interface MountOptions {
  * values such as `private,slave`); an unknown (absent column) never
  * matches so the remount still runs.
  */
-function propagationSatisfied(requested: MountPropagation, current: string | undefined): boolean {
+export function _propagationSatisfied(
+  requested: MountPropagation,
+  current: string | undefined,
+): boolean {
   if (current === undefined) {
     return false;
   }
@@ -383,7 +397,7 @@ export async function mount(o: MountOptions): Promise<void> {
           );
         }
         const currentInfo = await mountInfo({ path });
-        if (currentInfo !== null && propagationSatisfied(propagation, currentInfo.propagation)) {
+        if (currentInfo !== null && _propagationSatisfied(propagation, currentInfo.propagation)) {
           return;
         }
         if (!ctx.dryRun) {
@@ -489,16 +503,12 @@ interface SubmountNode {
 }
 
 /**
- * All mount targets at or under `path` (itself included when
- * mounted), or null when `path` resolves to no filesystem.
+ * Parses `findmnt -R --json` output into all mount targets (itself
+ * included when mounted), or null for invalid JSON.
+ *
+ * Pure (no connector).
  */
-async function submountTargets(path: string): Promise<string[] | null> {
-  const { stdout, exitCode } = await sh(
-    `findmnt -R --json --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
-  );
-  if (exitCode !== 0) {
-    return null;
-  }
+export function parseSubmountTargets(stdout: string): string[] | null {
   try {
     const parsed = JSON.parse(stdout) as { filesystems?: SubmountNode[] };
     const targets: string[] = [];
@@ -513,6 +523,32 @@ async function submountTargets(path: string): Promise<string[] | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Targets at or under `path` (itself included when mounted), deepest
+ * first. Empty when nothing is mounted at or under `path`.
+ *
+ * Pure (no connector).
+ */
+export function filterRelevantSubmounts(targets: readonly string[], path: string): string[] {
+  const relevant = targets.filter((t) => t === path || t.startsWith(`${path}/`));
+  relevant.sort((a, b) => b.split('/').length - a.split('/').length || b.length - a.length);
+  return relevant;
+}
+
+/**
+ * All mount targets at or under `path` (itself included when
+ * mounted), or null when `path` resolves to no filesystem.
+ */
+async function submountTargets(path: string): Promise<string[] | null> {
+  const { stdout, exitCode } = await sh(
+    `findmnt -R --json --target ${$_(path)};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+  );
+  if (exitCode !== 0) {
+    return null;
+  }
+  return parseSubmountTargets(stdout);
 }
 
 /**
@@ -539,7 +575,7 @@ export async function umount(o: UmountOptions): Promise<void> {
       let orphanTargets: string[] | null = null;
       if (recursive) {
         const targets = await submountTargets(path);
-        const relevant = (targets ?? []).filter((t) => t === path || t.startsWith(`${path}/`));
+        const relevant = filterRelevantSubmounts(targets ?? [], path);
         if (relevant.length === 0) {
           return;
         }
@@ -547,7 +583,6 @@ export async function umount(o: UmountOptions): Promise<void> {
           // `umount -R <path>` requires `path` itself to be mounted
           // (live: "not mounted" while a child stays attached), so detach
           // orphaned children directly, deepest first.
-          relevant.sort((a, b) => b.split('/').length - a.split('/').length || b.length - a.length);
           orphanTargets = relevant;
         }
       } else {

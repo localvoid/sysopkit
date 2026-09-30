@@ -1,6 +1,51 @@
 import { describe, expect, test } from 'bun:test';
 import { withMockContext } from '@sysopkit/test-utils';
-import { createUser } from 'sysopkit/op/users';
+import { createUser, parseGroupFile, parsePasswdFile } from 'sysopkit/op/users';
+
+// Unit scope: pure parsing (parsePasswdFile/parseGroupFile, no connector)
+// plus input validation inside the task frame. Command execution behavior
+// (useradd/usermod idempotency, dry-run) is covered in
+// tests/e2e/ops/accounts.test.ts with final remote state.
+
+describe('parsePasswdFile', () => {
+  test('parses user entries', () => {
+    const result = parsePasswdFile(
+      'root:x:0:0:root:/root:/bin/bash\napp:x:1001:1001::/home/app:/bin/sh\n',
+    );
+    expect(result).toEqual([
+      { user: 'root', uid: 0, gid: 0, gecos: 'root', home: '/root', shell: '/bin/bash' },
+      { user: 'app', uid: 1001, gid: 1001, gecos: '', home: '/home/app', shell: '/bin/sh' },
+    ]);
+  });
+
+  test('rejects short lines', () => {
+    try {
+      parsePasswdFile('badline\n');
+      expect.unreachable();
+    } catch (e) {
+      expect((e as Error).message).toContain('invalid user entry on line 1');
+    }
+  });
+});
+
+describe('parseGroupFile', () => {
+  test('parses group entries with members', () => {
+    const result = parseGroupFile('wheel:x:10:alice,bob\nnogroup:x:65534:\n');
+    expect(result).toEqual([
+      { name: 'wheel', gid: 10, members: ['alice', 'bob'] },
+      { name: 'nogroup', gid: 65534, members: [] },
+    ]);
+  });
+
+  test('rejects short lines', () => {
+    try {
+      parseGroupFile('badline\n');
+      expect.unreachable();
+    } catch (e) {
+      expect((e as Error).message).toContain('invalid group entry on line 1');
+    }
+  });
+});
 
 describe('createUser validation', () => {
   test('refuses bad user names inside the task context', async () => {

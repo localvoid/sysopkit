@@ -70,48 +70,39 @@ Rules:
 ```
 unit/
   timers.ts # drainFakeTimers helper (native jest fake timers)
-  api/
-    inventory.test.ts
-    start.test.ts
+  inventory.test.ts
+  start.test.ts
   core/
     apply.test.ts
     context.test.ts
-  ops/
+    retry.test.ts
+    ssh.test.ts
+    timeout.test.ts
+  middleware/
+    trace.test.ts # trace on() stream logic (mock stimulus)
+  op/
     ini.test.ts # serializeIni (pure)
     iwd.test.ts # iwd SSID encoding + network paths (pure)
-    mount.test.ts # mountInfo JSON parsing + fstab parse/serialize (pure)
-    sysusers.test.ts # sysusers parse/serialize round-trip (pure)
+    kernel.test.ts # kexec cmd builder + dmesg/lsmod/modinfo parsing (pure) + input validation; kexec exec excluded from e2e
+    libvirt-domain.test.ts # domain serialize/parse/match (pure)
+    libvirt-network.test.ts # network serialize/parse/match (pure)
+    libvirt-storage.test.ts # pool/volume serialize/parse/match (pure)
+    libvirt-xml.test.ts # xml helpers (pure)
+    mount.test.ts # findmnt JSON parsing + fstab parse/serialize (pure)
     systemd-common.test.ts # systemd paths + systemctl show parsing (pure)
+    sysusers.test.ts # sysusers parse/serialize round-trip (pure)
+    users.test.ts # passwd/group parsing (pure) + createUser validation in task frame
     wait.test.ts # polling/retry logic (mock stimulus) + TimeoutError
-  reporters/
+  reporter/
     console.test.ts
+    tui.test.ts
   utils/
-    retry.test.ts
-    sudo.test.ts # sudo argv merging (pure command generation)
-    timeout.test.ts
-e2e/
-  connectors/
-    podman.test.ts
-    ssh.test.ts # debian (OpenSSH): sh/sudo/file/rsync matrix
-    ssh-openwrt.test.ts # openwrt (dropbear): sh/exec/file basics as root
-  middleware/
-    chroot.test.ts # fake root via /usr bind, assert confinement via read-back
-  ops/ # grouped by area, assert final remote state (no cmd-string checks)
-    filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke
-    accounts.test.ts # redhat: users/groups incl. idempotency + dry-run
-    proc-net.test.ts # redhat: waitProcess, bash/nc waitPort, curl
-    config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips
-    pkg-apt.test.ts # debian: apt full install/remove of `ed`
-    pkg-dnf5.test.ts # fedora: dnf5 full install/remove of `ed`
-    pkg-dnf4.test.ts # redhat: dnf4 full install/remove of `ed`
-    pkg-pacman.test.ts # arch: pacman full install/remove of `ed`
-    pkg-apk.test.ts # openwrt: apk full install/remove of `nano`
-    pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip
-    rsync.test.ts # redhat: rsync push/pull incl. idempotency + dry-run
-    system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops
-    mount.test.ts # redhat privileged: tmpfs mount/umount round-trip
-    openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
+    sudo.test.ts # sudo argv merging (pure command generation) + prompt stream logic
 ```
+
+e2e/ connectors/ podman.test.ts ssh.test.ts # debian (OpenSSH): sh/sudo/file/rsync matrix ssh-openwrt.test.ts # openwrt (dropbear): sh/exec/file basics as root middleware/ chroot.test.ts # fake root via /usr bind, assert confinement via read-back ops/ # grouped by area, assert final remote state (no cmd-string checks) filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke accounts.test.ts # redhat: users/groups incl. idempotency + dry-run proc-net.test.ts # redhat: waitProcess, bash/nc waitPort, curl config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips pkg-apt.test.ts # debian: apt full install/remove of `ed` pkg-dnf5.test.ts # fedora: dnf5 full install/remove of `ed` pkg-dnf4.test.ts # redhat: dnf4 full install/remove of `ed` pkg-pacman.test.ts # arch: pacman full install/remove of `ed` pkg-apk.test.ts # openwrt: apk full install/remove of `nano` pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip rsync.test.ts # redhat: rsync push/pull incl. idempotency + dry-run system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops mount.test.ts # redhat privileged: tmpfs mount/umount round-trip openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
+
+````
 
 Excluded from live testing (unit mocks + file-content assertions only): `systemd` daemon control (`enable/start/stop`, `daemonReload`), `setHostname` / `setTimezone` / `setLocale`, `journal` read/vacuum (needs a running journal), kernel module / `kexec`, `tuned` (needs daemon). Rationale: no systemd PID1 / host kernel in containers; mutating host identity from tests is out of scope.
 
@@ -151,7 +142,7 @@ mockSpawn(mock.connector, [
 const tracker = trackChanged();
 // ... operation ...
 expect(tracker.changed).toBe(true);
-```
+````
 
 ### MockSpawnSpec
 

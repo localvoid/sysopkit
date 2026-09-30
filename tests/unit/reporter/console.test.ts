@@ -5,10 +5,12 @@ import { ConsoleReporter } from 'sysopkit/reporter/console';
 describe('ConsoleReporter', () => {
   let stdoutSpy: ReturnType<typeof mock>;
   let stderrSpy: ReturnType<typeof mock>;
+  let originalConsole: Console;
   let reporter: ConsoleReporter;
   let ctx: ExecutionContext;
 
   beforeEach(() => {
+    originalConsole = global.console;
     stdoutSpy = mock(() => {});
     stderrSpy = mock(() => {});
     global.console = {
@@ -16,12 +18,17 @@ describe('ConsoleReporter', () => {
       log: stdoutSpy,
       error: stderrSpy,
     } as Console;
-    reporter = new ConsoleReporter({ verbosity: VERBOSITY_DEBUG, color: false });
+    // tui: false keeps output on console.log/console.error (the spies above).
+    // Without it, an interactive terminal auto-enables the TUI footer and
+    // output bypasses the spies via process.stdout/stderr.write.
+    reporter = new ConsoleReporter({ verbosity: VERBOSITY_DEBUG, color: false, tui: false });
+    expect(reporter.tuiEnabled).toBe(false);
     ctx = createRootContext(reporter, false, {}, new AbortController().signal);
     reporter.ctxStart(ctx);
   });
 
   afterEach(() => {
+    global.console = originalConsole;
     stdoutSpy.mockRestore();
     stderrSpy.mockRestore();
   });
