@@ -334,14 +334,6 @@ export async function updatePackages(
   return task(
     'dnf upgrade',
     async (ctx) => {
-      if (packages !== void 0) {
-        if (
-          !Array.isArray(packages) ||
-          packages.some((p) => typeof p !== 'string' || p.length === 0)
-        ) {
-          throw new Error('packages must be an array of package names when provided');
-        }
-      }
       const scope = packages && packages.length > 0 ? ` ${packages.map($_).join(' ')}` : '';
       const before = await getInstalledPackages();
       if (ctx.dryRun) {

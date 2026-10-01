@@ -282,14 +282,6 @@ export async function updatePackages(
   return task(
     'pacman upgrade',
     async (ctx) => {
-      if (packages !== void 0) {
-        if (
-          !Array.isArray(packages) ||
-          packages.some((p) => typeof p !== 'string' || p.length === 0)
-        ) {
-          throw new Error('packages must be an array of package names when provided');
-        }
-      }
       const scoped = Array.isArray(packages) && packages.length > 0;
       const before = await getInstalledPackages();
       const installedNames = new Set(before.map((p) => p.name));

@@ -272,14 +272,6 @@ export async function updatePackages(
   return task(
     'apk upgrade',
     async (ctx) => {
-      if (packages !== void 0) {
-        if (
-          !Array.isArray(packages) ||
-          packages.some((p) => typeof p !== 'string' || p.length === 0)
-        ) {
-          throw new Error('packages must be an array of package names when provided');
-        }
-      }
       const scoped = Array.isArray(packages) && packages.length > 0;
       await sh('apk update');
       const before = await getInstalledPackages();
