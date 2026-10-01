@@ -75,6 +75,45 @@ describe('pkg/pacman (arch)', () => {
   );
 
   test(
+    'install of a present package is a no-op in dry-run',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await installPackages({ packages: ['ed'] });
+          expect(t.changed).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'remove reports change in dry-run without removing',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await removePackages({ packages: ['ed'] });
+          expect(t.changed).toBe(true);
+          expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(true);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
     'autoremove removes dependencies, plain remove keeps them',
     async () => {
       await sharedPodman(shared, async () => {

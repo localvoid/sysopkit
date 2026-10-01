@@ -76,6 +76,45 @@ describe('pkg/apk (alpine-based, on openwrt)', () => {
   );
 
   test(
+    'install of a present package is a no-op in dry-run',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['nano'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await installPackages({ packages: ['nano'] });
+          expect(t.changed).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'remove reports change in dry-run without removing',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['nano'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await removePackages({ packages: ['nano'] });
+          expect(t.changed).toBe(true);
+          expect((await getInstalledPackages()).some((p) => p.name === 'nano')).toBe(true);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
     'remove purges unused dependencies natively',
     async () => {
       await sharedPodman(shared, async () => {

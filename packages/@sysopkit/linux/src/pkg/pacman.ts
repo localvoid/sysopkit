@@ -12,10 +12,36 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
+import { diffVersionSnapshots, type VersionChanges } from './snap-diff.js';
+
 /** Information about an installed package. */
 export interface PackageInfo {
   readonly name: string;
   readonly version: string;
+}
+
+/**
+ * Parses `pacman -Q` output into package metadata.
+ *
+ * One `name version` pair per line; versions contain no whitespace.
+ * Blank lines are skipped; empty output yields `[]`.
+ */
+export function parsePacmanList(stdout: string): PackageInfo[] {
+  if (stdout.trim().length === 0) {
+    return [];
+  }
+  return stdout
+    .trim()
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const [name, ...rest] = line.split(/\s+/);
+      return {
+        name: name!,
+        version: rest.join(' '),
+      };
+    });
 }
 
 /**
@@ -26,21 +52,7 @@ export interface PackageInfo {
  */
 export async function getInstalledPackages(): Promise<PackageInfo[]> {
   const { stdout } = await sh('pacman -Q');
-  if (stdout.length > 0) {
-    return stdout
-      .trim()
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => {
-        const [name, ...rest] = line.split(/\s+/);
-        return {
-          name: name!,
-          version: rest.join(' '),
-        };
-      });
-  }
-  return [];
+  return parsePacmanList(stdout);
 }
 
 /** Options for installing packages with pacman. */
@@ -54,33 +66,36 @@ export interface InstallPackagesOptions {
  *
  * Refreshes the package databases (`-Sy`) as part of the install and skips
  * packages that are already up to date (`--needed`), so re-running is a
- * no-op. Emits change events for packages that are newly installed or
- * upgraded. In dry-run mode, uses `-p` (print-only) to preview which
- * packages would change without applying them.
+ * no-op. Change detection diffs local-database snapshots taken before and
+ * after the transaction, so installed dependencies and upgraded packages
+ * are reported too. In dry-run mode, uses `-p` (print-only) to preview
+ * which requested packages would change without applying them.
  */
 export async function installPackages(options: InstallPackagesOptions): Promise<void> {
   const { packages } = options;
   return task(
     'pacman install',
     async (ctx) => {
-      const { stdout } = await sh(
-        ctx.dryRun
-          ? `LANG=en_US.UTF-8 pacman -Syp --needed --print-format '%n' ${packages.map($_).join(' ')}`
-          : `LANG=en_US.UTF-8 pacman -Sy --needed --noconfirm ${packages.map($_).join(' ')}`,
-      );
-      const pkgs = ctx.dryRun
-        ? _parsePreview(stdout, packages)
-        : _parseTransaction(stdout, INSTALLING_LINE_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'pacman',
-            resource: p,
-            property: 'state',
-            to: 'installed',
-          })),
+      if (ctx.dryRun) {
+        const { stdout } = await sh(
+          `pacman -Syp --needed --print-format '%n' ${packages.map($_).join(' ')}`,
         );
+        const pkgs = _parsePreview(stdout, packages);
+        if (pkgs.length > 0) {
+          emitChanged(
+            pkgs.map((p) => ({
+              type: 'pacman',
+              resource: p,
+              property: 'state',
+              to: 'installed',
+            })),
+          );
+        }
+        return;
       }
+      const before = await getInstalledPackages();
+      await sh(`pacman -Sy --needed --noconfirm ${packages.map($_).join(' ')}`);
+      emitPacmanChanges(diffVersionSnapshots(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -119,30 +134,32 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   return task(
     'pacman remove',
     async (ctx) => {
-      const installed = new Set((await getInstalledPackages()).map((p) => p.name));
+      const before = await getInstalledPackages();
+      const installed = new Set(before.map((p) => p.name));
       const targets = packages.filter((p) => installed.has(p));
       if (targets.length === 0) {
         return;
       }
       const recursive = autoremove ? 's' : '';
-      const { stdout } = await sh(
-        ctx.dryRun
-          ? `LANG=en_US.UTF-8 pacman -R${recursive}p --print-format '%n' ${targets.map($_).join(' ')}`
-          : `LANG=en_US.UTF-8 pacman -R${recursive} --noconfirm ${targets.map($_).join(' ')}`,
-      );
-      const pkgs = ctx.dryRun
-        ? _parsePreview(stdout, targets)
-        : _parseTransaction(stdout, REMOVING_LINE_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'pacman',
-            resource: p,
-            property: 'state',
-            to: 'removed',
-          })),
+      if (ctx.dryRun) {
+        const { stdout } = await sh(
+          `pacman -R${recursive}p --print-format '%n' ${targets.map($_).join(' ')}`,
         );
+        const pkgs = _parsePreview(stdout, targets);
+        if (pkgs.length > 0) {
+          emitChanged(
+            pkgs.map((p) => ({
+              type: 'pacman',
+              resource: p,
+              property: 'state',
+              to: 'removed',
+            })),
+          );
+        }
+        return;
       }
+      await sh(`pacman -R${recursive} --noconfirm ${targets.map($_).join(' ')}`);
+      emitPacmanChanges(diffVersionSnapshots(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -154,24 +171,36 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
-/** Matches install progress lines (`installing ed...`, `upgrading ed...`). */
-const INSTALLING_LINE_RE = /^(?:install|upgrad|downgrad|reinstall)ing (\S+)\.\.\.$/;
-/** Matches removal progress lines (`removing ed...`). */
-const REMOVING_LINE_RE = /^removing (\S+)\.\.\.$/;
-
 /**
- * Parses transaction progress lines from pacman output to find changed
- * packages.
+ * Emits one change entry per changed package, grouped by change kind.
+ *
+ * Used for snapshot-diff paths; dry-run print-only previews keep their own
+ * requested-set reporting.
  */
-function _parseTransaction(output: string, re: RegExp): string[] {
-  const packages: string[] = [];
-  for (const line of output.split('\n')) {
-    const match = re.exec(line.trim());
-    if (match?.[1]) {
-      packages.push(match[1]);
-    }
+function emitPacmanChanges(changes: VersionChanges): void {
+  const entries = [
+    ...changes.updated.map((p) => ({
+      type: 'pacman',
+      resource: p,
+      property: 'state',
+      to: 'updated',
+    })),
+    ...changes.installed.map((p) => ({
+      type: 'pacman',
+      resource: p,
+      property: 'state',
+      to: 'installed',
+    })),
+    ...changes.removed.map((p) => ({
+      type: 'pacman',
+      resource: p,
+      property: 'state',
+      to: 'removed',
+    })),
+  ];
+  if (entries.length > 0) {
+    emitChanged(entries);
   }
-  return packages;
 }
 
 /**

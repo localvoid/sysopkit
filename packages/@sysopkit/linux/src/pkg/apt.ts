@@ -15,6 +15,8 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
+import { diffVersionSnapshots, splitByPresence, type VersionChanges } from './snap-diff.js';
+
 /** APT repository entry parsed from sources.list format. */
 export type AptRepo = {
   readonly line: string;
@@ -27,24 +29,50 @@ export type AptRepo = {
 /** Information about an installed package. */
 export interface PackageInfo {
   readonly name: string;
+  readonly version: string;
+  readonly arch: string;
+}
+
+/**
+ * Parses `dpkg-query -W -f='${Package} ${Version} ${Architecture}\n'`
+ * output into package metadata.
+ *
+ * Field values contain no whitespace (Debian policy), so each row splits
+ * exactly. Blank lines and malformed rows are skipped; empty output yields
+ * `[]`.
+ */
+export function parseDpkgQuery(stdout: string): PackageInfo[] {
+  if (stdout.trim().length === 0) {
+    return [];
+  }
+  const packages: PackageInfo[] = [];
+  for (const line of stdout.trim().split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 3) {
+      continue;
+    }
+    const [name, version, arch] = parts;
+    if (!name || !version || !arch) {
+      continue;
+    }
+    packages.push({ name, version, arch });
+  }
+  return packages;
 }
 
 /**
  * Lists all installed packages on the system.
  *
- * Uses dpkg-query to enumerate packages in the dpkg database.
+ * Queries the local dpkg database directly, so no repository metadata is
+ * loaded and the query works offline.
  */
 export async function getInstalledPackages(): Promise<PackageInfo[]> {
-  const { stdout } = await sh(`dpkg-query -W -f='\${Package}\\n'`);
-  if (stdout.length > 0) {
-    return stdout
-      .trim()
-      .split('\n')
-      .map((name) => ({
-        name,
-      }));
-  }
-  return [];
+  const { stdout } = await sh(`dpkg-query -W -f='\${Package} \${Version} \${Architecture}\\n'`);
+  return parseDpkgQuery(stdout);
 }
 
 /** Options for installing packages with apt-get. */
@@ -56,28 +84,35 @@ export interface InstallPackagesOptions {
 /**
  * Installs packages using apt-get.
  *
- * Emits change events for packages that are newly installed. In dry-run mode,
- * uses `-s` (simulate) flag to preview changes without applying them.
+ * Change detection diffs dpkg snapshots taken before and after the
+ * transaction, so installed dependencies and upgraded packages are reported
+ * too. Dry-run previews compare the requested names against the snapshot
+ * without running the solver: names absent from the snapshot are reported
+ * as installed. Solver-resolved dependencies are not enumerated in
+ * previews, and names are not validated against repositories.
  */
 export async function installPackages(options: InstallPackagesOptions): Promise<void> {
   const { packages } = options;
   return task(
     'apt install',
     async (ctx) => {
-      const { stdout } = await sh(
-        `LANG=en_US.UTF-8 apt-get install ${ctx.dryRun ? '-s' : '-y'} ${packages.map($_).join(' ')}`,
-      );
-      const pkgs = _parseList(stdout, NEW_PACKAGES_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'apt',
-            resource: p,
-            property: 'state',
-            to: 'installed',
-          })),
-        );
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { absent } = splitByPresence(before, packages);
+        if (absent.length > 0) {
+          emitChanged(
+            absent.map((p) => ({
+              type: 'apt',
+              resource: p,
+              property: 'state',
+              to: 'installed',
+            })),
+          );
+        }
+        return;
       }
+      await sh(`apt-get install -y ${packages.map($_).join(' ')}`);
+      emitAptChanges(diffVersionSnapshots(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -102,28 +137,37 @@ export interface RemovePackagesOptions {
 /**
  * Removes packages using apt-get.
  *
- * Emits change events for packages that are removed. Configuration files are
- * preserved; use purge to remove them as well.
+ * Change detection diffs dpkg snapshots taken before and after the
+ * transaction. Configuration files are preserved; use purge to remove them
+ * as well. Dry-run previews compare the requested names against the
+ * snapshot without running the solver: names present in the snapshot are
+ * reported as removed. Autoremoved dependencies are not enumerated in
+ * previews, and names are not validated against repositories.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
   const { packages, autoremove = false } = options;
   return task(
     'apt remove',
     async (ctx) => {
-      const { stdout } = await sh(
-        `LANG=en_US.UTF-8 apt-get remove ${ctx.dryRun ? '-s' : '-y'}${autoremove ? ' --auto-remove' : ''} ${packages.map($_).join(' ')}`,
-      );
-      const pkgs = _parseList(stdout, REMOVED_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'apt',
-            resource: p,
-            property: 'state',
-            to: 'removed',
-          })),
-        );
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { present } = splitByPresence(before, packages);
+        if (present.length > 0) {
+          emitChanged(
+            present.map((p) => ({
+              type: 'apt',
+              resource: p,
+              property: 'state',
+              to: 'removed',
+            })),
+          );
+        }
+        return;
       }
+      await sh(
+        `apt-get remove -y${autoremove ? ' --auto-remove' : ''} ${packages.map($_).join(' ')}`,
+      );
+      emitAptChanges(diffVersionSnapshots(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -135,20 +179,24 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
-/** Matches the "NEW packages will be installed" section in apt-get output. */
-const NEW_PACKAGES_RE = /The following NEW packages will be installed:\n([\s\S]*?)(?=\n\S|$)/;
-/** Matches the "packages will be REMOVED" section in apt-get output. */
-const REMOVED_RE = /The following packages will be REMOVED:\n([\s\S]*?)(?=\n\S|$)/;
-
 /**
- * Parses the list from apt output to find packages.
+ * Emits one change entry per changed package, grouped by change kind.
+ *
+ * Shared by snapshot-diff and preview paths so both report the same event
+ * shape.
  */
-function _parseList(output: string, re: RegExp): string[] {
-  const match = re.exec(output);
-  if (!match || !match[1]) return [];
-
-  return match[1]
-    .trim()
-    .split(/\s+/)
-    .filter((pkg) => pkg.length > 0);
+function emitAptChanges(changes: VersionChanges): void {
+  const entries = [
+    ...changes.updated.map((p) => ({ type: 'apt', resource: p, property: 'state', to: 'updated' })),
+    ...changes.installed.map((p) => ({
+      type: 'apt',
+      resource: p,
+      property: 'state',
+      to: 'installed',
+    })),
+    ...changes.removed.map((p) => ({ type: 'apt', resource: p, property: 'state', to: 'removed' })),
+  ];
+  if (entries.length > 0) {
+    emitChanged(entries);
+  }
 }

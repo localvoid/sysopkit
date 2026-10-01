@@ -13,16 +13,16 @@ import { getInstalledPackages, installPackages, removePackages } from '@sysopkit
 
 ### getInstalledPackages()
 
-Lists all installed packages using `dpkg-query`.
+Lists all installed packages with versions by querying the local dpkg database (`dpkg-query`, no repository metadata load).
 
 ```ts
 const packages = await getInstalledPackages();
-// [{ name: 'bash' }, { name: 'curl' }, ...]
+// [{ name: 'bash', version: '5.2.37-1', arch: 'amd64' }, ...]
 ```
 
 ### installPackages()
 
-Installs packages using `apt-get install`. Emits change events for newly installed packages. Dry-run aware (`-s` flag in dry-run mode).
+Installs packages using `apt-get install`. Change detection diffs dpkg snapshots before/after the transaction. Dry-run previews compare the requested names against the snapshot without running the solver (dependencies are not enumerated, names are not validated against repositories).
 
 ```ts
 await installPackages({ packages: ['nginx', 'postgresql'] });
@@ -30,7 +30,7 @@ await installPackages({ packages: ['nginx', 'postgresql'] });
 
 ### removePackages()
 
-Removes packages using `apt-get remove`. Preserves configuration files. Pass `autoremove: true` to also remove dependencies that are no longer needed (`--auto-remove`).
+Removes packages using `apt-get remove`. Preserves configuration files. Pass `autoremove: true` to also remove dependencies that are no longer needed (`--auto-remove`). Change detection diffs dpkg snapshots before/after the transaction. Dry-run previews compare the requested names against the snapshot (autoremoved dependencies are not enumerated).
 
 ```ts
 await removePackages({ packages: ['apache2'] });
@@ -162,7 +162,7 @@ const packages = await getInstalledPackages();
 
 ### installPackages()
 
-Installs packages using `pacman -Sy --needed`. Refreshes the package databases as part of the install; already up-to-date packages are skipped (`--needed`), so re-running is a no-op. Dry-run aware (print-only preview in dry-run mode).
+Installs packages using `pacman -Sy --needed`. Refreshes the package databases as part of the install; already up-to-date packages are skipped (`--needed`), so re-running is a no-op. Change detection diffs local-database snapshots before/after the transaction. Dry-run aware (print-only preview in dry-run mode).
 
 ```ts
 await installPackages({ packages: ['nginx'] });
@@ -170,7 +170,7 @@ await installPackages({ packages: ['nginx'] });
 
 ### removePackages()
 
-Removes packages using `pacman -R` (dependencies are left behind, matching `apt-get remove` semantics). Pass `autoremove: true` to also remove dependencies that are no longer needed (`-Rs`).
+Removes packages using `pacman -R` (dependencies are left behind, matching `apt-get remove` semantics). Pass `autoremove: true` to also remove dependencies that are no longer needed (`-Rs`). Change detection diffs local-database snapshots before/after the transaction (print-only preview in dry-run mode).
 
 ```ts
 await removePackages({ packages: ['nginx'] });
@@ -185,7 +185,7 @@ import { getInstalledPackages, installPackages, removePackages } from '@sysopkit
 
 ### getInstalledPackages()
 
-Lists all installed packages with versions using `apk list -I`.
+Lists all installed packages with versions by reading the local apk database (`/lib/apk/db/installed`, no repository metadata load).
 
 ```ts
 const packages = await getInstalledPackages();
@@ -194,7 +194,7 @@ const packages = await getInstalledPackages();
 
 ### installPackages()
 
-Installs packages using `apk add -U` (refreshes the package indexes as part of the install). Re-running for installed packages is a no-op. Dry-run aware (`--simulate` in dry-run mode).
+Installs packages using `apk add -U` (refreshes the package indexes as part of the install). Change detection diffs installed-database snapshots before/after the transaction. Dry-run previews compare the requested names against the snapshot without running the solver (dependencies are not enumerated, names are not validated against repositories).
 
 ```ts
 await installPackages({ packages: ['nano'] });
@@ -202,7 +202,7 @@ await installPackages({ packages: ['nano'] });
 
 ### removePackages()
 
-Removes packages using `apk del`. Dependencies that are no longer needed are purged as well.
+Removes packages using `apk del`. Dependencies that are no longer needed are purged as well. Change detection diffs installed-database snapshots before/after the transaction. Dry-run previews compare the requested names against the snapshot (autoremoved dependencies are not enumerated).
 
 ```ts
 await removePackages({ packages: ['nano'] });

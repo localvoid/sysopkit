@@ -16,6 +16,8 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
+import { diffVersionSnapshots, splitByPresence, type VersionChanges } from './snap-diff.js';
+
 /** Information about an installed package. */
 export interface PackageInfo {
   readonly name: string;
@@ -23,24 +25,55 @@ export interface PackageInfo {
 }
 
 /**
- * Lists all installed packages on the system.
+ * Parses the apk installed database (`/lib/apk/db/installed`) into package
+ * metadata.
  *
- * Uses `apk list -I` to enumerate installed packages with their versions.
+ * Each installed package is one record with single-letter field tags;
+ * `P:` carries the full name and `V:` the version, so no name/version
+ * heuristics are needed (names may contain spaces and dashes, e.g.
+ * `apk-mbedtls`). Only uppercase `P:` starts a record (lowercase `p:`
+ * lines list provides and are ignored). Records without both fields are
+ * skipped; empty output yields `[]`.
  */
-export async function getInstalledPackages(): Promise<PackageInfo[]> {
-  const { stdout } = await sh('apk list -I');
+export function parseApkDb(stdout: string): PackageInfo[] {
   const packages: PackageInfo[] = [];
-  for (const line of stdout.split('\n')) {
-    const token = line.trim().split(/\s+/, 1)[0];
-    if (!token) {
-      continue;
+  let name: string | undefined;
+  let version: string | undefined;
+  const flush = (): void => {
+    if (name !== void 0 && version !== void 0) {
+      packages.push({ name, version });
     }
-    const parsed = _splitNameVersion(token);
-    if (parsed) {
-      packages.push(parsed);
+    name = void 0;
+    version = void 0;
+  };
+  for (const line of stdout.split('\n')) {
+    if (line.startsWith('P:')) {
+      flush();
+      const value = line.slice(2).trim();
+      if (value.length > 0) {
+        name = value;
+      }
+    } else if (line.startsWith('V:')) {
+      const value = line.slice(2).trim();
+      if (value.length > 0) {
+        version = value;
+      }
     }
   }
+  flush();
   return packages;
+}
+
+/**
+ * Lists all installed packages on the system.
+ *
+ * Reads the local apk database directly (`/lib/apk/db/installed`, the
+ * compiled-in default location on Alpine and OpenWrt), so no repository
+ * metadata is loaded and the query works offline.
+ */
+export async function getInstalledPackages(): Promise<PackageInfo[]> {
+  const { stdout } = await sh('cat /lib/apk/db/installed');
+  return parseApkDb(stdout);
 }
 
 /** Options for installing packages with apk. */
@@ -52,32 +85,36 @@ export interface InstallPackagesOptions {
 /**
  * Installs packages using apk.
  *
- * Refreshes the package indexes (`-U`) as part of the install. Re-running
- * for already installed packages is a no-op (apk prints only the `OK:`
- * summary without `Installing` lines). Emits change events for packages
- * that are newly installed, including dependencies pulled in. In dry-run
- * mode, uses `--simulate` to preview which packages would change without
- * applying them.
+ * Refreshes the package indexes (`-U`) as part of the install. Change
+ * detection diffs installed-database snapshots taken before and after the
+ * transaction, so installed dependencies and upgraded packages are reported
+ * too. Dry-run previews compare the requested names against the snapshot
+ * without running the solver: names absent from the snapshot are reported
+ * as installed. Solver-resolved dependencies are not enumerated in
+ * previews, and names are not validated against repositories.
  */
 export async function installPackages(options: InstallPackagesOptions): Promise<void> {
   const { packages } = options;
   return task(
     'apk install',
     async (ctx) => {
-      const { stdout } = await sh(
-        `apk add -U${ctx.dryRun ? ' --simulate' : ''} ${packages.map($_).join(' ')}`,
-      );
-      const pkgs = _parseProgress(stdout, INSTALLING_LINE_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'apk',
-            resource: p,
-            property: 'state',
-            to: 'installed',
-          })),
-        );
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { absent } = splitByPresence(before, packages);
+        if (absent.length > 0) {
+          emitChanged(
+            absent.map((p) => ({
+              type: 'apk',
+              resource: p,
+              property: 'state',
+              to: 'installed',
+            })),
+          );
+        }
+        return;
       }
+      await sh(`apk add -U ${packages.map($_).join(' ')}`);
+      emitApkChanges(diffVersionSnapshots(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -99,35 +136,37 @@ export interface RemovePackagesOptions {
  *
  * **[IDEMPOTENT]** Missing packages are skipped (apk exits non-zero for
  * `No such package`, so re-running for absent packages is a no-op without
- * throwing). Dependencies that were installed for the removed packages and
- * are no longer needed are purged as well, and reported as removed. In
- * dry-run mode, uses `--simulate` to preview which packages would be removed
- * without applying the change.
+ * throwing). Change detection diffs installed-database snapshots taken
+ * before and after the transaction; dependencies that were installed for
+ * the removed packages and are no longer needed are purged as well, and
+ * reported as removed. Dry-run previews compare the requested names
+ * against the snapshot without running the solver: names present in the
+ * snapshot are reported as removed. Autoremoved dependencies are not
+ * enumerated in previews, and names are not validated against repositories.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
   const { packages } = options;
   return task(
     'apk remove',
     async (ctx) => {
-      const installed = new Set((await getInstalledPackages()).map((p) => p.name));
-      const targets = packages.filter((p) => installed.has(p));
-      if (targets.length === 0) {
+      const before = await getInstalledPackages();
+      const { present } = splitByPresence(before, packages);
+      if (present.length === 0) {
         return;
       }
-      const { stdout } = await sh(
-        `apk del${ctx.dryRun ? ' --simulate' : ''} ${targets.map($_).join(' ')}`,
-      );
-      const pkgs = _parseProgress(stdout, PURGING_LINE_RE);
-      if (pkgs.length > 0) {
+      if (ctx.dryRun) {
         emitChanged(
-          pkgs.map((p) => ({
+          present.map((p) => ({
             type: 'apk',
             resource: p,
             property: 'state',
             to: 'removed',
           })),
         );
+        return;
       }
+      await sh(`apk del ${present.map($_).join(' ')}`);
+      emitApkChanges(diffVersionSnapshots(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -138,39 +177,24 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
-/** Matches install progress lines (`(3/3) Installing nano (9.2-r1)`). */
-const INSTALLING_LINE_RE = /^\(\d+\/\d+\) Installing (\S+) \(/;
-/** Matches removal progress lines (`(1/3) Purging nano (9.2-r1)`). */
-const PURGING_LINE_RE = /^\(\d+\/\d+\) Purging (\S+) \(/;
-
 /**
- * Parses progress lines from apk output to find changed packages.
- */
-function _parseProgress(output: string, re: RegExp): string[] {
-  const packages: string[] = [];
-  for (const line of output.split('\n')) {
-    const match = re.exec(line.trim());
-    if (match?.[1]) {
-      packages.push(match[1]);
-    }
-  }
-  return packages;
-}
-
-/**
- * Splits an `apk list` name-version token (`nano-9.2-r1`, `ca-bundle-20260223-r1`).
+ * Emits one change entry per changed package, grouped by change kind.
  *
- * The name runs up to the first dash followed by a digit; the remainder is
- * the version.
+ * Shared by snapshot-diff and preview paths so both report the same event
+ * shape.
  */
-function _splitNameVersion(token: string): PackageInfo | undefined {
-  for (let i = 0; i < token.length; i++) {
-    if (token[i] === '-' && i + 1 < token.length && /\d/.test(token[i + 1]!)) {
-      return {
-        name: token.slice(0, i),
-        version: token.slice(i + 1),
-      };
-    }
+function emitApkChanges(changes: VersionChanges): void {
+  const entries = [
+    ...changes.updated.map((p) => ({ type: 'apk', resource: p, property: 'state', to: 'updated' })),
+    ...changes.installed.map((p) => ({
+      type: 'apk',
+      resource: p,
+      property: 'state',
+      to: 'installed',
+    })),
+    ...changes.removed.map((p) => ({ type: 'apk', resource: p, property: 'state', to: 'removed' })),
+  ];
+  if (entries.length > 0) {
+    emitChanged(entries);
   }
-  return undefined;
 }

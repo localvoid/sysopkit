@@ -146,36 +146,7 @@ export function diffPackages(
   };
 }
 
-/** Requested package names split by presence in a snapshot. */
-export interface PresenceSplit {
-  /** Requested names found in the snapshot. */
-  readonly present: string[];
-  /** Requested names absent from the snapshot. */
-  readonly absent: string[];
-}
-
-/**
- * Splits requested package names by exact-name presence in a snapshot.
- *
- * Used for install/remove dry-run previews: no solver run, no output
- * parsing. Results are de-duplicated and sorted for determinism.
- */
-export function splitByPresence(
-  snapshot: readonly DnfPackageInfo[],
-  requested: readonly string[],
-): PresenceSplit {
-  const installed = new Set(snapshot.map((p) => p.name));
-  const present = new Set<string>();
-  const absent = new Set<string>();
-  for (const name of requested) {
-    if (installed.has(name)) {
-      present.add(name);
-    } else {
-      absent.add(name);
-    }
-  }
-  return { present: [...present].sort(), absent: [...absent].sort() };
-}
+export { splitByPresence, type PresenceSplit } from './snap-diff.js';
 
 /**
  * Parses `dnf repoquery --installonly --queryformat '%{NAME}\n'` output
