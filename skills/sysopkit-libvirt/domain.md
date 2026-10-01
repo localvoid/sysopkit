@@ -27,7 +27,7 @@ await defineDomain({
     name: 'guest', memoryMiB: 2048, vcpus: 2,
     uuid?, // stable identity (<uuid>); round-tripped by parse/serialize so redefines converge; unset matches anything
     arch?: 'x86_64', machine?: 'q35', type?: 'kvm', cpuMode?: 'host-passthrough',
-    firmware?: 'bios' | { loader, template?, nvram? }, // explicit OVMF paths; default nvram /var/lib/libvirt/qemu/nvram/<name>_VARS.fd
+    firmware?: 'bios' | { loader, template?, nvram?, secure? }, // explicit OVMF paths; secure maps to <loader secure='yes'|'no'> (undefined omits); default nvram /var/lib/libvirt/qemu/nvram/<name>_VARS.fd
     kernel?, initrd?, cmdline?, // direct kernel boot (<os>); initrd/cmdline require kernel
     bootDevices?: ['hd'], // default
     disks: [{ source, target?, bus?: 'virtio', format?: 'qcow2', kind?: 'file', device?: 'disk'|'cdrom', readonly?, bootOrder? }],
@@ -42,6 +42,8 @@ await defineDomain({
 Disk targets default to `vdX`/`sdX` in order (`_targetSuffix`: a..z, aa..). Serializer output is fully explicit (defaulted bus/model/format/listen written out); the parser keeps only the modeled subset. Seed cdrom: `{ device: 'cdrom', source: 'seed.iso', target: 'sda', bus: 'sata', readonly: true }` — an ejected drive parses as `source: ''`.
 
 `defineDomain` is idempotent (redefines only on drift, unset fields are wildcards), but a replacement define over an existing name requires the same explicit `<uuid>` — pass the `uuid` from `getDomain()` when redefining, otherwise libvirt rejects it.
+
+Firmware-autoselection markup (`os/@firmware='efi'`, `os/<firmware>`, e.g. from `virt-install --boot uefi`) parses via its explicit `<loader>`/`<nvram>` pair and is never serialized. Switching secure-boot variants (e.g. `OVMF_*_4M.secboot.qcow2` → `OVMF_*_4M.qcow2`, a distro-specific naming kept caller-side): `getDomain` → rewrite `firmware.loader`/`template`, set `secure: false` → `defineDomain` with the `uuid` from `getDomain`; `undefine --nvram` first is still required (VARS contents are incompatible).
 
 ## Lifecycle and inspection
 

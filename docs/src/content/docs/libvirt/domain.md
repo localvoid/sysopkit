@@ -48,7 +48,9 @@ await defineDomain({
 });
 ```
 
-The normalized model covers type/arch/machine, UUID (round-tripped for redefine), UEFI (explicit loader paths), direct kernel boot (`kernel`/`initrd`/`cmdline` for `<os>` direct boot, e.g. Live ISOs with an extracted kernel for `virsh console` serial access), CPU mode, boot order, virtio/scsi/sata/ide disks (`disk` and `cdrom` devices — the latter for persistent seed images), network/bridge interfaces, spice/vnc graphics, serial consoles, and the qemu-guest-agent channel. Disk targets default to `vdX`/`sdX` in order; unset interface models default to `virtio`; graphics default to spice with no network listener.
+The normalized model covers type/arch/machine, UUID (round-tripped for redefine), UEFI (explicit loader paths plus `<loader secure='yes'|'no'>` via `firmware.secure`; `undefined` omits the attribute), direct kernel boot (`kernel`/`initrd`/`cmdline` for `<os>` direct boot, e.g. Live ISOs with an extracted kernel for `virsh console` serial access), CPU mode, boot order, virtio/scsi/sata/ide disks (`disk` and `cdrom` devices — the latter for persistent seed images), network/bridge interfaces, spice/vnc graphics, serial consoles, and the qemu-guest-agent channel. Disk targets default to `vdX`/`sdX` in order; unset interface models default to `virtio`; graphics default to spice with no network listener.
+
+Firmware-autoselection markup (`os/@firmware='efi'`, `os/<firmware>`, e.g. from `virt-install --boot uefi`) parses via its explicit `<loader>`/`<nvram>` pair and is never serialized. Switching secure-boot variants (e.g. `OVMF_*_4M.secboot.qcow2` → `OVMF_*_4M.qcow2`, a distro-specific naming kept caller-side): `getDomain` → rewrite `firmware.loader`/`template`, set `secure: false` → `defineDomain` with the `uuid` from `getDomain`; `undefine --nvram` first is still required (VARS contents are incompatible).
 
 ```ts
 await defineDomain({

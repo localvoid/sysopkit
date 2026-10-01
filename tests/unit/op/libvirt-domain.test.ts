@@ -79,6 +79,32 @@ describe('serializeDomainXml', () => {
     expect(xml).not.toContain('<graphics');
   });
 
+  test('serializes the UEFI secure flag explicitly and omits it when unset', () => {
+    const yes = serializeDomainXml({
+      ...BASIC,
+      firmware: { loader: '/usr/share/edk2/ovmf/OVMF_CODE.fd', secure: true },
+    });
+    expect(yes).toContain(
+      '<loader readonly="yes" type="pflash" secure="yes">' +
+        '/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>',
+    );
+    const no = serializeDomainXml({
+      ...BASIC,
+      firmware: { loader: '/usr/share/edk2/ovmf/OVMF_CODE.fd', secure: false },
+    });
+    expect(no).toContain(
+      '<loader readonly="yes" type="pflash" secure="no">' +
+        '/usr/share/edk2/ovmf/OVMF_CODE.fd</loader>',
+    );
+    expect(serializeDomainXml(BASIC)).not.toContain('secure=');
+    expect(
+      serializeDomainXml({
+        ...BASIC,
+        firmware: { loader: '/usr/share/edk2/ovmf/OVMF_CODE.fd' },
+      }),
+    ).not.toContain('secure=');
+  });
+
   test('rejects invalid configs', () => {
     for (const bad of [
       { ...BASIC, name: '' },
@@ -245,6 +271,26 @@ const DUMPXML =
   '<memballoon model="virtio"/>' +
   '</devices></domain>';
 
+const SECBOOT_DUMPXML =
+  '<domain type="kvm">' +
+  '<name>guest</name><uuid>9f8a1b2c-3d4e-5f60-7182-93a4b5c6d7e8</uuid>' +
+  '<memory unit="KiB">2097152</memory><currentMemory unit="KiB">2097152</currentMemory>' +
+  '<vcpu placement="static">2</vcpu>' +
+  '<os firmware="efi"><type arch="x86_64" machine="q35">hvm</type>' +
+  '<firmware><feature enabled="yes" name="enrolled-keys"/>' +
+  '<feature enabled="yes" name="secure-boot"/></firmware>' +
+  '<loader readonly="yes" secure="yes" type="pflash">/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2</loader>' +
+  '<nvram template="/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2">/var/lib/libvirt/qemu/nvram/guest_VARS.fd</nvram>' +
+  '<boot dev="hd"/></os>' +
+  '<features><acpi/><apic/></features>' +
+  '<devices>' +
+  '<disk type="file" device="disk"><driver name="qemu" type="qcow2"/>' +
+  '<source file="/var/lib/libvirt/images/guest.qcow2"/>' +
+  '<target dev="vda" bus="virtio"/></disk>' +
+  '<interface type="network"><source network="default"/><model type="virtio"/></interface>' +
+  '<graphics type="spice"><listen type="none"/></graphics>' +
+  '</devices></domain>';
+
 describe('parseDomainXml', () => {
   test('parses dumpxml output into the normalized model', () => {
     expect(parseDomainXml(DUMPXML)).toEqual({
@@ -287,6 +333,52 @@ describe('parseDomainXml', () => {
       graphics: 'none',
       consoles: false,
     });
+  });
+
+  test('parses virt-install firmware autoselection via its explicit loader', () => {
+    const parsed = parseDomainXml(SECBOOT_DUMPXML);
+    expect(parsed.firmware).toEqual({
+      loader: '/usr/share/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2',
+      template: '/usr/share/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2',
+      nvram: '/var/lib/libvirt/qemu/nvram/guest_VARS.fd',
+      secure: true,
+    });
+  });
+
+  test('round-trips the secure flag', () => {
+    for (const secure of [true, false, undefined] as const) {
+      const firmware = {
+        loader: '/usr/share/edk2/ovmf/OVMF_CODE.fd',
+        template: '/vars.fd',
+        nvram: '/var/lib/libvirt/qemu/nvram/guest_VARS.fd',
+        ...(secure === undefined ? {} : { secure }),
+      };
+      const conf: DomainConf = { ...BASIC, firmware };
+      expect(parseDomainXml(serializeDomainXml(conf)).firmware).toEqual(firmware);
+    }
+  });
+
+  test('serializes a secboot parse as explicit nosb XML without autoselection markup', () => {
+    const parsed = parseDomainXml(SECBOOT_DUMPXML);
+    if (typeof parsed.firmware !== 'object') {
+      expect.unreachable();
+    }
+    const nosb: DomainConf = {
+      ...parsed,
+      firmware: {
+        loader: '/usr/share/edk2/ovmf/OVMF_CODE_4M.qcow2',
+        template: '/usr/share/edk2/ovmf/OVMF_VARS_4M.qcow2',
+        nvram: parsed.firmware.nvram,
+        secure: false,
+      },
+    };
+    const xml = serializeDomainXml(nosb);
+    expect(xml).not.toContain('.secboot.');
+    expect(xml).not.toContain('secure="yes"');
+    expect(xml).toContain('secure="no"');
+    expect(xml).not.toContain('<firmware>');
+    expect(xml).not.toContain('firmware="efi"');
+    expect(parseDomainXml(xml)).toEqual(nosb);
   });
 
   test('round-trips serialize output', () => {
@@ -462,6 +554,31 @@ describe('domainConfigMatches', () => {
       }),
     ).toBe(false);
     expect(domainConfigMatches({ ...BASIC }, { ...BASIC, uuid: live.uuid })).toBe(false);
+  });
+
+  test('treats unset secure as wildcard and mismatched secure as drift', () => {
+    const live: DomainConf = {
+      ...BASIC,
+      firmware: { loader: '/code.fd', secure: true },
+    };
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        firmware: { loader: '/code.fd' },
+      }),
+    ).toBe(true);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        firmware: { loader: '/code.fd', secure: true },
+      }),
+    ).toBe(true);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        firmware: { loader: '/code.fd', secure: false },
+      }),
+    ).toBe(false);
   });
 });
 

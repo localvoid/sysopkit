@@ -141,6 +141,12 @@ export interface DomainUefi {
    * `/var/lib/libvirt/qemu/nvram/<name>_VARS.fd`.
    */
   readonly nvram?: string;
+  /**
+   * Secure boot flag (`<loader secure='yes'|'no'>`). `undefined` omits the
+   * attribute (current behavior) and acts as a wildcard in
+   * `domainConfigMatches`.
+   */
+  readonly secure?: boolean;
 }
 
 /**
@@ -252,6 +258,9 @@ export function serializeDomainXml(domain: DomainConf): string {
     os['loader'] = {
       '@readonly': 'yes',
       '@type': 'pflash',
+      ...(domain.firmware.secure === undefined
+        ? {}
+        : { '@secure': domain.firmware.secure ? 'yes' : 'no' }),
       '#text': domain.firmware.loader,
     };
     const nvram: MutableXmlElement = {
@@ -409,13 +418,22 @@ export function parseDomainXml(xml: string): DomainConf {
     const loader = xmlText(loaderEl);
     if (loader !== undefined) {
       const nvramEl = childElement(osEl, 'nvram');
+      const secureAttr = isXmlElement(loaderEl) ? xmlAttr(loaderEl, 'secure') : undefined;
       firmware = {
         loader,
         ...(isXmlElement(nvramEl) && xmlAttr(nvramEl, 'template') !== undefined
           ? { template: xmlAttr(nvramEl, 'template') as string }
           : {}),
         ...(xmlText(nvramEl) !== undefined ? { nvram: xmlText(nvramEl) as string } : {}),
+        ...(secureAttr === 'yes'
+          ? { secure: true as const }
+          : secureAttr === 'no'
+            ? { secure: false as const }
+            : {}),
       };
+      // Firmware-autoselection markup (os/@firmware='efi', os/<firmware>) is
+      // intentionally dropped here and never emitted by serializeDomainXml:
+      // the explicit loader/nvram pair is sufficient for `virsh define`.
     } else if (xmlAttr(osEl, 'firmware') === 'efi') {
       throw new Error(
         'UEFI domain without an explicit <loader> path is outside the normalized model' +
@@ -675,6 +693,9 @@ function _firmwareMatches(current: 'bios' | DomainUefi, desired: 'bios' | Domain
     return false;
   }
   if (desired.nvram !== undefined && desired.nvram !== current.nvram) {
+    return false;
+  }
+  if (desired.secure !== undefined && desired.secure !== current.secure) {
     return false;
   }
   return true;
