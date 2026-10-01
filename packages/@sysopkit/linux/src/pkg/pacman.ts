@@ -12,7 +12,7 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
-import { diffVersionSnapshots, type VersionChanges } from './snap-diff.js';
+import { diffVersionSnapshots, splitListedUpgrades, type VersionChanges } from './snap-diff.js';
 
 /** Information about an installed package. */
 export interface PackageInfo {
@@ -215,4 +215,113 @@ function _parsePreview(output: string, requested: string[]): string[] {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && wanted.has(line));
+}
+
+/** Options for updating packages with pacman. */
+export interface UpdatePackagesOptions {
+  /**
+   * Package names to update. Omitted or empty means a full system upgrade
+   * (`pacman -Syu`). Scoped updates refresh the databases and upgrade only
+   * installed requested packages (`pacman -Sy --needed`); missing names are
+   * skipped, never installed.
+   */
+  readonly packages?: string[];
+}
+
+/** Packages changed by an update transaction, grouped by change kind. */
+export interface UpdatePackagesResult {
+  /** Packages updated in place. */
+  readonly updated: string[];
+  /** Newly installed packages (dependencies pulled in by the upgrade). */
+  readonly installed: string[];
+  /** Packages removed by the transaction. */
+  readonly removed: string[];
+}
+
+/**
+ * Parses `pacman -Qu` output into names with available upgrades.
+ *
+ * Each row starts with the package name (`name oldver -> newver`); only
+ * that token is read. Blank lines are skipped, as is empty output (no
+ * upgrades available).
+ */
+export function parsePacmanUpgradable(stdout: string): string[] {
+  const names: string[] = [];
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    const name = trimmed.split(/\s+/, 1)[0]!;
+    if (name.length > 0) {
+      names.push(name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Updates packages using pacman.
+ *
+ * With no `packages` (or an empty list) upgrades the whole system
+ * (`pacman -Syu`, databases refreshed as part of the run); otherwise
+ * refreshes the databases and upgrades only the requested packages that
+ * are already installed (`pacman -Sy --needed`, missing names skipped).
+ * Returns the changed package names grouped by change kind and emits a
+ * change event per group. Real transactions are detected by diffing
+ * local-database snapshots. Dry-run previews sync the databases and list
+ * available upgrades via `pacman -Qu` (first-token parsing, no progress
+ * parsing) mapped against the snapshot and scope; newly installed
+ * dependencies and removals need the solver transaction and are not
+ * predicted.
+ */
+export async function updatePackages(
+  options?: UpdatePackagesOptions,
+): Promise<UpdatePackagesResult> {
+  const packages = options?.packages;
+  return task(
+    'pacman upgrade',
+    async (ctx) => {
+      if (packages !== void 0) {
+        if (
+          !Array.isArray(packages) ||
+          packages.some((p) => typeof p !== 'string' || p.length === 0)
+        ) {
+          throw new Error('packages must be an array of package names when provided');
+        }
+      }
+      const scoped = Array.isArray(packages) && packages.length > 0;
+      const before = await getInstalledPackages();
+      const installedNames = new Set(before.map((p) => p.name));
+      if (ctx.dryRun) {
+        await sh('pacman -Sy');
+        const { stdout } = await sh('pacman -Qu');
+        const changes = splitListedUpgrades(
+          parsePacmanUpgradable(stdout),
+          installedNames,
+          scoped ? packages : void 0,
+        );
+        emitPacmanChanges(changes);
+        return changes;
+      }
+      if (Array.isArray(packages) && packages.length > 0) {
+        const targets = packages.filter((p) => installedNames.has(p));
+        if (targets.length === 0) {
+          return { updated: [], installed: [], removed: [] };
+        }
+        await sh(`pacman -Sy --needed --noconfirm ${targets.map($_).join(' ')}`);
+      } else {
+        await sh('pacman -Syu --noconfirm');
+      }
+      const changes = diffVersionSnapshots(before, await getInstalledPackages());
+      emitPacmanChanges(changes);
+      return changes;
+    },
+    {
+      details: () => ({
+        packages: Array.isArray(packages) && packages.length > 0 ? packages.join(' ') : '(all)',
+      }),
+      verbosity: VERBOSITY_TRACE,
+    },
+  );
 }

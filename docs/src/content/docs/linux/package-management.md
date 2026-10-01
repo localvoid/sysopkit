@@ -8,7 +8,12 @@ Manage packages on Debian/Ubuntu (APT), Fedora (DNF5), RHEL (DNF4), Arch Linux (
 ## APT (Debian/Ubuntu)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apt';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/apt';
 ```
 
 ### getInstalledPackages()
@@ -35,6 +40,15 @@ Removes packages using `apt-get remove`. Preserves configuration files. Pass `au
 ```ts
 await removePackages({ packages: ['apache2'] });
 await removePackages({ packages: ['apache2'], autoremove: true });
+```
+
+### updatePackages()
+
+Upgrades packages using `apt-get`. Refreshes the package indexes (`apt-get update`) first, then with no `packages` (or an empty list) upgrades the whole system (`apt-get full-upgrade`, which may install new dependencies and remove obsoleted packages); otherwise upgrades only the named packages (`apt-get install --only-upgrade`, which never installs missing names). Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) and emits a change event per group. Change detection diffs dpkg snapshots before/after the transaction. Dry-run previews list upgradable packages via `apt list --upgradable` and map them against the snapshot and scope (new dependencies and removals are not predicted).
+
+```ts
+const { updated, installed, removed } = await updatePackages();
+await updatePackages({ packages: ['nginx'] });
 ```
 
 ## DNF5 (Fedora)
@@ -148,7 +162,12 @@ import type { DnfMainConf, DnfRepoConf } from '@sysopkit/linux/pkg/dnf4';
 ## Pacman (Arch Linux)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/pacman';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/pacman';
 ```
 
 ### getInstalledPackages()
@@ -177,10 +196,24 @@ await removePackages({ packages: ['nginx'] });
 await removePackages({ packages: ['nginx'], autoremove: true });
 ```
 
+### updatePackages()
+
+Upgrades packages using `pacman`. With no `packages` (or an empty list) upgrades the whole system (`pacman -Syu`, databases refreshed as part of the run); otherwise refreshes the databases and upgrades only the requested packages that are already installed (`pacman -Sy --needed`, missing names skipped, never installed). Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) and emits a change event per group. Change detection diffs local-database snapshots before/after the transaction. Dry-run previews sync the databases and list available upgrades via `pacman -Qu` mapped against the snapshot and scope (new dependencies and removals are not predicted).
+
+```ts
+const { updated, installed, removed } = await updatePackages();
+await updatePackages({ packages: ['nginx'] });
+```
+
 ## APK (Alpine-based)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apk';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/apk';
 ```
 
 ### getInstalledPackages()
@@ -206,6 +239,15 @@ Removes packages using `apk del`. Dependencies that are no longer needed are pur
 
 ```ts
 await removePackages({ packages: ['nano'] });
+```
+
+### updatePackages()
+
+Upgrades packages using `apk`. Refreshes the package indexes (`apk update`) first, then with no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages (plus needed dependencies). Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) and emits a change event per group. Change detection diffs installed-database snapshots before/after the transaction. Dry-run previews list upgradable packages via `apk list --upgradable` (matched against installed names, no version parsing) and map them against the scope (new dependencies and removals are not predicted).
+
+```ts
+const { updated, installed, removed } = await updatePackages();
+await updatePackages({ packages: ['nano'] });
 ```
 
 ## RPM

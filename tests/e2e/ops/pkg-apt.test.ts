@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/apt';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/apt';
 import { trackChanged } from '@sysopkit/test-utils';
 import { onChange, type ChangeEntry } from 'sysopkit';
 import { sh } from 'sysopkit/op/sh';
@@ -108,6 +113,69 @@ describe('pkg/apt (debian)', () => {
           await removePackages({ packages: ['ed'] });
           expect(t.changed).toBe(true);
           expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(true);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'scoped update of a fresh package is a no-op in dry-run',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await sh('apt-get update -qq');
+        await installPackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          const result = await updatePackages({ packages: ['ed'] });
+          expect(result.updated).toEqual([]);
+          expect(result.installed).toEqual([]);
+          expect(result.removed).toEqual([]);
+          expect(t.changed).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'scoped update of a fresh package is a no-op',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await sh('apt-get update -qq');
+        await installPackages({ packages: ['ed'] });
+
+        const t = trackChanged();
+        const result = await updatePackages({ packages: ['ed'] });
+        expect(result.updated).toEqual([]);
+        expect(result.installed).toEqual([]);
+        expect(result.removed).toEqual([]);
+        expect(t.changed).toBe(false);
+      });
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'full update reports grouped changes in dry-run without changing',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await sh('apt-get update -qq');
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const before = await installedNames();
+          const result = await updatePackages();
+          expect(Array.isArray(result.updated)).toBe(true);
+          expect(Array.isArray(result.installed)).toBe(true);
+          expect(Array.isArray(result.removed)).toBe(true);
+          expect([...(await installedNames())].sort()).toEqual([...before].sort());
         },
         { dryRun: true },
       );

@@ -65,6 +65,42 @@ export function splitByPresence(
   return { present: [...present].sort(), absent: [...absent].sort() };
 }
 
+/**
+ * Maps upgrade-candidate names onto change groups using installed names.
+ *
+ * Used for upgrade dry-run previews where candidates come from a manager
+ * listing (e.g. `apt list --upgradable`, `pacman -Qu`) rather than a
+ * version comparison: a candidate that is installed was replaced in place
+ * (`updated`); one that is not is new (`installed`). An optional scope
+ * restricts the result to requested names (full previews pass none).
+ * Removals need the solver transaction and are never predicted.
+ * Results are de-duplicated and sorted for determinism.
+ */
+export function splitListedUpgrades(
+  candidates: readonly string[],
+  installedNames: ReadonlySet<string>,
+  scope?: readonly string[],
+): VersionChanges {
+  const wanted = scope === void 0 ? void 0 : new Set(scope);
+  const updated = new Set<string>();
+  const installed = new Set<string>();
+  for (const name of candidates) {
+    if (wanted !== void 0 && !wanted.has(name)) {
+      continue;
+    }
+    if (installedNames.has(name)) {
+      updated.add(name);
+    } else {
+      installed.add(name);
+    }
+  }
+  return {
+    updated: [...updated].sort(),
+    installed: [...installed].sort(),
+    removed: [],
+  };
+}
+
 interface VersionSlot {
   readonly name: string;
   before: string | undefined;

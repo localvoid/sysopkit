@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { parseApkDb } from '@sysopkit/linux/pkg/apk';
-import { parseDpkgQuery } from '@sysopkit/linux/pkg/apt';
-import { parsePacmanList } from '@sysopkit/linux/pkg/pacman';
+import { parseApkDb, parseApkUpgradable } from '@sysopkit/linux/pkg/apk';
+import { parseAptUpgradable, parseDpkgQuery } from '@sysopkit/linux/pkg/apt';
+import { parsePacmanList, parsePacmanUpgradable } from '@sysopkit/linux/pkg/pacman';
 
 import {
   diffVersionSnapshots,
   splitByPresence,
+  splitListedUpgrades,
 } from '../../../packages/@sysopkit/linux/src/pkg/snap-diff.js';
 
 // Unit scope: snapshot parsing and snapshot diffing only (pure, no
@@ -180,5 +181,107 @@ describe('parseApkDb', () => {
 
   test('returns empty for empty output', () => {
     expect(parseApkDb('')).toEqual([]);
+  });
+});
+
+describe('splitListedUpgrades', () => {
+  const installed = new Set(['bash', 'ed']);
+
+  test('installed candidates land in updated', () => {
+    expect(splitListedUpgrades(['bash', 'ed'], installed)).toEqual({
+      updated: ['bash', 'ed'],
+      installed: [],
+      removed: [],
+    });
+  });
+
+  test('unknown candidates land in installed', () => {
+    expect(splitListedUpgrades(['fresh-pkg'], installed)).toEqual({
+      updated: [],
+      installed: ['fresh-pkg'],
+      removed: [],
+    });
+  });
+
+  test('scope restricts to requested names', () => {
+    expect(splitListedUpgrades(['bash', 'ed'], installed, ['ed'])).toEqual({
+      updated: ['ed'],
+      installed: [],
+      removed: [],
+    });
+  });
+
+  test('empty scope matches nothing', () => {
+    expect(splitListedUpgrades(['bash'], installed, [])).toEqual({
+      updated: [],
+      installed: [],
+      removed: [],
+    });
+  });
+
+  test('removed is never predicted', () => {
+    expect(splitListedUpgrades([], installed).removed).toEqual([]);
+  });
+});
+
+describe('parseAptUpgradable', () => {
+  test('parses name/distro rows by first token', () => {
+    const stdout = [
+      'Listing...',
+      'base-files/stable 13.8+deb13u7 amd64 [upgradable from: 13.8+deb13u6]',
+      'bash/stable 5.2.37-2+b10 amd64 [upgradable from: 5.2.37-2+b9]',
+      'libaudit-common/stable 1:4.0.2-2+deb13u1 all [upgradable from: 1:4.0.2-2]',
+      '',
+    ].join('\n');
+    expect(parseAptUpgradable(stdout)).toEqual(['base-files', 'bash', 'libaudit-common']);
+  });
+
+  test('returns empty for empty output', () => {
+    expect(parseAptUpgradable('')).toEqual([]);
+    expect(parseAptUpgradable('Listing...\n')).toEqual([]);
+  });
+});
+
+describe('parsePacmanUpgradable', () => {
+  test('parses name first tokens', () => {
+    const stdout = [
+      'archlinux-keyring 20260902-1 -> 20260909-1',
+      'ca-certificates-mozilla 3.128-1 -> 3.129-1',
+      '',
+    ].join('\n');
+    expect(parsePacmanUpgradable(stdout)).toEqual(['archlinux-keyring', 'ca-certificates-mozilla']);
+  });
+
+  test('returns empty for empty output', () => {
+    expect(parsePacmanUpgradable('')).toEqual([]);
+  });
+});
+
+describe('parseApkUpgradable', () => {
+  const installed = ['busybox', 'ca-bundle', 'nano', 'nano-doc'];
+
+  test('matches tokens to installed names, longest first', () => {
+    const stdout = [
+      'ca-bundle-20260816-r1 noarch {feeds/base/system/ca-certificates} (GPL-2.0-or-later MPL-2.0) [upgradable from: ca-bundle-20260223-r1]',
+      'nano-doc-9.3-r0 noarch {docs} (GPL) [upgradable from: nano-doc-9.2-r1]',
+      '',
+    ].join('\n');
+    expect(parseApkUpgradable(installed, stdout)).toEqual(['ca-bundle', 'nano-doc']);
+  });
+
+  test('shorter prefix does not shadow the longer installed name', () => {
+    const stdout = 'nano-doc-9.3-r0 noarch {docs} (GPL) [upgradable from: nano-doc-9.2-r1]\n';
+    expect(parseApkUpgradable(['nano', 'nano-doc'], stdout)).toEqual(['nano-doc']);
+  });
+
+  test('keeps space-containing names verbatim', () => {
+    const stdout =
+      'apk-mbedtls-3.6.7-r1 x86_64 {feeds/base/libs/mbedtls} (GPL) [upgradable from: apk-mbedtls-3.6.6-r2]\n';
+    expect(parseApkUpgradable(['apk-mbedtls'], stdout)).toEqual(['apk-mbedtls']);
+  });
+
+  test('skips unmatched lines and empty output', () => {
+    expect(parseApkUpgradable(installed, 'WARNING: cache stale\n\n')).toEqual([]);
+    expect(parseApkUpgradable(installed, '')).toEqual([]);
   });
 });

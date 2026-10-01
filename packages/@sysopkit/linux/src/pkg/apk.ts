@@ -16,7 +16,12 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
-import { diffVersionSnapshots, splitByPresence, type VersionChanges } from './snap-diff.js';
+import {
+  diffVersionSnapshots,
+  splitByPresence,
+  splitListedUpgrades,
+  type VersionChanges,
+} from './snap-diff.js';
 
 /** Information about an installed package. */
 export interface PackageInfo {
@@ -197,4 +202,114 @@ function emitApkChanges(changes: VersionChanges): void {
   if (entries.length > 0) {
     emitChanged(entries);
   }
+}
+
+/** Options for updating packages with apk. */
+export interface UpdatePackagesOptions {
+  /**
+   * Package names to update. Omitted or empty means a full system upgrade
+   * (`apk upgrade` with no package arguments).
+   */
+  readonly packages?: string[];
+}
+
+/** Packages changed by an update transaction, grouped by change kind. */
+export interface UpdatePackagesResult {
+  /** Packages updated in place. */
+  readonly updated: string[];
+  /** Newly installed packages (dependencies pulled in by the upgrade). */
+  readonly installed: string[];
+  /** Packages removed by the transaction. */
+  readonly removed: string[];
+}
+
+/**
+ * Parses `apk list --upgradable` output into installed names with available
+ * upgrades.
+ *
+ * Each row starts with a `name-version` token (`nano-9.3-r0 ...`), which
+ * cannot be split reliably (names may contain dashes followed by digits,
+ * e.g. `jshn-...`, and spaces, e.g. `apk-mbedtls`). Instead every token
+ * is matched against installed names, longest first: `list --upgradable`
+ * only reports upgrades for installed packages, so the longest installed
+ * name that prefixes the token (plus `-`) is exactly the upgraded package.
+ * Unmatched lines (warnings, blank rows) are skipped, as is empty output.
+ */
+export function parseApkUpgradable(installedNames: readonly string[], stdout: string): string[] {
+  const byLength = [...installedNames].sort((a, b) => b.length - a.length);
+  const names = new Set<string>();
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    const token = trimmed.split(/\s+/, 1)[0]!;
+    const match = byLength.find((n) => token === n || token.startsWith(`${n}-`));
+    if (match !== void 0) {
+      names.add(match);
+    }
+  }
+  return [...names].sort();
+}
+
+/**
+ * Updates packages using apk.
+ *
+ * Refreshes the package indexes (`apk update`) first, then with no
+ * `packages` (or an empty list) upgrades the whole system; otherwise
+ * upgrades only the named packages (plus needed dependencies). Returns the
+ * changed package names grouped by change kind and emits a change event per
+ * group. Real transactions are detected by diffing installed-database
+ * snapshots. Dry-run previews list upgradable packages via
+ * `apk list --upgradable` (matched against installed names, no version
+ * parsing) and map them against the scope; newly installed dependencies
+ * and removals need the solver transaction and are not predicted.
+ */
+export async function updatePackages(
+  options?: UpdatePackagesOptions,
+): Promise<UpdatePackagesResult> {
+  const packages = options?.packages;
+  return task(
+    'apk upgrade',
+    async (ctx) => {
+      if (packages !== void 0) {
+        if (
+          !Array.isArray(packages) ||
+          packages.some((p) => typeof p !== 'string' || p.length === 0)
+        ) {
+          throw new Error('packages must be an array of package names when provided');
+        }
+      }
+      const scoped = Array.isArray(packages) && packages.length > 0;
+      await sh('apk update');
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { stdout } = await sh('apk list --upgradable');
+        const changes = splitListedUpgrades(
+          parseApkUpgradable(
+            before.map((p) => p.name),
+            stdout,
+          ),
+          new Set(before.map((p) => p.name)),
+          scoped ? packages : void 0,
+        );
+        emitApkChanges(changes);
+        return changes;
+      }
+      if (Array.isArray(packages) && packages.length > 0) {
+        await sh(`apk upgrade ${packages.map($_).join(' ')}`);
+      } else {
+        await sh('apk upgrade');
+      }
+      const changes = diffVersionSnapshots(before, await getInstalledPackages());
+      emitApkChanges(changes);
+      return changes;
+    },
+    {
+      details: () => ({
+        packages: Array.isArray(packages) && packages.length > 0 ? packages.join(' ') : '(all)',
+      }),
+      verbosity: VERBOSITY_TRACE,
+    },
+  );
 }

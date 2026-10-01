@@ -15,7 +15,12 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
-import { diffVersionSnapshots, splitByPresence, type VersionChanges } from './snap-diff.js';
+import {
+  diffVersionSnapshots,
+  splitByPresence,
+  splitListedUpgrades,
+  type VersionChanges,
+} from './snap-diff.js';
 
 /** APT repository entry parsed from sources.list format. */
 export type AptRepo = {
@@ -199,4 +204,107 @@ function emitAptChanges(changes: VersionChanges): void {
   if (entries.length > 0) {
     emitChanged(entries);
   }
+}
+
+/** Options for updating packages with apt-get. */
+export interface UpdatePackagesOptions {
+  /**
+   * Package names to update. Omitted or empty means a full system upgrade
+   * (`apt-get full-upgrade`).
+   */
+  readonly packages?: string[];
+}
+
+/** Packages changed by an update transaction, grouped by change kind. */
+export interface UpdatePackagesResult {
+  /** Packages updated in place. */
+  readonly updated: string[];
+  /** Newly installed packages (dependencies pulled in by the upgrade). */
+  readonly installed: string[];
+  /** Packages removed by the transaction (e.g. obsoleted). */
+  readonly removed: string[];
+}
+
+/**
+ * Parses `apt list --upgradable` output into upgradable package names.
+ *
+ * Each row starts with a `name/distribution` token (`bash/stable ...`);
+ * only that token is read, so translated trailing columns (`[upgradable
+ * from: ...]`) cannot affect parsing. The `Listing...` header has no `/`
+ * in its first token and is skipped by the same rule, as is empty output.
+ */
+export function parseAptUpgradable(stdout: string): string[] {
+  const names: string[] = [];
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    const token = trimmed.split(/\s+/, 1)[0]!;
+    const slash = token.indexOf('/');
+    if (slash > 0) {
+      names.push(token.slice(0, slash));
+    }
+  }
+  return names;
+}
+
+/**
+ * Updates packages using apt-get.
+ *
+ * Refreshes the package indexes (`apt-get update`) first, then with no
+ * `packages` (or an empty list) upgrades the whole system (`apt-get
+ * full-upgrade`, which may install new dependencies and remove obsoleted
+ * packages); otherwise upgrades only the named packages (`apt-get install
+ * --only-upgrade`, which never installs missing names). Returns the changed
+ * package names grouped by change kind and emits a change event per group.
+ * Real transactions are detected by diffing dpkg snapshots. Dry-run
+ * previews list upgradable packages via `apt list --upgradable` (no table
+ * parsing) and map them against the snapshot; newly installed dependencies
+ * and removals need the solver transaction and are not predicted.
+ */
+export async function updatePackages(
+  options?: UpdatePackagesOptions,
+): Promise<UpdatePackagesResult> {
+  const packages = options?.packages;
+  return task(
+    'apt upgrade',
+    async (ctx) => {
+      if (packages !== void 0) {
+        if (
+          !Array.isArray(packages) ||
+          packages.some((p) => typeof p !== 'string' || p.length === 0)
+        ) {
+          throw new Error('packages must be an array of package names when provided');
+        }
+      }
+      const scoped = Array.isArray(packages) && packages.length > 0;
+      await sh('apt-get update');
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { stdout } = await sh('apt list --upgradable');
+        const changes = splitListedUpgrades(
+          parseAptUpgradable(stdout),
+          new Set(before.map((p) => p.name)),
+          scoped ? packages : void 0,
+        );
+        emitAptChanges(changes);
+        return changes;
+      }
+      if (Array.isArray(packages) && packages.length > 0) {
+        await sh(`apt-get install --only-upgrade -y ${packages.map($_).join(' ')}`);
+      } else {
+        await sh('apt-get full-upgrade -y');
+      }
+      const changes = diffVersionSnapshots(before, await getInstalledPackages());
+      emitAptChanges(changes);
+      return changes;
+    },
+    {
+      details: () => ({
+        packages: Array.isArray(packages) && packages.length > 0 ? packages.join(' ') : '(all)',
+      }),
+      verbosity: VERBOSITY_TRACE,
+    },
+  );
 }
