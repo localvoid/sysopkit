@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/dnf4';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/dnf4';
 import { trackChanged } from '@sysopkit/test-utils';
 import { onChange, type ChangeEntry } from 'sysopkit';
 import { sh } from 'sysopkit/op/sh';
@@ -73,6 +78,23 @@ describe('pkg/dnf4 (redhat)', () => {
         for (const n of added) expect(removed).toContain(n);
         const gone = await installedNames();
         for (const n of added) expect(gone.has(n)).toBe(false);
+      });
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'scoped update of an up-to-date package is a no-op',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['ed'] });
+
+        const tracker = trackChanged();
+        const result = await updatePackages({ packages: ['ed'] });
+        expect(result.updated).toEqual([]);
+        expect(result.installed).toEqual([]);
+        expect(result.removed).toEqual([]);
+        expect(tracker.changed).toBe(false);
       });
     },
     { timeout: 300000 },

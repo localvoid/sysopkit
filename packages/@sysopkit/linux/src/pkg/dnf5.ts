@@ -270,6 +270,85 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
+/** Options for updating packages with DNF5. */
+export interface UpdatePackagesOptions {
+  /**
+   * Package names to update. Omitted or empty means a full system upgrade
+   * (`dnf upgrade` with no package arguments).
+   */
+  readonly packages?: string[];
+}
+
+/** Packages changed by an update transaction, grouped by change kind. */
+export interface UpdatePackagesResult {
+  /** Packages updated in place (`Upgrading:` sections). */
+  readonly updated: string[];
+  /**
+   * Newly installed packages (`Installing:` sections). Kernels are
+   * installonly, so a kernel update lands here rather than under updated.
+   */
+  readonly installed: string[];
+  /** Packages removed by the transaction (`Removing:` sections, e.g. obsoleted). */
+  readonly removed: string[];
+}
+
+/**
+ * Updates packages using DNF5.
+ *
+ * With no `packages` (or an empty list) upgrades the whole system
+ * (`dnf upgrade`); otherwise upgrades only the named packages. Returns the
+ * changed package names grouped by change kind so callers can decide
+ * directly (e.g. reboot when `kernel*`, `glibc*`, or `systemd*` were
+ * touched) instead of re-deriving it. Emits change events per group
+ * (`updated` / `installed` / `removed`). In dry-run mode, uses
+ * `--assumeno` to preview changes without applying them.
+ */
+export async function updatePackages(
+  options?: UpdatePackagesOptions,
+): Promise<UpdatePackagesResult> {
+  const packages = options?.packages;
+  return task(
+    'dnf upgrade',
+    async (ctx) => {
+      if (packages !== void 0) {
+        if (
+          !Array.isArray(packages) ||
+          packages.some((p) => typeof p !== 'string' || p.length === 0)
+        ) {
+          throw new Error('packages must be an array of package names when provided');
+        }
+      }
+      const scope = packages && packages.length > 0 ? ` ${packages.map($_).join(' ')}` : '';
+      const { stdout } = await sh(
+        `LANG=en_US.UTF-8 dnf upgrade -q${ctx.dryRun ? ' --assumeno' : ' -y'}${scope}`,
+      );
+      const updated = _parseTable(stdout, UPGRADING_RE);
+      const installed = _parseTable(stdout, INSTALLING_RE);
+      const removed = _parseTable(stdout, REMOVING_RE);
+      const entries = [
+        ...updated.map((p) => ({ type: 'dnf5', resource: p, property: 'state', to: 'updated' })),
+        ...installed.map((p) => ({
+          type: 'dnf5',
+          resource: p,
+          property: 'state',
+          to: 'installed',
+        })),
+        ...removed.map((p) => ({ type: 'dnf5', resource: p, property: 'state', to: 'removed' })),
+      ];
+      if (entries.length > 0) {
+        emitChanged(entries);
+      }
+      return { updated, installed, removed };
+    },
+    {
+      details: () => ({
+        packages: Array.isArray(packages) && packages.length > 0 ? packages.join(' ') : '(all)',
+      }),
+      verbosity: VERBOSITY_TRACE,
+    },
+  );
+}
+
 /**
  * Matches the "Installing:" section in DNF5 output, including the
  * "Installing dependencies:" subsection (DNF5 lists dependencies separately
@@ -282,6 +361,12 @@ const INSTALLING_RE = /Installing(?: dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
  * cleaned on remove by default).
  */
 const REMOVING_RE = /Removing(?: unused dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
+/**
+ * Matches the "Upgrading:" section in DNF5 output, including the
+ * "Upgrading dependencies:" subsection (DNF5 lists dependencies separately
+ * from explicitly requested packages).
+ */
+const UPGRADING_RE = /Upgrading(?: dependencies)?:\n([\s\S]*?)(?=\n\S|$)/g;
 
 /**
  * Parses the multi-column tables from DNF5 output to find packages.

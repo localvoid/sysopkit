@@ -278,6 +278,85 @@ export async function removePackages(options: RemovePackagesOptions): Promise<vo
   );
 }
 
+/** Options for updating packages with DNF4. */
+export interface UpdatePackagesOptions {
+  /**
+   * Package names to update. Omitted or empty means a full system upgrade
+   * (`dnf upgrade` with no package arguments).
+   */
+  readonly packages?: string[];
+}
+
+/** Packages changed by an update transaction, grouped by change kind. */
+export interface UpdatePackagesResult {
+  /** Packages updated in place (`Upgraded:` section). */
+  readonly updated: string[];
+  /**
+   * Newly installed packages (`Installed:` section). Kernels are
+   * installonly, so a kernel update lands here rather than under updated.
+   */
+  readonly installed: string[];
+  /** Packages removed by the transaction (`Removed:` section, e.g. obsoleted). */
+  readonly removed: string[];
+}
+
+/**
+ * Updates packages using DNF4.
+ *
+ * With no `packages` (or an empty list) upgrades the whole system
+ * (`dnf upgrade`); otherwise upgrades only the named packages. Returns the
+ * changed package names grouped by change kind so callers can decide
+ * directly (e.g. reboot when `kernel*`, `glibc*`, or `systemd*` were
+ * touched) instead of re-deriving it. Emits change events per group
+ * (`updated` / `installed` / `removed`). In dry-run mode, uses
+ * `--assumeno` to preview changes without applying them.
+ */
+export async function updatePackages(
+  options?: UpdatePackagesOptions,
+): Promise<UpdatePackagesResult> {
+  const packages = options?.packages;
+  return task(
+    'dnf upgrade',
+    async (ctx) => {
+      if (packages !== void 0) {
+        if (
+          !Array.isArray(packages) ||
+          packages.some((p) => typeof p !== 'string' || p.length === 0)
+        ) {
+          throw new Error('packages must be an array of package names when provided');
+        }
+      }
+      const scope = packages && packages.length > 0 ? ` ${packages.map($_).join(' ')}` : '';
+      const { stdout } = await sh(
+        `LANG=en_US.UTF-8 dnf upgrade -q${ctx.dryRun ? ' --assumeno' : ' -y'}${scope}`,
+      );
+      const updated = _parseTable(stdout, UPGRADED_RE);
+      const installed = _parseTable(stdout, INSTALLING_RE);
+      const removed = _parseTable(stdout, REMOVING_RE);
+      const entries = [
+        ...updated.map((p) => ({ type: 'dnf4', resource: p, property: 'state', to: 'updated' })),
+        ...installed.map((p) => ({
+          type: 'dnf4',
+          resource: p,
+          property: 'state',
+          to: 'installed',
+        })),
+        ...removed.map((p) => ({ type: 'dnf4', resource: p, property: 'state', to: 'removed' })),
+      ];
+      if (entries.length > 0) {
+        emitChanged(entries);
+      }
+      return { updated, installed, removed };
+    },
+    {
+      details: () => ({
+        packages: Array.isArray(packages) && packages.length > 0 ? packages.join(' ') : '(all)',
+      }),
+      verbosity: VERBOSITY_TRACE,
+    },
+  );
+}
+
 /**
  * Matches the "Installed:" section in DNF4 output.
  */
@@ -286,6 +365,10 @@ const INSTALLING_RE = /Installed:\n([\s\S]*?)(?=\n\S|$)/g;
  * Matches the "Removed:" section in DNF4 output.
  */
 const REMOVING_RE = /Removed:\n([\s\S]*?)(?=\n\S|$)/g;
+/**
+ * Matches the "Upgraded:" section in DNF4 output.
+ */
+const UPGRADED_RE = /Upgraded:\n([\s\S]*?)(?=\n\S|$)/g;
 
 /**
  * Parses the compact single-NEVRA-column tables from DNF4 output to find

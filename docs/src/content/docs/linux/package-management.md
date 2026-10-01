@@ -40,7 +40,12 @@ await removePackages({ packages: ['apache2'], autoremove: true });
 ## DNF5 (Fedora)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/dnf5';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/dnf5';
 ```
 
 ### getInstalledPackages()
@@ -68,6 +73,15 @@ Removes packages using `dnf remove`. Unused dependencies installed for the remov
 await removePackages({ packages: ['httpd'] });
 ```
 
+### updatePackages()
+
+Upgrades packages using `dnf upgrade`. With no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages. Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) — kernels are installonly so a kernel update lands under `installed` — and emits a change event per group. Dry-run aware (`--assumeno` in dry-run mode).
+
+```ts
+const { updated, installed, removed } = await updatePackages();
+await updatePackages({ packages: ['nginx'] });
+```
+
 ### Configuration types
 
 ```ts
@@ -80,7 +94,12 @@ import type { DnfMainConf, DnfRepoConf } from '@sysopkit/linux/pkg/dnf5';
 ## DNF4 (RHEL)
 
 ```ts
-import { getInstalledPackages, installPackages, removePackages } from '@sysopkit/linux/pkg/dnf4';
+import {
+  getInstalledPackages,
+  installPackages,
+  removePackages,
+  updatePackages,
+} from '@sysopkit/linux/pkg/dnf4';
 ```
 
 ### getInstalledPackages()
@@ -106,6 +125,15 @@ Removes packages using `dnf remove`. Unused dependencies installed for the remov
 
 ```ts
 await removePackages({ packages: ['httpd'] });
+```
+
+### updatePackages()
+
+Upgrades packages using `dnf upgrade`. With no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages. Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) — kernels are installonly so a kernel update lands under `installed` — and emits a change event per group. Dry-run aware (`--assumeno` in dry-run mode).
+
+```ts
+const { updated, installed, removed } = await updatePackages();
+await updatePackages({ packages: ['nginx'] });
 ```
 
 ### Configuration types
