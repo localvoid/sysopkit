@@ -1390,7 +1390,7 @@ export async function changeDomainMedia(options: ChangeDomainMediaOptions): Prom
 }
 
 /** A guest interface address entry from `virsh domifaddr`. */
-export interface DomIfAddrEntry {
+export interface DomainIfAddrEntry {
   readonly interface: string;
   readonly mac: string;
   readonly protocol: string;
@@ -1402,7 +1402,7 @@ export interface DomIfAddrEntry {
  * Parses `virsh domifaddr` table output (any `--source`, including `--full`
  * repeat rows).
  */
-export function parseDomIfAddr(output: string): DomIfAddrEntry[] {
+export function parseDomainIfAddr(output: string): DomainIfAddrEntry[] {
   return _parseListTable(output)
     .filter((cols) => cols.length >= 4)
     .map((cols) => ({
@@ -1413,8 +1413,8 @@ export function parseDomIfAddr(output: string): DomIfAddrEntry[] {
     }));
 }
 
-/** Options for `getDomIfAddr()`. */
-export interface DomIfAddrOptions extends DomainOptions {
+/** Options for `getDomainIfAddr()`. */
+export interface DomainIfAddrOptions extends DomainOptions {
   /** Limit output to one interface. */
   readonly interface?: string;
   /** Address source. Defaults to the virsh default (`lease`). */
@@ -1424,7 +1424,7 @@ export interface DomIfAddrOptions extends DomainOptions {
 }
 
 /** Returns guest interface addresses via `virsh domifaddr`. */
-export async function getDomIfAddr(options: DomIfAddrOptions): Promise<DomIfAddrEntry[]> {
+export async function getDomainIfAddr(options: DomainIfAddrOptions): Promise<DomainIfAddrEntry[]> {
   const { name, uri } = options;
   let cmd = `domifaddr ${$_(name)}`;
   if (options.interface !== undefined) {
@@ -1437,5 +1437,5 @@ export async function getDomIfAddr(options: DomIfAddrOptions): Promise<DomIfAddr
     cmd += ` --source ${options.source}`;
   }
   const { stdout } = await sh(_virsh(uri, cmd));
-  return parseDomIfAddr(stdout);
+  return parseDomainIfAddr(stdout);
 }

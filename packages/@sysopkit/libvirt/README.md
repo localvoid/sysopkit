@@ -14,7 +14,7 @@ bun add @sysopkit/libvirt sysopkit
 
 | Module | Import | Highlights |
 | --- | --- | --- |
-| `domain` | `@sysopkit/libvirt/domain` | **Idempotent** `defineDomain` (`DomainConf` incl. `cdrom` devices, or raw `xml`), `undefineDomain` (`removeNvram?`, `snapshotsMetadata?`), `startDomain`, `shutdownDomain`, `destroyDomain`, `setDomainAutostart`, `createSnapshot` (`memspec?`, `diskspecs?`), `revertSnapshot`, `changeDomainMedia` (`eject`/`insert`/`update`); `listDomains`, `listSnapshots`, `snapshotExists`, `getDomain`, `getDomainXml` (`inactive?`), `getDomainInfo`, `getDomIfAddr` |
+| `domain` | `@sysopkit/libvirt/domain` | **Idempotent** `defineDomain` (`DomainConf` incl. `cdrom` devices, or raw `xml`), `undefineDomain` (`removeNvram?`, `snapshotsMetadata?`), `startDomain`, `shutdownDomain`, `destroyDomain`, `setDomainAutostart`, `createSnapshot` (`memspec?`, `diskspecs?`), `revertSnapshot`, `changeDomainMedia` (`eject`/`insert`/`update`); `listDomains`, `listSnapshots`, `snapshotExists`, `getDomain`, `getDomainXml` (`inactive?`), `getDomainInfo`, `getDomainIfAddr` |
 | `network` | `@sysopkit/libvirt/network` | **Idempotent** `defineNetwork`, `undefineNetwork`, `startNetwork`, `destroyNetwork`, `setNetworkAutostart`; `NetworkConf` (`nat`/`isolated`/`bridge`), `serializeNetworkXml`, `parseNetworkXml`, `listNetworks`, `getNetworkInfo` |
 | `storage` | `@sysopkit/libvirt/storage` | **Idempotent** `definePool`, `undefinePool`, `buildPool`, `startPool`, `destroyPool`, `setPoolAutostart`, `createVolume`, `deleteVolume`; `PoolConf` (`dir`), `VolumeConf`, `listPools`, `listVolumes`, `getVolumeInfo` |
 

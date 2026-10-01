@@ -4,7 +4,7 @@ import {
   _snapshotMemspec,
   domainConfigMatches,
   normalizeDomainState,
-  parseDomIfAddr,
+  parseDomainIfAddr,
   parseDomainInfo,
   parseDomainList,
   parseDomainXml,
@@ -569,10 +569,10 @@ describe('parseSnapshotList', () => {
   });
 });
 
-describe('parseDomIfAddr', () => {
+describe('parseDomainIfAddr', () => {
   test('parses domifaddr table with lease and agent rows', () => {
     expect(
-      parseDomIfAddr(
+      parseDomainIfAddr(
         ' Name       MAC address          Protocol     Address\n' +
           ' -------------------------------------------------------------------\n' +
           ' vnet0      52:54:00:11:22:33    ipv4         192.168.122.5/24\n' +

@@ -12,7 +12,7 @@ import {
   revertSnapshot,
   listSnapshots,
   changeDomainMedia,
-  getDomIfAddr,
+  getDomainIfAddr,
   getDomain,
   getDomainXml,
   getDomainInfo,
@@ -63,11 +63,11 @@ await listSnapshots({ name }); // [{ name, creationTime /* raw string */, state 
 
 ```typescript
 await changeDomainMedia({ name, target: 'sda', action: 'eject'|'insert'|'update', source?, live?, config?, force? });
-await getDomIfAddr({ name, interface?, source?: 'lease'|'agent'|'arp', full? });
+await getDomainIfAddr({ name, interface?, source?: 'lease'|'agent'|'arp', full? });
 ```
 
-`live`/`config` default true. `insert`/`update` require `source`, `eject` forbids it (client-side throws); no-op when already ejected or source-identical; throws when no cdrom with `target` exists. `getDomIfAddr` returns `{ interface, mac, protocol, address? }` (`-` → `undefined`); first-IPv4 picking stays caller-side.
+`live`/`config` default true. `insert`/`update` require `source`, `eject` forbids it (client-side throws); no-op when already ejected or source-identical; throws when no cdrom with `target` exists. `getDomainIfAddr` returns `{ interface, mac, protocol, address? }` (`-` → `undefined`); first-IPv4 picking stays caller-side.
 
 ## Pure helpers (unit-testable)
 
-`serializeDomainXml`, `parseDomainXml`, `domainConfigMatches(current, desired)`, `parseDomainList`, `parseDomainInfo`, `parseSnapshotList`, `parseDomIfAddr`, `normalizeDomainState`, `_snapshotMemspec`, `_snapshotDiskspec`. Op command strings are never asserted in tests (see repo `tests/AGENTS.md`); e2e for virsh ops needs a libvirtd host, excluded like other daemon ops.
+`serializeDomainXml`, `parseDomainXml`, `domainConfigMatches(current, desired)`, `parseDomainList`, `parseDomainInfo`, `parseSnapshotList`, `parseDomainIfAddr`, `normalizeDomainState`, `_snapshotMemspec`, `_snapshotDiskspec`. Op command strings are never asserted in tests (see repo `tests/AGENTS.md`); e2e for virsh ops needs a libvirtd host, excluded like other daemon ops.

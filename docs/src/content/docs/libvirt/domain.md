@@ -11,7 +11,7 @@ import {
   changeDomainMedia,
   defineDomain,
   destroyDomain,
-  getDomIfAddr,
+  getDomainIfAddr,
   getDomain,
   getDomainInfo,
   listDomains,
@@ -150,9 +150,9 @@ const info = await getDomainInfo({ name: 'guest' });
 // { id, state, vcpus, maxMemoryMiB, memoryMiB, persistent, autostart }
 
 const xml = await getDomainXml({ name: 'guest', inactive: true }); // persistent config
-const addrs = await getDomIfAddr({ name: 'guest' }); // lease source by default
+const addrs = await getDomainIfAddr({ name: 'guest' }); // lease source by default
 // [{ interface: 'vnet0', mac: '52:54:00:..', protocol: 'ipv4', address: '192.168.122.5/24' }, ...]
-const agentAddrs = await getDomIfAddr({ name: 'guest', source: 'agent' });
+const agentAddrs = await getDomainIfAddr({ name: 'guest', source: 'agent' });
 ```
 
 All operations accept an optional connection URI (`{ uri: 'qemu:///system' }`). When omitted, the virsh default connection is used.
@@ -167,4 +167,4 @@ import { domainConfigMatches, parseDomainXml, serializeDomainXml } from '@sysopk
 - `serializeDomainXml(conf)` / `parseDomainXml(xml)` — build and read domain XML; `parseDomainXml` keeps only the modeled subset.
 - `domainConfigMatches(current, desired)` — the drift check used by `defineDomain()`.
 - `parseDomainList(output)` / `parseDomainInfo(output)` — parse `virsh list` / `dominfo` output.
-- `parseSnapshotList(output)` / `parseDomIfAddr(output)` — parse `virsh snapshot-list` / `domifaddr` output.
+- `parseSnapshotList(output)` / `parseDomainIfAddr(output)` — parse `virsh snapshot-list` / `domifaddr` output.
