@@ -100,5 +100,5 @@ Rules that always apply:
 - `sysopkit/middleware/sudo`, `sysopkit/middleware/trace`, `sysopkit/middleware/expect`, `sysopkit/middleware/transform-cmd`, `sysopkit/middleware/chroot` — wrappers
 - `sysopkit/op/exec`, `sysopkit/op/sh`, `sysopkit/op/bash`, `sysopkit/op/file`, `sysopkit/op/temp`, `sysopkit/op/users`, `sysopkit/op/rsync`, `sysopkit/op/tar`, `sysopkit/op/curl`, `sysopkit/op/ini`, `sysopkit/op/mount`, `sysopkit/op/proc`, `sysopkit/op/net`, `sysopkit/op/netcat`, `sysopkit/op/ssh`, `sysopkit/op/which` — core ops
 - `@sysopkit/linux/pkg/*`, `@sysopkit/linux/systemd`, `@sysopkit/linux/sysctl`, `@sysopkit/linux/sudoers`, `@sysopkit/linux/limits`, `@sysopkit/linux/os`, `@sysopkit/linux/disk`, `@sysopkit/linux/cpu`, `@sysopkit/linux/mem`, `@sysopkit/linux/kernel`, `@sysopkit/linux/tuned`, `@sysopkit/linux/fwupd`, `@sysopkit/linux/iwd` — Linux ops
-- `@sysopkit/libvirt/domain`, `@sysopkit/libvirt/network`, `@sysopkit/libvirt/storage`, `@sysopkit/libvirt/xml` — libvirt ops (Bun-only), see the `sysopkit-libvirt` skill
+- `@sysopkit/libvirt/domain`, `@sysopkit/libvirt/network`, `@sysopkit/libvirt/storage` — libvirt ops (Bun-only), see the `sysopkit-libvirt` skill
 - OpenWrt UCI — see the `sysopkit-openwrt` skill

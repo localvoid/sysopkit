@@ -4,8 +4,8 @@
  * Libvirt virtual network management with a normalized TypeScript API.
  *
  * Define networks with `NetworkConf` instead of hand-writing XML; `virsh`
- * remains the transport and `Bun.XML` (see `@sysopkit/libvirt/xml`) handles
- * XML, so this module only runs on the Bun runtime.
+ * remains the transport and `Bun.XML` (via the internal `./xml.js` helpers)
+ * handles XML, so this module only runs on the Bun runtime.
  *
  * Networks with options outside the normalized model (static DHCP host
  * entries, DNS forwarders, portgroups, ...) can still be managed through the

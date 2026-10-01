@@ -5,9 +5,9 @@
  * API.
  *
  * Define pools with `PoolConf` and volumes with `VolumeConf` instead of
- * hand-writing XML; `virsh` remains the transport and `Bun.XML` (see
- * `@sysopkit/libvirt/xml`) handles XML, so this module only runs on the Bun
- * runtime.
+ * hand-writing XML; `virsh` remains the transport and `Bun.XML` (via the
+ * internal `./xml.js` helpers) handles XML, so this module only runs on the
+ * Bun runtime.
  *
  * Only `dir` pools are modeled in this version; other pool types can still
  * be managed through the raw XML path of `definePool()` (`{ name, xml }`),

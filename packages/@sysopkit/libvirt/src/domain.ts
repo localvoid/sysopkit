@@ -5,8 +5,8 @@
  * API.
  *
  * Define guests with `DomainConf` instead of hand-writing XML; `virsh`
- * remains the transport and `Bun.XML` (see `@sysopkit/libvirt/xml`) handles
- * XML, so this module only runs on the Bun runtime.
+ * remains the transport and `Bun.XML` (via the internal `./xml.js` helpers)
+ * handles XML, so this module only runs on the Bun runtime.
  *
  * Domains with devices outside the normalized model (host PCI passthrough,
  * TPM, NUMA tuning, ...) can still be managed through the raw XML path of

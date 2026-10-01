@@ -1,6 +1,6 @@
 ---
 name: sysopkit-libvirt
-description: Libvirt virtualization with sysopkit. Use when defining or managing KVM domains, virtual networks, storage pools/volumes, snapshots, or cdrom media — normalized DomainConf/NetworkConf/PoolConf/VolumeConf types, virsh define/lifecycle ops, Bun.XML parsing. Requires the sysopkit skill for execution model, connectors, and apply().
+description: Libvirt virtualization with sysopkit. Use when defining or managing KVM domains, virtual networks, storage pools/volumes, snapshots, or cdrom media — normalized DomainConf/NetworkConf/PoolConf/VolumeConf types, virsh define/lifecycle ops. Requires the sysopkit skill for execution model, connectors, and apply().
 ---
 
 # SysopKit Libvirt
@@ -30,7 +30,6 @@ Rules that always apply:
 | Domains: `DomainConf`, define/lifecycle/autostart, snapshots, cdrom media, `domifaddr`, inactive XML | [domain.md](domain.md) |
 | Networks: `NetworkConf` (`nat`/`isolated`/`bridge`), define/lifecycle/autostart | [network.md](network.md) |
 | Pools (`dir`) and volumes: define/build/start, create/delete | [storage.md](storage.md) |
-| `Bun.XML` compact-shape helpers (`parseXmlDocument`, `asArray`, `childText`) | [xml.md](xml.md) |
 
 ## Pitfalls
 

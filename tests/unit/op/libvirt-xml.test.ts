@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+
 import {
   asArray,
   childElement,
@@ -8,7 +9,7 @@ import {
   stringifyXmlDocument,
   xmlAttr,
   xmlText,
-} from '@sysopkit/libvirt/xml';
+} from '../../../packages/@sysopkit/libvirt/src/xml.js';
 
 describe('parseXmlDocument', () => {
   test('parses attributes, text, and nested elements', () => {

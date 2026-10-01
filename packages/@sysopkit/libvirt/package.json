@@ -36,11 +36,6 @@
       "bun": "./src/storage.ts",
       "types": "./dist/storage.d.ts",
       "default": "./dist/storage.js"
-    },
-    "./xml": {
-      "bun": "./src/xml.ts",
-      "types": "./dist/xml.d.ts",
-      "default": "./dist/xml.js"
     }
   },
   "devDependencies": {

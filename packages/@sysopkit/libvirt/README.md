@@ -14,7 +14,6 @@ bun add @sysopkit/libvirt sysopkit
 
 | Module | Import | Highlights |
 | --- | --- | --- |
-| `xml` | `@sysopkit/libvirt/xml` | `parseXmlDocument`, `stringifyXmlDocument`, `asArray`, `childText`, `xmlAttr` — compact-shape `Bun.XML` helpers |
 | `domain` | `@sysopkit/libvirt/domain` | **Idempotent** `defineDomain` (`DomainConf` incl. `cdrom` devices, or raw `xml`), `undefineDomain` (`removeNvram?`, `snapshotsMetadata?`), `startDomain`, `shutdownDomain`, `destroyDomain`, `setDomainAutostart`, `createSnapshot` (`memspec?`, `diskspecs?`), `revertSnapshot`, `changeDomainMedia` (`eject`/`insert`/`update`); `listDomains`, `listSnapshots`, `snapshotExists`, `getDomain`, `getDomainXml` (`inactive?`), `getDomainInfo`, `getDomIfAddr` |
 | `network` | `@sysopkit/libvirt/network` | **Idempotent** `defineNetwork`, `undefineNetwork`, `startNetwork`, `destroyNetwork`, `setNetworkAutostart`; `NetworkConf` (`nat`/`isolated`/`bridge`), `serializeNetworkXml`, `parseNetworkXml`, `listNetworks`, `getNetworkInfo` |
 | `storage` | `@sysopkit/libvirt/storage` | **Idempotent** `definePool`, `undefinePool`, `buildPool`, `startPool`, `destroyPool`, `setPoolAutostart`, `createVolume`, `deleteVolume`; `PoolConf` (`dir`), `VolumeConf`, `listPools`, `listVolumes`, `getVolumeInfo` |

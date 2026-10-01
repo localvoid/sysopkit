@@ -149,7 +149,7 @@ export default defineConfig({
         {
           label: 'Virtualization',
           collapsed: true,
-          items: ['libvirt/domain', 'libvirt/network', 'libvirt/storage', 'libvirt/xml'],
+          items: ['libvirt/domain', 'libvirt/network', 'libvirt/storage'],
         },
         {
           label: 'Reference',

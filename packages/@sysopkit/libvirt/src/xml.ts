@@ -1,11 +1,9 @@
 /**
- * @module xml
- *
  * Bun-native XML helpers for libvirt document handling.
  *
- * Parsing and serialization delegate to `Bun.XML.parse` /
- * `Bun.XML.stringify`, so this module (and the whole package) only runs on
- * the Bun runtime.
+ * This module is internal (not exported from the package): parsing and
+ * serialization delegate to `Bun.XML.parse` / `Bun.XML.stringify`, so this
+ * module (and the whole package) only runs on the Bun runtime.
  *
  * `Bun.XML` uses the compact shape by default: attributes are `@name` keys,
  * character data is the `#text` key (or a bare string when the element has
