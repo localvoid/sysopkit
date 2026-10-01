@@ -20,6 +20,7 @@ interface Connector extends AsyncDisposable {
   readonly vars: Record<string | symbol, any> | undefined;
   readonly rsh: string[];
   connect(signal?: AbortSignal): Promise<void>;
+  isReady(signal?: AbortSignal): Promise<boolean>; // always true here
   spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
 }
 ```

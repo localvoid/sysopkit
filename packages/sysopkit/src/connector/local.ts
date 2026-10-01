@@ -13,6 +13,11 @@ export class LocalConnector extends ConnectorBase {
     return LOCAL_RSH;
   }
 
+  // Local execution needs no probe; inherit `isReady()` returning true.
+  override isReady(_signal?: AbortSignal): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+
   async spawn(cmd: string[], signal?: AbortSignal): Promise<Process> {
     return processSpawn(cmd, signal);
   }

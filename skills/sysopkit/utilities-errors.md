@@ -1,7 +1,15 @@
 # Utilities and errors
 
 ```typescript
-import { retry, timeout, sleep, TimeoutError, AbortError, isAbortError } from 'sysopkit';
+import {
+  retry,
+  timeout,
+  sleep,
+  waitForReady,
+  TimeoutError,
+  AbortError,
+  isAbortError,
+} from 'sysopkit';
 import { exec } from 'sysopkit/op/exec';
 import { sh, ShellError } from 'sysopkit/op/sh';
 ```
@@ -37,6 +45,17 @@ await sleep(5000); // rejects with signal.reason on cancellation
 ```
 
 Requires ambient context (throws outside `start()`). Checks `signal.throwIfAborted()` upfront, removes its abort listener after firing. Use for polling loops instead of `Bun.sleep` so cancellation propagates.
+
+## waitForReady
+
+```typescript
+import { waitForReady } from 'sysopkit';
+import { SSHConnector } from 'sysopkit/connector/ssh';
+await waitForReady(new SSHConnector({ host: '10.0.1.1' }),
+  { timeoutMs?: 5 * 60_000, intervalMs?: 5_000, signal? });
+```
+
+Polls the connector's side-effect-free `isReady()` until true (takes a live instance, not a factory). Runs its own `task()` frame, so validation failures report against it. Throws `TimeoutError` carrying host + budget on burn; aborts propagate unchanged (never converted to `TimeoutError`). Local is always ready; podman checks `running`; SSH runs a multiplex-free `ssh <host> exit` probe.
 
 ## Error hierarchy
 

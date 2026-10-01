@@ -15,6 +15,7 @@ export interface ConnectorOptions {
  *
  * - `rsh`: command prefix array prepended to spawned commands (e.g. `["ssh", "host", "--"]`); empty for local execution
  * - `connect()`: establish the transport (no-op for local)
+ * - `isReady()`: side-effect-free readiness probe used by `waitForReady()`; must not allocate resources or mutate connection state
  * - `spawn()`: run a command and return a `Process` handle
  */
 export interface Connector extends AsyncDisposable {
@@ -25,14 +26,17 @@ export interface Connector extends AsyncDisposable {
 
   connect(signal?: AbortSignal): Promise<void>;
 
+  isReady(signal?: AbortSignal): Promise<boolean>;
+
   spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
 }
 
 /**
  * Base class that implements the common parts of the Connector interface.
  *
- * Subclasses must implement `rsh` and `spawn()`. The default `connect()` and
- * `[Symbol.asyncDispose]()` are no-ops, suitable for local execution.
+ * Subclasses must implement `rsh` and `spawn()`. The default `connect()`,
+ * `isReady()`, and `[Symbol.asyncDispose]()` are no-ops, suitable for local
+ * execution (`isReady()` returns `true` — no probe needed).
  */
 export abstract class ConnectorBase implements Connector, AsyncDisposable {
   readonly host: string;
@@ -53,6 +57,11 @@ export abstract class ConnectorBase implements Connector, AsyncDisposable {
   // No-op by default; override for transports that need setup (e.g. SSH)
   connect(_signal?: AbortSignal): Promise<void> {
     return Promise.resolve();
+  }
+
+  // Ready by default; override for transports with a meaningful readiness probe (e.g. SSH, Podman)
+  isReady(_signal?: AbortSignal): Promise<boolean> {
+    return Promise.resolve(true);
   }
 
   abstract spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;

@@ -3,7 +3,7 @@ title: Connectors
 description: Transport layer for command execution — local, SSH, and Podman.
 ---
 
-Connectors abstract how commands reach a target system. Every connector implements `connect()`, `spawn()`, and `[Symbol.asyncDispose]()`.
+Connectors abstract how commands reach a target system. Every connector implements `connect()`, `isReady()`, `spawn()`, and `[Symbol.asyncDispose]()`.
 
 ## Connector Interface
 
@@ -14,6 +14,7 @@ interface Connector extends AsyncDisposable {
   readonly vars: Record<string | symbol, any> | undefined;
   readonly rsh: string[]; // command prefix for remote execution
   connect(signal?: AbortSignal): Promise<void>;
+  isReady(signal?: AbortSignal): Promise<boolean>; // side-effect-free probe for waitForReady()
   spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
   [Symbol.asyncDispose](): Promise<void>;
 }
@@ -64,6 +65,18 @@ await using c = new SSHConnector({
 ```
 
 The SSH connector builds a ControlMaster socket for multiplexing, validates the connection on `connect()`, and cleans up the control socket on dispose.
+
+## Waiting for readiness
+
+`waitForReady(conn)` polls the side-effect-free `isReady()` probe until the target accepts connections — useful for boot/wait flows. It takes a live connector instance:
+
+```ts
+import { waitForReady } from 'sysopkit';
+import { SSHConnector } from 'sysopkit/connector/ssh';
+
+await waitForReady(new SSHConnector({ host: '192.168.1.1' }));
+// opts: { timeoutMs = 5*60_000, intervalMs = 5_000, signal }
+```
 
 ## PodmanConnector
 

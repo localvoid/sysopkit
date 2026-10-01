@@ -1,5 +1,5 @@
 import { type Connector, ConnectorBase, type ConnectorOptions } from '../core/connector.js';
-import { ConnectorError } from '../core/errors.js';
+import { ConnectorError, isAbortError } from '../core/errors.js';
 import { type Process, processExec, processSpawn } from '../utils/process.js';
 
 /** Options for creating a podman connector. */
@@ -37,6 +37,30 @@ export class PodmanConnector extends ConnectorBase {
       );
     }
     this.verified = true;
+  }
+
+  /**
+   * Side-effect-free readiness probe: `true` when the container state is
+   * `running`, `false` otherwise (missing/stopped container, inspect error).
+   * Throws only on abort.
+   */
+  override async isReady(signal?: AbortSignal): Promise<boolean> {
+    signal?.throwIfAborted();
+    try {
+      const { exitCode, stdout } = await processExec(
+        ['podman', 'inspect', this.host, '--format', '{{.State.Status}}'],
+        { signal },
+      );
+      if (exitCode !== 0) {
+        return false;
+      }
+      return (stdout.trim() || null) === 'running';
+    } catch (e) {
+      if (isAbortError(e) || signal?.aborted === true) {
+        throw e;
+      }
+      return false;
+    }
   }
 
   async spawn(cmd: string[], signal?: AbortSignal): Promise<Process> {

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { text } from 'node:stream/consumers';
 
 import { ConnectorBase, type ConnectorOptions } from '../core/connector.js';
-import { ConnectorError } from '../core/errors.js';
+import { ConnectorError, isAbortError } from '../core/errors.js';
 import { type Process, processSpawn } from '../utils/process.js';
 import { $_ } from '../utils/shell.js';
 
@@ -100,23 +100,7 @@ export class SSHConnector extends ConnectorBase {
     if (this._rsh !== void 0) {
       return this._rsh;
     }
-    const rsh = [
-      'ssh',
-      '-l',
-      this.user,
-      '-o',
-      'LogLevel=ERROR',
-      '-o',
-      `ConnectTimeout=${this.timeout}`,
-    ];
-    if (this.password) {
-      rsh.push('-o', 'NumberOfPasswordPrompts=1');
-    } else {
-      rsh.push('-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes');
-    }
-    if (this.strictHostKeyChecking === false) {
-      rsh.push('-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null');
-    }
+    const rsh = this.buildProbeArgs('ERROR', this.timeout);
     if (this.controlPath) {
       rsh.push(
         '-o',
@@ -135,6 +119,33 @@ export class SSHConnector extends ConnectorBase {
     }
     this._rsh = rsh;
     return rsh;
+  }
+
+  /**
+   * Shared ssh argument prefix (no multiplexing): `ssh -l <user>`
+   * with `LogLevel`, `ConnectTimeout`, auth mode, and host-key options.
+   * Callers append multiplex options (connect only), `-p`/`-i`, target,
+   * and remote command.
+   */
+  private buildProbeArgs(logLevel: 'ERROR' | 'VERBOSE', connectTimeout: number): string[] {
+    const probe = [
+      'ssh',
+      '-l',
+      this.user,
+      '-o',
+      `LogLevel=${logLevel}`,
+      '-o',
+      `ConnectTimeout=${connectTimeout}`,
+    ];
+    if (this.password) {
+      probe.push('-o', 'NumberOfPasswordPrompts=1');
+    } else {
+      probe.push('-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes');
+    }
+    if (this.strictHostKeyChecking === false) {
+      probe.push('-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null');
+    }
+    return probe;
   }
 
   override async connect(signal?: AbortSignal): Promise<void> {
@@ -168,46 +179,107 @@ export class SSHConnector extends ConnectorBase {
           throw this.connectionError;
         }
       }
-      this.tmpPath = await mkdtemp(join(tmpdir(), `sysopkit-ssh-${this.host}_`));
-      if (this.controlMaster) {
-        this.controlPath = join(this.tmpPath, 'connection');
+      // Drop state from a previous failed attempt so retry allocates a
+      // fresh tmpdir/ControlPath instead of leaking the old one.
+      this._rsh = void 0;
+      this.connectionError = void 0;
+      try {
+        this.tmpPath = await mkdtemp(join(tmpdir(), `sysopkit-ssh-${this.host}_`));
+        if (this.controlMaster) {
+          this.controlPath = join(this.tmpPath, 'connection');
+        }
+        // Recompute with the fresh ControlPath (not a stale cached one).
+        this._rsh = void 0;
+
+        if (this.password) {
+          const askpassPath = join(this.tmpPath, 'askpass.sh');
+          await writeFile(askpassPath, `#!/bin/sh\necho $SYSOPKIT_SSH_PASSWORD\n`);
+          await chmod(askpassPath, 0o700);
+          this.env = {
+            ...this.env,
+            SSH_ASKPASS: askpassPath,
+            SSH_ASKPASS_REQUIRE: 'force',
+            SYSOPKIT_SSH_PASSWORD: this.password,
+          };
+        }
+
+        const proc = processSpawn([...this.rsh, this.host, 'exit'], signal, this.env);
+        const [exitCode, _stdout, stderr] = await Promise.all([
+          proc.exited,
+          text(proc.stdout),
+          text(proc.stderr),
+        ]);
+
+        if (exitCode === 0) {
+          this.connected = true;
+        } else {
+          // Always capture a verbose retry: some OpenSSH versions suppress
+          // auth diagnostics (e.g. key rejection) at LogLevel=ERROR, which
+          // otherwise surfaces as a blank exit-255 failure.
+          const verbose = await this.verboseDiagnosis(signal);
+          const detail = [stderr.trim(), verbose.trim()]
+            .filter((part) => part.length > 0)
+            .join('\n');
+          this.connectionError = new ConnectorError(
+            `SSH connection '${this.user}@${this.host}' connect failed with exit code '${exitCode}'.${detail ? `\n${detail}` : ''}`,
+            this,
+          );
+        }
+      } catch (e) {
+        if (isAbortError(e) || signal?.aborted === true) {
+          await this.cleanupTmp();
+          throw e;
+        }
+        if (this.connectionError === void 0) {
+          const msg = e instanceof Error ? e.message : String(e);
+          this.connectionError = new ConnectorError(
+            `SSH connection '${this.user}@${this.host}' connect failed: ${msg}`,
+            this,
+          );
+        }
       }
-
-      if (this.password) {
-        const askpassPath = join(this.tmpPath, 'askpass.sh');
-        await writeFile(askpassPath, `#!/bin/sh\necho $SYSOPKIT_SSH_PASSWORD\n`);
-        await chmod(askpassPath, 0o700);
-        this.env = {
-          ...this.env,
-          SSH_ASKPASS: askpassPath,
-          SSH_ASKPASS_REQUIRE: 'force',
-          SYSOPKIT_SSH_PASSWORD: this.password,
-        };
-      }
-
-      const proc = processSpawn([...this.rsh, this.host, 'exit'], signal, this.env);
-      const [exitCode, _stdout, stderr] = await Promise.all([
-        proc.exited,
-        text(proc.stdout),
-        text(proc.stderr),
-      ]);
-
-      if (exitCode === 0) {
-        this.connected = true;
-      } else {
-        // Always capture a verbose retry: some OpenSSH versions suppress
-        // auth diagnostics (e.g. key rejection) at LogLevel=ERROR, which
-        // otherwise surfaces as a blank exit-255 failure.
-        const verbose = await this.verboseDiagnosis(signal);
-        const detail = [stderr.trim(), verbose.trim()].filter((part) => part.length > 0).join('\n');
-        this.connectionError = new ConnectorError(
-          `SSH connection '${this.user}@${this.host}' connect failed with exit code '${exitCode}'.${detail ? `\n${detail}` : ''}`,
-          this,
-        );
+      if (this.connectionError !== void 0) {
+        await this.cleanupTmp();
       }
     }
     if (this.connectionError) {
       throw this.connectionError;
+    }
+  }
+
+  /**
+   * Side-effect-free readiness probe: multiplex-free `ssh <host> exit`
+   * with a short `ConnectTimeout`. Allocates no tmpdir, mutates no
+   * connection state (`connected`, `connectionError`, `tmpPath`,
+   * `controlPath`, `_rsh`). Returns `false` on non-zero exit/auth
+   * failure or spawn errors; throws only on abort/misuse.
+   */
+  override async isReady(signal?: AbortSignal): Promise<boolean> {
+    signal?.throwIfAborted();
+    if (this.host.length === 0) {
+      throw new ConnectorError('SSH isReady: refusing: host is empty.', this);
+    }
+    const probeTimeout = Math.max(1, Math.min(this.timeout, 5));
+    const probe = this.buildProbeArgs('ERROR', probeTimeout);
+    if (this.port !== 22) {
+      probe.push('-p', String(this.port));
+    }
+    if (this.key) {
+      probe.push('-i', this.key);
+    }
+    try {
+      const proc = processSpawn([...probe, this.host, 'exit'], signal, this.env);
+      const [exitCode, _stdout, _stderr] = await Promise.all([
+        proc.exited,
+        text(proc.stdout),
+        text(proc.stderr),
+      ]);
+      return exitCode === 0;
+    } catch (e) {
+      if (isAbortError(e) || signal?.aborted === true) {
+        throw e;
+      }
+      return false;
     }
   }
 
@@ -222,23 +294,7 @@ export class SSHConnector extends ConnectorBase {
    * as a blank exit-255 failure.
    */
   private async verboseDiagnosis(signal?: AbortSignal): Promise<string> {
-    const probe = [
-      'ssh',
-      '-l',
-      this.user,
-      '-o',
-      'LogLevel=VERBOSE',
-      '-o',
-      `ConnectTimeout=${this.timeout}`,
-    ];
-    if (this.password) {
-      probe.push('-o', 'NumberOfPasswordPrompts=1');
-    } else {
-      probe.push('-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes');
-    }
-    if (this.strictHostKeyChecking === false) {
-      probe.push('-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null');
-    }
+    const probe = this.buildProbeArgs('VERBOSE', this.timeout);
     if (this.port !== 22) {
       probe.push('-p', String(this.port));
     }
@@ -256,6 +312,29 @@ export class SSHConnector extends ConnectorBase {
       return trimmed ? `\n[verbose retry exit ${verboseExit}]\n${trimmed}` : '';
     } catch {
       return '';
+    }
+  }
+
+  /**
+   * Remove the per-attempt tmpdir and drop multiplex state so a manual
+   * retry allocates fresh resources instead of leaking the old ones.
+   * Keeps `connectionError` for the caller to throw.
+   */
+  private async cleanupTmp(): Promise<void> {
+    if (this.tmpPath !== void 0) {
+      try {
+        await rm(this.tmpPath, RECURSIVE_TRUE);
+      } catch {}
+      this.tmpPath = void 0;
+    }
+    this.controlPath = void 0;
+    this._rsh = void 0;
+    if ('SSH_ASKPASS' in this.env || 'SYSOPKIT_SSH_PASSWORD' in this.env) {
+      const { SSH_ASKPASS, SSH_ASKPASS_REQUIRE, SYSOPKIT_SSH_PASSWORD, ...rest } = this.env;
+      void SSH_ASKPASS;
+      void SSH_ASKPASS_REQUIRE;
+      void SYSOPKIT_SSH_PASSWORD;
+      this.env = rest;
     }
   }
 

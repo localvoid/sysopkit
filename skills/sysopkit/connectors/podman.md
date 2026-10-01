@@ -12,6 +12,7 @@ await using pod = new PodmanConnector({ host: 'my-app' });
 Selected by the `pod:` inventory prefix (`pod:postgres` → container `postgres`). Executes via `podman exec -i <host> …cmd` on the control plane's podman.
 
 - `connect()` runs `podman inspect --format '{{.State.Status}}'` once (cached `verified` flag) and requires `running`, else `ConnectorError`. No dispose work, but still use `await using` for uniformity.
+- `isReady()` is the side-effect-free form of the same check (`true` iff `running`, `false` otherwise, throws only on abort) — what `waitForReady()` polls.
 - `-i` keeps stdin open (needed by the sudo/expect middlewares).
 - `rsh` is `['podman', 'exec', '-i']`. `rsync` builds `host:path` endpoints for SSH-style transports, so it does not work over podman `rsh` — use `sh`/`tar` instead of `rsync` for container file transfer.
 

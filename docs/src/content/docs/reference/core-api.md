@@ -12,6 +12,7 @@ interface Connector extends AsyncDisposable {
   readonly vars: Record<string | symbol, any> | undefined;
   readonly rsh: string[];
   connect(signal?: AbortSignal): Promise<void>;
+  isReady(signal?: AbortSignal): Promise<boolean>;
   spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
   [Symbol.asyncDispose](): Promise<void>;
 }
@@ -29,6 +30,7 @@ abstract class ConnectorBase implements Connector {
   abstract get rsh(): string[];
   abstract spawn(cmd: string[], signal?: AbortSignal): Promise<Process>;
   connect(signal?: AbortSignal): Promise<void>; // no-op by default
+  isReady(signal?: AbortSignal): Promise<boolean>; // true by default
   [Symbol.asyncDispose](): Promise<void>; // no-op by default
 }
 ```

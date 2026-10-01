@@ -33,6 +33,10 @@ export abstract class ConnectorMiddleware implements Connector {
     return this.next.connect(signal);
   }
 
+  isReady(signal?: AbortSignal): Promise<boolean> {
+    return this.next.isReady(signal);
+  }
+
   spawn(cmd: string[], signal?: AbortSignal): Promise<Process> {
     return this.next.spawn(cmd, signal);
   }

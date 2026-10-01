@@ -48,14 +48,21 @@ Each context inherits from its parent:
 The `Connector` interface abstracts command transport to a target system. Every connector implements:
 
 - `connect(signal?)`: Establish the transport connection
+- `isReady(signal?)`: Side-effect-free readiness probe (no resource allocation, no connection-state mutation); used by `waitForReady()`
 - `spawn(cmd[], signal?)`: Execute a command and return a `Process` handle
 - `[Symbol.asyncDispose]()`: Clean up resources
 
 ### Implementations
 
-- `LocalConnector` - Direct process spawn
-- `SSHConnector` - SSH with ControlMaster
-- `PodmanConnector` - `podman exec`
+- `LocalConnector` - Direct process spawn (`isReady()` always true)
+- `SSHConnector` - SSH with ControlMaster (multiplex-free `ssh <host> exit` probe with short `ConnectTimeout`)
+- `PodmanConnector` - `podman exec` (`isReady()` checks `State.Status === 'running'`)
+
+`waitForReady(conn, { timeoutMs, intervalMs, signal })` polls `isReady()` until true (defaults: 5min budget, 5s interval), throwing `TimeoutError` on budget burn:
+
+```typescript
+await waitForReady(new SSHConnector({ host: '10.0.1.1' }));
+```
 
 ## Middleware
 
@@ -222,6 +229,7 @@ The default reporter provides:
 | `retry(options, fn)` | Configurable retry with fixed/exponential backoff, `retryOn` predicate, abort-aware |
 | `timeout(ms, fn)` | Wraps function with `AbortController`-based timer, throws `TimeoutError` |
 | `sleep(ms)` | Abort-aware delay; rejects with `signal.reason` on cancellation |
+| `waitForReady(conn, opts)` | Polls side-effect-free `isReady()` until true; throws `TimeoutError` on budget burn |
 
 ## Context Variables (Vars)
 

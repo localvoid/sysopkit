@@ -27,6 +27,8 @@ Never call `spawn()` yourself — `apply()` calls `connect()` then runs `fn`. `s
 
 `connect()` creates `mkdtemp(sysopkit-ssh-<host>_)` holding the `connection` socket + `askpass.sh`, and probes with `ssh … host exit`. `rsh` only includes `ControlMaster=auto ControlPath=… ControlPersist=5m` **if `connect()` ran before the first `rsh` read** (the value is cached). Dispose runs `ssh -O exit` (errors swallowed) then `rm -rf` of the tempdir — always `await using`, or sockets leak. Each instance gets its own tempdir/socket; nothing is shared between instances.
 
+Failed `connect()` removes its tmpdir and drops multiplex state, so manual retry allocates fresh resources instead of leaking — a retry after failure can succeed. For boot/wait flows prefer `waitForReady(new SSHConnector({…}))` over retrying `connect()`: `isReady()` is a multiplex-free `ssh <host> exit` probe (short `ConnectTimeout`, no tmpdir, no state mutation) returning `false` on non-zero exit and throwing only on abort/misuse.
+
 ## Failure diagnostics
 
 On probe failure `connect()` re-runs once with `LogLevel=VERBOSE`, no multiplexing, and throws `ConnectorError` combining both stderrs. Normal runs use `LogLevel=ERROR`, which hides auth detail — check the combined error, not the first stderr alone.
