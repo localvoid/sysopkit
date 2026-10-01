@@ -14,6 +14,15 @@
 import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
+import {
+  diffPackages,
+  parseInstalledPackages,
+  parseInstallonlyNames,
+  splitByPresence,
+  splitUpgradeCandidates,
+  type DnfChanges,
+} from './dnf-common.js';
+
 /** DNF4 repository configuration in INI format (.repo files). */
 export type DnfRepoConf = {
   [id: string]: DnfRepoConfEntry;
@@ -170,26 +179,14 @@ export interface PackageInfo {
 /**
  * Lists all installed packages with detailed metadata.
  *
- * Uses `dnf repoquery --installed` to query the RPM database and extract
- * name, epoch, version, release, and architecture for each package.
+ * Queries the local RPM database directly (`rpm -qa`), so no repository
+ * metadata is loaded and the query works offline.
  */
 export async function getInstalledPackages(): Promise<PackageInfo[]> {
   const { stdout } = await sh(
-    `dnf repoquery --installed --qf '%{name} %{epoch} %{version} %{release} %{arch}\n'`,
+    `rpm -qa --queryformat '%{NAME} %{EPOCH} %{VERSION} %{RELEASE} %{ARCH}\\n'`,
   );
-  return stdout
-    .trim()
-    .split('\n')
-    .map((e) => {
-      const parts = e.split(' ');
-      return {
-        name: parts[0],
-        epoch: parts[1],
-        version: parts[2],
-        release: parts[3],
-        arch: parts[4],
-      };
-    });
+  return parseInstalledPackages(stdout);
 }
 
 /** Options for installing packages with DNF4. */
@@ -203,28 +200,37 @@ export interface InstallPackagesOptions {
 /**
  * Installs packages using DNF4.
  *
- * Emits change events for packages that are newly installed. In dry-run mode,
- * uses `--assumeno` to preview changes without applying them.
+ * Change detection diffs RPM database snapshots taken before and after the
+ * transaction, so installed dependencies and upgraded/obsoleted packages are
+ * reported too. Dry-run previews compare the requested names against the
+ * snapshot without running the solver: names absent from the snapshot are
+ * reported as installed. Solver-resolved dependencies are not enumerated in
+ * previews, and names are not validated against repositories.
  */
 export async function installPackages(options: InstallPackagesOptions): Promise<void> {
   const { packages, weakDependencies = false } = options;
   return task(
     'dnf install',
     async (ctx) => {
-      const { stdout } = await sh(
-        `LANG=en_US.UTF-8 dnf install -q${ctx.dryRun ? ' --assumeno' : ' -y'} --setopt=install_weak_deps=${weakDependencies ? 'True' : 'False'} ${packages.map($_).join(' ')}`,
-      );
-      const pkgs = _parseTable(stdout, INSTALLING_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'dnf4',
-            resource: p,
-            property: 'state',
-            to: 'installed',
-          })),
-        );
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { absent } = splitByPresence(before, packages);
+        if (absent.length > 0) {
+          emitChanged(
+            absent.map((p) => ({
+              type: 'dnf4',
+              resource: p,
+              property: 'state',
+              to: 'installed',
+            })),
+          );
+        }
+        return;
       }
+      await sh(
+        `dnf install -y --setopt=install_weak_deps=${weakDependencies ? 'True' : 'False'} ${packages.map($_).join(' ')}`,
+      );
+      emitDnfChanges('dnf4', diffPackages(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -246,28 +252,35 @@ export interface RemovePackagesOptions {
  * Removes packages using DNF4.
  *
  * Unused dependencies installed for the removed packages are removed as
- * well (DNF4 cleans requirements on remove by default). Emits change events
- * for packages that are removed.
+ * well (DNF4 cleans requirements on remove by default). Change detection
+ * diffs RPM database snapshots taken before and after the transaction.
+ * Dry-run previews compare the requested names against the snapshot without
+ * running the solver: names present in the snapshot are reported as removed.
+ * Autoremoved dependencies are not enumerated in previews, and names are not
+ * validated against repositories.
  */
 export async function removePackages(options: RemovePackagesOptions): Promise<void> {
   const { packages } = options;
   return task(
     'dnf remove',
     async (ctx) => {
-      const { stdout } = await sh(
-        `LANG=en_US.UTF-8 dnf remove -q ${ctx.dryRun ? ' --assumeno' : ' -y'} ${packages.map($_).join(' ')}`,
-      );
-      const pkgs = _parseTable(stdout, REMOVING_RE);
-      if (pkgs.length > 0) {
-        emitChanged(
-          pkgs.map((p) => ({
-            type: 'dnf4',
-            resource: p,
-            property: 'state',
-            to: 'removed',
-          })),
-        );
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { present } = splitByPresence(before, packages);
+        if (present.length > 0) {
+          emitChanged(
+            present.map((p) => ({
+              type: 'dnf4',
+              resource: p,
+              property: 'state',
+              to: 'removed',
+            })),
+          );
+        }
+        return;
       }
+      await sh(`dnf remove -y ${packages.map($_).join(' ')}`);
+      emitDnfChanges('dnf4', diffPackages(before, await getInstalledPackages()));
     },
     {
       details: () => ({
@@ -308,8 +321,11 @@ export interface UpdatePackagesResult {
  * changed package names grouped by change kind so callers can decide
  * directly (e.g. reboot when `kernel*`, `glibc*`, or `systemd*` were
  * touched) instead of re-deriving it. Emits change events per group
- * (`updated` / `installed` / `removed`). In dry-run mode, uses
- * `--assumeno` to preview changes without applying them.
+ * (`updated` / `installed` / `removed`). Real transactions are detected by
+ * diffing RPM database snapshots. Dry-run previews list available upgrades
+ * via `repoquery --upgrades` (structured `--queryformat` output, no table
+ * parsing) and map them against the snapshot; obsoleted removals need the
+ * solver transaction and are not predicted.
  */
 export async function updatePackages(
   options?: UpdatePackagesOptions,
@@ -327,26 +343,30 @@ export async function updatePackages(
         }
       }
       const scope = packages && packages.length > 0 ? ` ${packages.map($_).join(' ')}` : '';
-      const { stdout } = await sh(
-        `LANG=en_US.UTF-8 dnf upgrade -q${ctx.dryRun ? ' --assumeno' : ' -y'}${scope}`,
-      );
-      const updated = _parseTable(stdout, UPGRADED_RE);
-      const installed = _parseTable(stdout, INSTALLING_RE);
-      const removed = _parseTable(stdout, REMOVING_RE);
-      const entries = [
-        ...updated.map((p) => ({ type: 'dnf4', resource: p, property: 'state', to: 'updated' })),
-        ...installed.map((p) => ({
-          type: 'dnf4',
-          resource: p,
-          property: 'state',
-          to: 'installed',
-        })),
-        ...removed.map((p) => ({ type: 'dnf4', resource: p, property: 'state', to: 'removed' })),
-      ];
-      if (entries.length > 0) {
-        emitChanged(entries);
+      const before = await getInstalledPackages();
+      if (ctx.dryRun) {
+        const { stdout } = await sh(
+          `dnf repoquery --upgrades --latest-limit 1 --queryformat '%{NAME} %{EPOCH} %{VERSION} %{RELEASE} %{ARCH}\\n'${scope}`,
+        );
+        const candidates = parseInstalledPackages(stdout);
+        if (candidates.length === 0) {
+          return { updated: [], installed: [], removed: [] };
+        }
+        const { stdout: installonlyStdout } = await sh(
+          `dnf repoquery --installonly --queryformat '%{NAME}\\n'`,
+        );
+        const changes = splitUpgradeCandidates(
+          before,
+          candidates,
+          new Set(parseInstallonlyNames(installonlyStdout)),
+        );
+        emitDnfChanges('dnf4', changes);
+        return changes;
       }
-      return { updated, installed, removed };
+      await sh(`dnf upgrade -y${scope}`);
+      const changes = diffPackages(before, await getInstalledPackages());
+      emitDnfChanges('dnf4', changes);
+      return changes;
     },
     {
       details: () => ({
@@ -358,64 +378,18 @@ export async function updatePackages(
 }
 
 /**
- * Matches the "Installed:" section in DNF4 output.
- */
-const INSTALLING_RE = /Installed:\n([\s\S]*?)(?=\n\S|$)/g;
-/**
- * Matches the "Removed:" section in DNF4 output.
- */
-const REMOVING_RE = /Removed:\n([\s\S]*?)(?=\n\S|$)/g;
-/**
- * Matches the "Upgraded:" section in DNF4 output.
- */
-const UPGRADED_RE = /Upgraded:\n([\s\S]*?)(?=\n\S|$)/g;
-
-/**
- * Parses the compact single-NEVRA-column tables from DNF4 output to find
- * packages.
+ * Emits one change entry per changed package, grouped by change kind.
  *
- * Collects every matching section. Each row packs several NEVRAs per line
- * (`jq-1.7.1-11.el10_2.2.x86_64 oniguruma-6.9.9-7.el10.x86_64`).
+ * Shared by snapshot-diff and preview paths so both report the same event
+ * shape.
  */
-function _parseTable(output: string, re: RegExp): string[] {
-  const packages: string[] = [];
-
-  for (const match of output.matchAll(re)) {
-    const body = match[1];
-    if (!body) {
-      continue;
-    }
-    for (const line of body.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
-      for (const col of trimmed.split(/\s+/)) {
-        const name = _parseNevraName(col);
-        if (name) {
-          packages.push(name);
-        }
-      }
-    }
+function emitDnfChanges(type: 'dnf4', changes: DnfChanges): void {
+  const entries = [
+    ...changes.updated.map((p) => ({ type, resource: p, property: 'state', to: 'updated' })),
+    ...changes.installed.map((p) => ({ type, resource: p, property: 'state', to: 'installed' })),
+    ...changes.removed.map((p) => ({ type, resource: p, property: 'state', to: 'removed' })),
+  ];
+  if (entries.length > 0) {
+    emitChanged(entries);
   }
-
-  return packages;
-}
-
-/**
- * Extracts the package name from a NEVRA string (`name-version-release.arch`).
- *
- * The name runs up to the first dash followed by a digit; an optional
- * leading `epoch:` is stripped.
- */
-function _parseNevraName(nevra: string): string | undefined {
-  const withoutEpoch = nevra.replace(/^\d+:/, '');
-  const dot = withoutEpoch.lastIndexOf('.');
-  const withoutArch = dot === -1 ? withoutEpoch : withoutEpoch.slice(0, dot);
-  for (let i = 0; i < withoutArch.length; i++) {
-    if (withoutArch[i] === '-' && i + 1 < withoutArch.length && /\d/.test(withoutArch[i + 1]!)) {
-      return withoutArch.slice(0, i) || undefined;
-    }
-  }
-  return undefined;
 }

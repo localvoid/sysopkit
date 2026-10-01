@@ -50,7 +50,7 @@ import {
 
 ### getInstalledPackages()
 
-Lists all installed packages with detailed metadata using `dnf repoquery --installed`.
+Lists all installed packages with detailed metadata by querying the local RPM database (`rpm -qa`, no repository metadata load).
 
 ```ts
 const packages = await getInstalledPackages();
@@ -59,7 +59,7 @@ const packages = await getInstalledPackages();
 
 ### installPackages()
 
-Installs packages using `dnf install`. Supports `weakDependencies` option.
+Installs packages using `dnf install`. Supports `weakDependencies` option. Change detection diffs RPM database snapshots before/after the transaction. Dry-run previews compare the requested names against the snapshot without running the solver (dependencies are not enumerated, names are not validated against repositories).
 
 ```ts
 await installPackages({ packages: ['nginx'], weakDependencies: false });
@@ -67,7 +67,7 @@ await installPackages({ packages: ['nginx'], weakDependencies: false });
 
 ### removePackages()
 
-Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF5 cleans requirements on remove by default).
+Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF5 cleans requirements on remove by default). Dry-run previews compare the requested names against the snapshot (autoremoved dependencies are not enumerated).
 
 ```ts
 await removePackages({ packages: ['httpd'] });
@@ -75,7 +75,7 @@ await removePackages({ packages: ['httpd'] });
 
 ### updatePackages()
 
-Upgrades packages using `dnf upgrade`. With no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages. Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) — kernels are installonly so a kernel update lands under `installed` — and emits a change event per group. Dry-run aware (`--assumeno` in dry-run mode).
+Upgrades packages using `dnf upgrade`. With no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages. Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) — kernels are installonly so a kernel update lands under `installed` — and emits a change event per group. Change detection diffs RPM database snapshots before/after the transaction. Dry-run previews list available upgrades via `repoquery --upgrades` and map them against the snapshot (obsoleted removals are not predicted).
 
 ```ts
 const { updated, installed, removed } = await updatePackages();
@@ -104,7 +104,7 @@ import {
 
 ### getInstalledPackages()
 
-Lists all installed packages with detailed metadata using `dnf repoquery --installed`.
+Lists all installed packages with detailed metadata by querying the local RPM database (`rpm -qa`, no repository metadata load).
 
 ```ts
 const packages = await getInstalledPackages();
@@ -113,7 +113,7 @@ const packages = await getInstalledPackages();
 
 ### installPackages()
 
-Installs packages using `dnf install`. Supports `weakDependencies` option.
+Installs packages using `dnf install`. Supports `weakDependencies` option. Change detection diffs RPM database snapshots before/after the transaction. Dry-run previews compare the requested names against the snapshot without running the solver (dependencies are not enumerated, names are not validated against repositories).
 
 ```ts
 await installPackages({ packages: ['nginx'], weakDependencies: false });
@@ -121,7 +121,7 @@ await installPackages({ packages: ['nginx'], weakDependencies: false });
 
 ### removePackages()
 
-Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF4 cleans requirements on remove by default).
+Removes packages using `dnf remove`. Unused dependencies installed for the removed packages are removed as well (DNF4 cleans requirements on remove by default). Dry-run previews compare the requested names against the snapshot (autoremoved dependencies are not enumerated).
 
 ```ts
 await removePackages({ packages: ['httpd'] });
@@ -129,7 +129,7 @@ await removePackages({ packages: ['httpd'] });
 
 ### updatePackages()
 
-Upgrades packages using `dnf upgrade`. With no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages. Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) — kernels are installonly so a kernel update lands under `installed` — and emits a change event per group. Dry-run aware (`--assumeno` in dry-run mode).
+Upgrades packages using `dnf upgrade`. With no `packages` (or an empty list) upgrades the whole system; otherwise upgrades only the named packages. Returns the changed package names grouped by change kind (`{ updated, installed, removed }`) — kernels are installonly so a kernel update lands under `installed` — and emits a change event per group. Change detection diffs RPM database snapshots before/after the transaction. Dry-run previews list available upgrades via `repoquery --upgrades` and map them against the snapshot (obsoleted removals are not predicted).
 
 ```ts
 const { updated, installed, removed } = await updatePackages();

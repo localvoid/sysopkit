@@ -58,6 +58,87 @@ describe('pkg/dnf5 (fedora)', () => {
   );
 
   test(
+    'install reports change in dry-run without installing',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await removePackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await installPackages({ packages: ['ed'] });
+          expect(t.changed).toBe(true);
+          expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'install of a present package is a no-op in dry-run',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await installPackages({ packages: ['ed'] });
+          expect(t.changed).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'remove reports change in dry-run without removing',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          await removePackages({ packages: ['ed'] });
+          expect(t.changed).toBe(true);
+          expect((await getInstalledPackages()).some((p) => p.name === 'ed')).toBe(true);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
+    'scoped update of an up-to-date package is a no-op in dry-run',
+    async () => {
+      await sharedPodman(shared, async () => {
+        await installPackages({ packages: ['ed'] });
+      });
+      await sharedPodman(
+        shared,
+        async () => {
+          const t = trackChanged();
+          const result = await updatePackages({ packages: ['ed'] });
+          expect(result.updated).toEqual([]);
+          expect(result.installed).toEqual([]);
+          expect(result.removed).toEqual([]);
+          expect(t.changed).toBe(false);
+        },
+        { dryRun: true },
+      );
+    },
+    { timeout: 300000 },
+  );
+
+  test(
     'remove cleans unused dependencies natively',
     async () => {
       await sharedPodman(shared, async () => {
