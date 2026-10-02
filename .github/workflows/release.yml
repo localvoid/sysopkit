@@ -11,6 +11,7 @@ on:
           - '@sysopkit/linux'
           - '@sysopkit/openwrt'
           - '@sysopkit/cli'
+          - '@sysopkit/libvirt'
       increment:
         type: choice
         required: true
