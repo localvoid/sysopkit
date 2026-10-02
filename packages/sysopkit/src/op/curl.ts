@@ -11,15 +11,17 @@ import { $_, sh } from './sh.js';
 /** Configuration for curl download. */
 export interface CurlOptions {
   readonly url: string;
-  readonly path: string;
+  /** Destination file. Omit to capture stdout instead of writing a file. */
+  readonly path?: string;
   readonly user?: string;
   readonly headers?: string[];
   readonly cookies?: string;
   readonly insecure?: string;
   /**
-   * Fail on HTTP errors (`-f/--fail`): no body is written and curl
-   * exits non-zero for HTTP status >= 400. Without it an error page
-   * is saved to `path` with exit 0. Default false.
+   * Fail on HTTP errors (`-f/--fail`): curl exits non-zero for HTTP
+   * status >= 400 with no body written (file mode) or returned
+   * (stdout mode). Without it an error page is saved to `path` (or
+   * returned as stdout) with exit 0. Default false.
    */
   readonly fail?: boolean;
   /**
@@ -35,7 +37,12 @@ export interface CurlOptions {
   readonly silent?: boolean;
 }
 
-/** Downloads a file from a URL using curl. */
+/**
+ * Downloads a file from a URL using curl, or captures the body as
+ * stdout when `path` is omitted.
+ */
+export async function curl(o: CurlOptions & { path: string }): Promise<void>;
+export async function curl(o: CurlOptions & { path?: undefined }): Promise<string>;
 export async function curl({
   url,
   path,
@@ -46,7 +53,7 @@ export async function curl({
   fail,
   followRedirects,
   silent = true,
-}: CurlOptions): Promise<void> {
+}: CurlOptions): Promise<void | string> {
   let cmd = `curl`;
   if (fail) cmd += ` -f`;
   if (followRedirects) cmd += ` -L`;
@@ -60,6 +67,11 @@ export async function curl({
   if (cookies) cmd += ` -b ${$_(cookies)}`;
   if (insecure) cmd += ` -k`;
 
-  cmd += ` -o ${$_(path)} ${$_(url)}`;
-  await sh(cmd);
+  if (path !== undefined) {
+    cmd += ` -o ${$_(path)} ${$_(url)}`;
+    await sh(cmd);
+    return;
+  }
+  const { stdout } = await sh(`${cmd} ${$_(url)}`);
+  return stdout;
 }

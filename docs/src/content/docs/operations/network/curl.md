@@ -9,10 +9,18 @@ import { curl } from 'sysopkit/op/curl';
 
 ## curl()
 
-Downloads a URL to a local path (not idempotent — always downloads).
+Downloads a URL to a local path (not idempotent — always downloads). Omit `path` to capture the body as stdout instead of writing a file.
 
 ```ts
 await curl({ url: 'https://example.com/file.tar.gz', path: '/tmp/file.tar.gz' });
+```
+
+```ts
+const listing = await curl({
+  url: 'https://mirror.example.com/releases/44/',
+  fail: true,
+  followRedirects: true,
+});
 ```
 
 Mirror-grade fetching — fail on HTTP errors and follow redirects (progress meter is silenced by default, errors still shown; pass `silent: false` to restore it):
@@ -26,4 +34,4 @@ await curl({
 });
 ```
 
-All options (`CurlOptions`): `url`, `path`, `user` (`-u`), `headers` (`-H`, repeatable), `cookies` (`-b`), `insecure` (`-k`), `fail` (`-f`), `followRedirects` (`-L`), `silent` (`-sS`, default true).
+All options (`CurlOptions`): `url`, `path` (omit to return stdout as `string` instead of writing a file), `user` (`-u`), `headers` (`-H`, repeatable), `cookies` (`-b`), `insecure` (`-k`), `fail` (`-f`), `followRedirects` (`-L`), `silent` (`-sS`, default true).

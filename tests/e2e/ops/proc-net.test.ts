@@ -120,6 +120,16 @@ describe('proc/net ops', () => {
     });
   });
 
+  test('curl captures stdout when path is omitted', async () => {
+    await sharedPodman(shared, async () => {
+      const port = 18714;
+      await using _server = await startHttpServer(port, `()=>new Response('hello-stdout\\n')`);
+      await waitPortBash({ port, delay: 50 });
+      const body: string = await curl({ url: `http://localhost:${port}/index.html` });
+      expect(body).toBe('hello-stdout\n');
+    });
+  });
+
   test('curl follows redirects and fails on HTTP errors', async () => {
     await sharedPodman(shared, async () => {
       const port = 18713;
