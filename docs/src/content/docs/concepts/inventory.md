@@ -103,3 +103,23 @@ await using hosts = resolveInventory(inventory, {
   },
 });
 ```
+
+## SSH Authentication
+
+`HostConfig` has no `key` or `password` fields by design. Inventory only carries `host`, `user`, and `port` — authentication is delegated to your native OpenSSH client and ssh-agent.
+
+SysopKit shells out to the system `ssh`, and inventory connections run non-interactively, so anything `ssh user@host exit` can do already works: `~/.ssh/config` entries (`Host`, `IdentityFile`, `ProxyJump`), keys loaded in `ssh-agent`, and default keys.
+
+```ssh-config
+Host web-1
+  HostName 10.0.1.1
+  User admin
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+```sh
+ssh-add ~/.ssh/id_ed25519
+ssh admin@10.0.1.1 exit # smoke test before running SysopKit
+```
+
+If you need an explicit `key` or `password` for a one-off script, skip the inventory and construct `SSHConnector` directly (see [Connectors](/concepts/connectors/)) and pass it to `apply()`.
