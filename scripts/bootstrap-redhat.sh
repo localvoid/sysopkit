@@ -30,7 +30,7 @@ echo "Installing required packages..."
 # Note: no `coreutils` — ubi-minimal ships coreutils-single which conflicts
 # with it. The parity check below verifies `stat` is still available.
 # `dnf` (full package manager for pkg/dnf4 ops), `nmap-ncat` (provides `nc`
-# for netcat waitPort ops), and `ed` (tiny package used by pkg/dnf4 tests)
+# for waitUntil port probes), and `ed` (tiny package used by pkg/dnf4 tests)
 # are installed via microdnf.
 microdnf install -y \
   sudo \

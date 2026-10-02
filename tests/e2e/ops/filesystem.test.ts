@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { trackChanged } from '@sysopkit/test-utils';
+import { waitUntil } from 'sysopkit';
 import { exec } from 'sysopkit/op/exec';
 import {
   cp,
@@ -17,8 +18,6 @@ import {
   touchFile,
   tryReadFile,
   tryReadFileBuffer,
-  waitFileContent,
-  waitFilePath,
   writeFile,
 } from 'sysopkit/op/file';
 import { $_, sh } from 'sysopkit/op/sh';
@@ -203,21 +202,29 @@ describe('filesystem ops', () => {
     });
   });
 
-  test('waitFilePath resolves when file appears', async () => {
+  test('waitUntil resolves when file appears', async () => {
     await sharedPodman(shared, async () => {
       const p = remoteTempPath('fs-wait-');
       await sh(`(sleep 0.3; echo ready > ${$_(p)}) &`);
-      await waitFilePath({ path: p, delay: 50 });
+      await waitUntil(async () => (await getPathInfo(p)) !== void 0, {
+        intervalMs: 50,
+        timeoutMs: 10_000,
+        describe: `file ${p} to appear`,
+      });
       expect(await readFile(p)).toBe('ready\n');
     });
   });
 
-  test('waitFileContent resolves when pattern appears', async () => {
+  test('waitUntil resolves when pattern appears', async () => {
     await sharedPodman(shared, async () => {
       const p = remoteTempPath('fs-wait-content-');
       await writeFile(p, 'booting\n');
       await sh(`(sleep 0.3; echo 'Server started' >> ${$_(p)}) &`);
-      await waitFileContent({ path: p, regex: 'Server started', delay: 50 });
+      await waitUntil(async () => ((await tryReadFile(p)) ?? '').includes('Server started'), {
+        intervalMs: 50,
+        timeoutMs: 10_000,
+        describe: `pattern in ${p}`,
+      });
       expect((await readFile(p)).includes('Server started')).toBe(true);
     });
   });

@@ -3,9 +3,7 @@
 ```typescript
 import { createUser, createGroup } from 'sysopkit/op/users';
 import { mount, umount } from 'sysopkit/op/mount';
-import { waitProcess } from 'sysopkit/op/proc';
 import { parseHosts, serializeHosts } from 'sysopkit/op/net';
-import { waitPort } from 'sysopkit/op/netcat';
 import { serializeSshConf } from 'sysopkit/op/ssh';
 import { serializeIni } from 'sysopkit/op/ini';
 ```
@@ -38,10 +36,10 @@ Idempotent. `fstype` required unless `bind`/`rslave`/`rbind`; `src` optional onl
 
 **Pitfalls:** regular mounts match source fuzzily (`===` or `includes` either way) and compare only the first comma-option — unusual `opts` strings can false-positive as "already mounted". Bind mounts ignore findmnt source (reports backing device) and compare `stat -c '%d %i'` identity instead. Recursive `umount -R` pre-check is submount-aware (detaches orphaned children even when `path` itself is unmounted); `ignoreErrors` appends `2>/dev/null || true` for cleanup paths.
 
-## Network and process probing
+## Network probing
 
-- `netcat.waitPort({ port, host?, state, delay? })` via `nc -z -w 1` (poll only; distinct from `bash.waitPort` — import explicitly).
-- `proc.waitProcess({ process, state?, delay? })` via exact-name `pidof`.
+Poll ports/processes with `waitUntil()` (see `ops/shell.md`): `nc -z -w 1` or bash `/dev/tcp` for ports, exact-name `pidof` for processes.
+
 - `sysopkit/op/net` (re-exports `./net/hosts.js`): `parseHosts` / `serializeHosts` for `/etc/hosts` (`HOSTS_PATH`), pure functions — no apply op; write the result with `createFile` yourself.
 
 ## Pure serializers (no transport)

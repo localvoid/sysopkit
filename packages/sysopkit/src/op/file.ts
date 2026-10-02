@@ -12,8 +12,7 @@
 
 import type { ExecutionContext } from '../core/context.js';
 import { emitChanged, task } from '../core/context.js';
-import { VERBOSITY_NORMAL, VERBOSITY_TRACE } from '../core/reporter.js';
-import { sleep } from '../core/sleep.js';
+import { VERBOSITY_NORMAL } from '../core/reporter.js';
 import { $_, sh } from './sh.js';
 
 /** Path type: regular file. */
@@ -708,94 +707,6 @@ export async function cp(o: CpOptions): Promise<void> {
       }),
       verbosity: VERBOSITY_NORMAL,
     },
-  );
-}
-
-/** Configuration for waitPath operation. */
-export interface WaitPathOptions {
-  readonly path: string;
-  readonly delay?: number;
-  readonly perm?: PathPermissions;
-}
-
-/**
- * Waits for a path to exist with optional permission checks.
- *
- * @param options - Path wait configuration
- *
- * @example
- * // Wait for a file to be created
- * await waitFilePath({ path: "/tmp/ready" });
- */
-export async function waitFilePath({ path, perm, delay = 1000 }: WaitPathOptions): Promise<void> {
-  return task(
-    `wait path ${path}`,
-    async (ctx) => {
-      while (true) {
-        ctx.signal.throwIfAborted();
-        const info = await getPathInfo(path);
-        if (info === void 0) {
-          await sleep(delay);
-          continue;
-        }
-        if (perm !== void 0 && (info.perm & perm) !== perm) {
-          await sleep(delay);
-          continue;
-        }
-        break;
-      }
-    },
-    { verbosity: VERBOSITY_TRACE },
-  );
-}
-
-/** Configuration for waitFileContent operation. */
-export interface WaitFileContentOptions {
-  readonly path: string;
-  readonly regex: string;
-  readonly delay?: number;
-  readonly state?: 'present' | 'absent';
-}
-
-/**
- * Waits for a file to contain (or not contain) a regex pattern.
- *
- * Uses `grep -q` for content matching.
- *
- * @param options - File content wait configuration
- *
- * @example
- * // Wait for a file to contain a specific pattern
- * await waitFileContent({ path: "/var/log/app.log", regex: "Server started" });
- *
- * @example
- * // Wait for a pattern to be absent from file
- * await waitFileContent({ path: "/var/log/app.log", regex: "error", state: "absent" });
- */
-export async function waitFileContent({
-  path,
-  regex,
-  state = 'present',
-  delay = 1000,
-}: WaitFileContentOptions): Promise<void> {
-  return task(
-    `wait file content ${path}`,
-    async (ctx) => {
-      const targetPresent = state === 'present';
-
-      while (true) {
-        ctx.signal.throwIfAborted();
-
-        const { exitCode } = await sh(`grep -q ${$_(regex)} ${$_(path)}||exit 64`);
-        const found = exitCode === 0;
-        if (found !== targetPresent) {
-          await sleep(delay);
-          continue;
-        }
-        break;
-      }
-    },
-    { details: () => ({ regex: regex.toString() }), verbosity: VERBOSITY_TRACE },
   );
 }
 

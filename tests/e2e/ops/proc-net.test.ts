@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { bash, waitPort as waitPortBash } from 'sysopkit/op/bash';
+import { waitUntil } from 'sysopkit';
+import { bash } from 'sysopkit/op/bash';
 import { curl } from 'sysopkit/op/curl';
 import { exec } from 'sysopkit/op/exec';
 import { readFile, writeFile } from 'sysopkit/op/file';
-import { waitPort as waitPortNc } from 'sysopkit/op/netcat';
-import { waitProcess } from 'sysopkit/op/proc';
 import { $_, sh } from 'sysopkit/op/sh';
 import { resolveTools, which } from 'sysopkit/op/which';
 
@@ -44,6 +43,14 @@ async function startHttpServer(port: number, fetch: string): Promise<AsyncDispos
   };
 }
 
+/** Waits until a TCP port accepts connections via bash `/dev/tcp`. */
+async function waitPortOpen(port: number): Promise<void> {
+  await waitUntil(
+    async () => (await bash(`echo >/dev/tcp/localhost/${port}||exit 64`)).exitCode === 0,
+    { intervalMs: 50, timeoutMs: 10_000, describe: `port ${port} open` },
+  );
+}
+
 describe('proc/net ops', () => {
   let shared: Container;
   beforeAll(async () => {
@@ -53,49 +60,83 @@ describe('proc/net ops', () => {
     if (shared) await shared.stop();
   });
 
-  test('waitProcess resolves for running process', async () => {
+  test('waitUntil resolves for running process', async () => {
     await sharedPodman(shared, async () => {
-      await waitProcess({ process: 'sh' });
+      await waitUntil(
+        async () =>
+          (await sh(`pidof sh;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`)).exitCode === 0,
+        { intervalMs: 50, timeoutMs: 10_000, describe: 'process sh active' },
+      );
     });
   });
 
-  test('waitProcess resolves when process appears and terminates', async () => {
+  test('waitUntil resolves when process appears and terminates', async () => {
     await sharedPodman(shared, async () => {
       // Note: redhat ships coreutils-single (multicall binary, comm is
       // `coreutils`), so `pidof sleep` never matches; use bun instead.
       const pidFile = remoteTempPath('bun-pid-');
       await sh(`bun -e ${$_('await Bun.sleep(60000)')} >/dev/null 2>&1 & echo $! > ${$_(pidFile)}`);
-      await waitProcess({ process: 'bun', delay: 50 });
+      await waitUntil(
+        async () =>
+          (await sh(`pidof bun;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`)).exitCode === 0,
+        { intervalMs: 50, timeoutMs: 10_000, describe: 'process bun active' },
+      );
       await sh(`kill $(cat ${$_(pidFile)})`);
-      await waitProcess({ process: 'bun', state: 'terminated', delay: 50 });
+      await waitUntil(
+        async () =>
+          (await sh(`pidof bun;o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`)).exitCode !== 0,
+        { intervalMs: 50, timeoutMs: 10_000, describe: 'process bun terminated' },
+      );
     });
   });
 
-  test('bash waitPort detects open and closed ports', async () => {
+  test('waitUntil via bash /dev/tcp detects open and closed ports', async () => {
     await sharedPodman(shared, async () => {
       const port = 18710;
       const pidFile = await startTcpServer(port);
       try {
-        await waitPortBash({ port, delay: 50 });
+        await waitUntil(
+          async () => (await bash(`echo >/dev/tcp/localhost/${port}||exit 64`)).exitCode === 0,
+          { intervalMs: 50, timeoutMs: 10_000, describe: `port ${port} open` },
+        );
         const { exitCode } = await bash(`echo >/dev/tcp/localhost/${port}||exit 64`);
         expect(exitCode).toBe(0);
       } finally {
         await stopTcpServer(pidFile);
       }
-      await waitPortBash({ port, state: 'close', delay: 50 });
+      await waitUntil(
+        async () => (await bash(`echo >/dev/tcp/localhost/${port}||exit 64`)).exitCode !== 0,
+        { intervalMs: 50, timeoutMs: 10_000, describe: `port ${port} closed` },
+      );
     });
   });
 
-  test('netcat waitPort detects open and closed ports', async () => {
+  test('waitUntil via nc detects open and closed ports', async () => {
     await sharedPodman(shared, async () => {
       const port = 18711;
       const pidFile = await startTcpServer(port);
       try {
-        await waitPortNc({ port, delay: 50 });
+        await waitUntil(
+          async () =>
+            (
+              await sh(
+                `nc -z -w 1 ${$_('localhost')} ${port};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+              )
+            ).exitCode === 0,
+          { intervalMs: 50, timeoutMs: 10_000, describe: `port ${port} open` },
+        );
       } finally {
         await stopTcpServer(pidFile);
       }
-      await waitPortNc({ port, state: 'close', delay: 50 });
+      await waitUntil(
+        async () =>
+          (
+            await sh(
+              `nc -z -w 1 ${$_('localhost')} ${port};o=$?;if [ $o -eq 1 ];then exit 64;else exit $o;fi`,
+            )
+          ).exitCode !== 0,
+        { intervalMs: 50, timeoutMs: 10_000, describe: `port ${port} closed` },
+      );
     });
   });
 
@@ -114,7 +155,7 @@ describe('proc/net ops', () => {
       const dst = remoteTempPath('curl-http-dst-');
       const port = 18712;
       await using _server = await startHttpServer(port, `()=>new Response('hello-http\\n')`);
-      await waitPortBash({ port, delay: 50 });
+      await waitPortOpen(port);
       await curl({ url: `http://localhost:${port}/index.html`, path: dst });
       expect(await readFile(dst)).toBe('hello-http\n');
     });
@@ -124,7 +165,7 @@ describe('proc/net ops', () => {
     await sharedPodman(shared, async () => {
       const port = 18714;
       await using _server = await startHttpServer(port, `()=>new Response('hello-stdout\\n')`);
-      await waitPortBash({ port, delay: 50 });
+      await waitPortOpen(port);
       const body: string = await curl({ url: `http://localhost:${port}/index.html` });
       expect(body).toBe('hello-stdout\n');
     });
@@ -137,7 +178,7 @@ describe('proc/net ops', () => {
         port,
         `(req)=>{const u=new URL(req.url);if(u.pathname==='/old')return Response.redirect('/new');if(u.pathname==='/new')return new Response('redirected\\n');return new Response('nope',{status:404})}`,
       );
-      await waitPortBash({ port, delay: 50 });
+      await waitPortOpen(port);
       const dst = remoteTempPath('curl-redirect-dst-');
       await curl({
         url: `http://localhost:${port}/old`,

@@ -23,8 +23,8 @@ export async function timeout<T>(ms: number, fn: () => Promise<T>): Promise<T> {
 }
 
 export class TimeoutError extends Error {
-  constructor(message = 'timed out') {
-    super(message);
+  constructor(message = 'timed out', options?: { cause?: unknown }) {
+    super(message, options);
     this.name = 'TimeoutError';
   }
 }

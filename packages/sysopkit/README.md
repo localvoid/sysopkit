@@ -60,8 +60,8 @@ Idempotent where marked. Non-idempotent helpers (`sh`, `exec`, `curl`, …) run 
 | --- | --- | --- |
 | `exec` | `sysopkit/op/exec` | `spawn(cmd, signal?)`, `exec(cmd, opts?)` |
 | `sh` | `sysopkit/op/sh` | `sh(script, opts?)` via `sh -c` |
-| `bash` | `sysopkit/op/bash` | `bash(script, opts?)`, `waitPort({ host, port, … })` |
-| `file` | `sysopkit/op/file` | **Idempotent** `createFile`, `createDir`, `createLink`; `readFile`, `writeFile`, `deleteFile`, `deleteDir`, `touchFile`, `sha256`, `waitFilePath`, `waitFileContent` |
+| `bash` | `sysopkit/op/bash` | `bash(script, opts?)` |
+| `file` | `sysopkit/op/file` | **Idempotent** `createFile`, `createDir`, `createLink`; `readFile`, `writeFile`, `deleteFile`, `deleteDir`, `touchFile`, `sha256` |
 | `users` | `sysopkit/op/users` | **Idempotent** `createUser`, `deleteUser`, `createGroup`, `deleteGroup`; `getCurrentUser`, `parsePasswdFile`, `parseGroupFile` |
 | `rsync` | `sysopkit/op/rsync` | `rsyncPush(options)`, `rsyncPull(options)` |
 | `curl` | `sysopkit/op/curl` | `curl({ url, … })` |
@@ -69,9 +69,7 @@ Idempotent where marked. Non-idempotent helpers (`sh`, `exec`, `curl`, …) run 
 | `temp` | `sysopkit/op/temp` | `withTempFile(fn, opts?)`, `withTempDir(fn, opts?)` (scoped cleanup) |
 | `ini` | `sysopkit/op/ini` | `serializeIni(data)` (typed sections) |
 | `mount` | `sysopkit/op/mount` | `mount({ src, path, … })`, `umount({ path })`, `mountInfo({ path })`, `parseFstab`, `serializeFstab` |
-| `proc` | `sysopkit/op/proc` | `waitProcess({ pid, … })` |
 | `net` | `sysopkit/op/net` | `parseHosts`, `serializeHosts` (`/etc/hosts`) |
-| `netcat` | `sysopkit/op/netcat` | `waitPort({ host, port, … })` |
 | `ssh` | `sysopkit/op/ssh` | `serializeSshConf(config)` (`sshd_config`) |
 | `which` | `sysopkit/op/which` | `which(name)`, `resolveTools(names)` via `command -v` |
 | `gpg` | `sysopkit/utils/gpg` | `parseGpgKey`, `showGpgKeys` |
@@ -186,12 +184,17 @@ if (restart()) {
 import { retry } from 'sysopkit';
 import { timeout } from 'sysopkit';
 import { sleep } from 'sysopkit';
+import { waitUntil, waitForReady } from 'sysopkit';
 
 await retry({ attempts: 3, delay: 1000, backoff: 'exponential' }, () =>
   sh('curl -sf http://api/health'),
 );
 await timeout(30_000, () => sh('long-running-command')); // throws TimeoutError
 await sleep(5000); // abort-aware; rejects with signal.reason on cancellation
+await waitUntil(async () => ((await tryReadFile('/proc/cmdline')) ?? '').includes('ready'), {
+  describe: 'ready flag',
+}); // reboot-tolerant predicate wait, throws TimeoutError at timeoutMs
+await waitForReady(new SSHConnector({ host: '10.0.1.1' })); // connector readiness probe
 ```
 
 `retry` skips `AbortError` and accepts a `retryOn(err)` predicate.

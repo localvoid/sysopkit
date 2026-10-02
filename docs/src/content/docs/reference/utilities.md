@@ -1,6 +1,6 @@
 ---
 title: Utilities
-description: retry, timeout, sleep, process management, and shell utilities.
+description: retry, timeout, sleep, wait, process management, and shell utilities.
 ---
 
 ## retry()
@@ -24,6 +24,43 @@ await retry({ attempts: 5, delay: 500, backoff: 'exponential', maxDelay: 30_000 
 await retry({ attempts: 3, retryOn: (err) => err instanceof TimeoutError }, async () => {
   // only retry on specific errors
 });
+```
+
+## waitUntil()
+
+Polls a predicate until it returns `true`. `false` and `retryOn`-matching throws are "not yet"; anything else propagates immediately. Always fails closed at `timeoutMs` with a labeled `TimeoutError`. Reboot-tolerant: the default `retryOn` treats `ConnectorError` + `ExecError`/`ShellError` (e.g. ssh exit 255 while the target is down) as "not yet". Override with `retryOn: () => false` for fail-fast uses.
+
+```ts
+import { waitUntil } from 'sysopkit';
+
+// File content (missing file is naturally "not yet")
+await waitUntil(async () => ((await tryReadFile('/proc/cmdline')) ?? '').includes('break=mount'), {
+  timeoutMs: 20 * 60_000,
+  describe: 'rescue cmdline',
+});
+
+// Inequality predicate (boot-id change)
+await waitUntil(async () => (await bootId()) !== before, {
+  describe: 'reboot to complete',
+});
+```
+
+| Option       | Default                        | Description                                |
+| ------------ | ------------------------------ | ------------------------------------------ |
+| `intervalMs` | `1000`                         | Poll interval in ms                        |
+| `timeoutMs`  | `600000` (10 min)              | Total budget before `TimeoutError`         |
+| `retryOn`    | `ConnectorError` + `ExecError` | Probe throws counting as "not yet"         |
+| `describe`   | `'condition'`                  | Human label for task name + timeout errors |
+| `signal`     | —                              | AbortSignal for cancellation               |
+
+## waitForReady()
+
+Polls a live connector's side-effect-free `isReady()` until it returns `true`. Takes a live instance (not a factory).
+
+```ts
+import { waitForReady } from 'sysopkit';
+
+await waitForReady(new SSHConnector({ host: '10.0.1.1' }));
 ```
 
 ## timeout()

@@ -39,7 +39,13 @@ export {
 export { retry, type RetryOptions } from './core/retry.js';
 export { sleep } from './core/sleep.js';
 export { timeout, TimeoutError } from './core/timeout.js';
-export { waitForReady, type WaitForReadyOptions } from './core/wait.js';
+export {
+  isWaitRetryable,
+  waitForReady,
+  waitUntil,
+  type WaitForReadyOptions,
+  type WaitUntilOptions,
+} from './core/wait.js';
 
 export type {
   Process,

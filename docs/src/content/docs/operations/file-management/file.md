@@ -18,8 +18,6 @@ import {
   getPathInfo,
   getFileStat,
   sha256,
-  waitFilePath,
-  waitFileContent,
 } from 'sysopkit/op/file';
 ```
 
@@ -101,10 +99,4 @@ Returns file metadata: type, user, group, mode, timestamps, size.
 
 Computes the SHA256 hash of a file.
 
-## waitFilePath()
-
-Waits for a path to exist (with optional permission check).
-
-## waitFileContent()
-
-Waits for a file to contain or not-contain a regex pattern.
+Poll file state with `waitUntil()` (see Utilities): `await waitUntil(async () => (await getPathInfo(p)) !== undefined, { describe: 'file to appear' })`.

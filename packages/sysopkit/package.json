@@ -124,16 +124,6 @@
       "types": "./dist/op/net.d.ts",
       "default": "./dist/op/net.js"
     },
-    "./op/netcat": {
-      "bun": "./src/op/netcat.ts",
-      "types": "./dist/op/netcat.d.ts",
-      "default": "./dist/op/netcat.js"
-    },
-    "./op/proc": {
-      "bun": "./src/op/proc.ts",
-      "types": "./dist/op/proc.d.ts",
-      "default": "./dist/op/proc.js"
-    },
     "./op/rsync": {
       "bun": "./src/op/rsync.ts",
       "types": "./dist/op/rsync.d.ts",

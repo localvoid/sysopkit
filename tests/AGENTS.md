@@ -3,7 +3,7 @@
 ## Policy
 
 - **Unit** (`tests/unit/`): pure parsing/serialization (`parse*/serialize*`, no connector) and sysopkit internals (`core/*`, `start`, `inventory`, reporters, middleware arg-merging/stream logic, `retry`/`timeout`/`sleep`). Mock-based command-string assertions (`mockSpawn` `cmd` arrays, `getSpawnCalls` counts) are NOT used to verify op behavior.
-- **E2E** (`tests/e2e/ops/`): everything that executes commands on a target. Assert **final remote state** via read-back ops (`readFile`, `getPathInfo`, `getFileStat`, `exec(['test', ...])`, `id`/`getent`, re-running the op for idempotency, `trackChanged()`), never generated shell strings. `wait*` polling logic stays unit-tested (slow/flaky live) with one e2e smoke per waiter.
+- **E2E** (`tests/e2e/ops/`): everything that executes commands on a target. Assert **final remote state** via read-back ops (`readFile`, `getPathInfo`, `getFileStat`, `exec(['test', ...])`, `id`/`getent`, re-running the op for idempotency, `trackChanged()`), never generated shell strings. `waitUntil` polling logic stays unit-tested (slow/flaky live) with one e2e smoke per probe shape.
 - Daemon/privileged ops that cannot run in unprivileged containers without affecting the host (`systemctl` daemon control, `hostname`/`timezone`, kernel modules, `tuned`) stay as unit mocks + file-content assertions and are documented as excluded below.
 
 ## E2E (`tests/e2e/`)
@@ -78,6 +78,8 @@ unit/
     retry.test.ts
     ssh.test.ts
     timeout.test.ts
+    wait-ready.test.ts
+    wait-until.test.ts # predicate polling + retryOn/timeout-cause/abort (mock stimulus)
   middleware/
     trace.test.ts # trace on() stream logic (mock stimulus)
   op/
@@ -92,7 +94,6 @@ unit/
     systemd-common.test.ts # systemd paths + systemctl show parsing (pure)
     sysusers.test.ts # sysusers parse/serialize round-trip (pure)
     users.test.ts # passwd/group parsing (pure) + createUser validation in task frame
-    wait.test.ts # polling/retry logic (mock stimulus) + TimeoutError
   reporter/
     console.test.ts
     tui.test.ts
@@ -100,7 +101,7 @@ unit/
     sudo.test.ts # sudo argv merging (pure command generation) + prompt stream logic
 ```
 
-e2e/ connectors/ podman.test.ts ssh.test.ts # debian (OpenSSH): sh/sudo/file/rsync matrix ssh-openwrt.test.ts # openwrt (dropbear): sh/exec/file basics as root middleware/ chroot.test.ts # fake root via /usr bind, assert confinement via read-back ops/ # grouped by area, assert final remote state (no cmd-string checks) filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitFile* smoke accounts.test.ts # redhat: users/groups incl. idempotency + dry-run proc-net.test.ts # redhat: waitProcess, bash/nc waitPort, curl config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips pkg-apt.test.ts # debian: apt full install/remove of `ed` pkg-dnf5.test.ts # fedora: dnf5 full install/remove of `ed` pkg-dnf4.test.ts # redhat: dnf4 full install/remove of `ed` pkg-pacman.test.ts # arch: pacman full install/remove of `ed` pkg-apk.test.ts # openwrt: apk full install/remove of `nano` pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip rsync.test.ts # redhat: rsync push/pull incl. idempotency + dry-run system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops mount.test.ts # redhat privileged: tmpfs mount/umount round-trip openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
+e2e/ connectors/ podman.test.ts ssh.test.ts # debian (OpenSSH): sh/sudo/file/rsync matrix ssh-openwrt.test.ts # openwrt (dropbear): sh/exec/file basics as root middleware/ chroot.test.ts # fake root via /usr bind, assert confinement via read-back ops/ # grouped by area, assert final remote state (no cmd-string checks) filesystem.test.ts # redhat: file/dir/link, sha256, tar, waitUntil file smokes accounts.test.ts # redhat: users/groups incl. idempotency + dry-run proc-net.test.ts # redhat: waitUntil process/port probes, curl config.test.ts # redhat: hosts/ini/sysctl/limits/tmpfiles/sysusers/sudoers/sshd round-trips pkg-apt.test.ts # debian: apt full install/remove of `ed` pkg-dnf5.test.ts # fedora: dnf5 full install/remove of `ed` pkg-dnf4.test.ts # redhat: dnf4 full install/remove of `ed` pkg-pacman.test.ts # arch: pacman full install/remove of `ed` pkg-apk.test.ts # openwrt: apk full install/remove of `nano` pkg-rpm.test.ts # fedora+redhat: rpm macro/key queries, key import round-trip rsync.test.ts # redhat: rsync push/pull incl. idempotency + dry-run system.test.ts # redhat: os/cpu/mem/disk/dmesg read ops mount.test.ts # redhat privileged: tmpfs mount/umount round-trip openwrt.test.ts # openwrt: sh + busybox file ops, uci round-trip
 
 ````
 

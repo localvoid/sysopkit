@@ -89,7 +89,6 @@ export default defineConfig({
               items: [
                 'operations/network/curl',
                 'operations/network/net',
-                'operations/network/netcat',
                 'operations/network/ssh',
               ],
             },
@@ -100,7 +99,6 @@ export default defineConfig({
                 'operations/shell-process/exec',
                 'operations/shell-process/sh',
                 'operations/shell-process/bash',
-                'operations/shell-process/proc',
                 'operations/shell-process/which',
               ],
             },

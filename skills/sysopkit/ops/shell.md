@@ -25,7 +25,7 @@ All three are **non-idempotent** — they run every time. Guard with `if (!conte
 
 ## Exit 64 means "not found"
 
-Ops exploit the 64–78 exemption for probes: `tryReadFile` (`[ -f ] || exit 64`), `mountInfo` (maps 1→64), `waitFileContent` (`grep -q || exit 64`), `waitPort`/`waitProcess`. Never use 64–78 for real errors in your own scripts; check `exitCode` manually for probes instead of try/catch.
+Ops exploit the 64–78 exemption for probes: `tryReadFile` (`[ -f ] || exit 64`), `mountInfo` (maps 1→64). Never use 64–78 for real errors in your own scripts; check `exitCode` manually for probes instead of try/catch.
 
 ## Quoting with `$_`
 
@@ -37,10 +37,20 @@ await sh(`cat > ${$_(path)} <<'EOF'\n${content}\nEOF`);
 
 Bare interpolation breaks on spaces/quotes. `$_` passes `[a-zA-Z0-9_\-,.+:@%/]` through, so URLs/owners stay readable. The SSH connector's `spawn` already escapes — never double-escape there.
 
-## Polling: waitPort, waitProcess, waitFile*
+## Polling with waitUntil
 
-Read-only poll loops (`ctx.signal.throwIfAborted() + sleep`, abort-aware):
+Reboot-tolerant predicate wait (`false` + default-retryable throws are "not yet", fail-closed at `timeoutMs`):
 
-- `bash.waitPort({ port, host?: 'localhost', state?: 'open'|'close', delay? })` via `/dev/tcp`; `netcat.waitPort(...)` via `nc -z -w 1`. Two different `waitPort`s — import from the explicit path.
-- `proc.waitProcess({ process, state?: 'active'|'terminated', delay? })` via exact-name `pidof`.
-- `file.waitFilePath({ path, perm?, delay? })`, `file.waitFileContent({ path, regex, state?: 'present'|'absent', delay? })`.
+```typescript
+import { waitUntil } from 'sysopkit';
+
+await waitUntil(async () => ((await tryReadFile(p)) ?? '').includes('ready'), {
+  describe: `content in ${p}`,
+  timeoutMs: 10 * 60_000,
+});
+await waitUntil(async () => (await sh(`pidof nginx;...exit 64...`)).exitCode === 0, {
+  describe: 'nginx active',
+});
+```
+
+Probes: file presence via `getPathInfo`, content via `tryReadFile ?? ''`, ports via `bash` `/dev/tcp` or `sh` `nc -z -w 1`, processes via exact-name `pidof` (all with `|| exit 64` so absence is `exitCode`, not a throw). Default `retryOn` treats `ConnectorError` + `ExecError`/`ShellError` as "not yet"; pass `retryOn: () => false` for fail-fast.
