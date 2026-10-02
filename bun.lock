@@ -38,7 +38,7 @@
     },
     "packages/@sysopkit/openwrt": {
       "name": "@sysopkit/openwrt",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "devDependencies": {
         "@sysopkit/test-utils": "workspace:*",
       },
