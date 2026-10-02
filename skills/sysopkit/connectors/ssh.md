@@ -42,3 +42,15 @@ The whole `cmd[]` becomes `cmd.map($_).join(' ')` executed as a single remote sh
 - `strictHostKeyChecking: false` sets `StrictHostKeyChecking=no` + `UserKnownHostsFile=/dev/null` (MITM risk — throwaway labs only).
 - `Process.exited` resolves `code ?? 0`, so a signal-kill can look like success — check `signal.aborted`.
 - `processExec` never throws on non-zero exit; use the `exec`/`sh` ops or check `exitCode` yourself.
+
+## Rotating host keys
+
+`disableStrictHostKeyChecking()` downgrades to lax on subsequently established connections — same flags as constructing with `strictHostKeyChecking: false`. One-way (no re-enable); live master untouched until it dies. Log the downgrade via the current context (`ctx.warn(...)`). Prefer `updateConnectorOptions()` with `instanceof` narrowing so it works through middleware:
+
+```typescript
+import { updateConnectorOptions } from 'sysopkit';
+updateConnectorOptions((conn) => {
+  if (conn instanceof SSHConnector) conn.disableStrictHostKeyChecking();
+  else throw new Error(`refusing: unsupported connector '${conn.name}'`);
+});
+```

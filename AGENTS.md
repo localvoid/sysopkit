@@ -56,6 +56,7 @@ packages/
     core/
       apply.ts
       connector.ts # Connector interface and base class
+      connector-options.ts # updateConnectorOptions
       context.ts # ExecutionContext, task, emit
       errors.ts
       events.ts # Event, ChangeEntry, CHANGE_EVENT

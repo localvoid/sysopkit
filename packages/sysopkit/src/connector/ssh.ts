@@ -61,8 +61,11 @@ export class SSHConnector extends ConnectorBase {
   readonly password: string | undefined;
   /** ConnectTimeout (default: 5) */
   readonly timeout: number;
-  /** Strict host key checking. */
-  readonly strictHostKeyChecking: boolean | undefined;
+  /** Strict host key checking (mutable via disableStrictHostKeyChecking). */
+  get strictHostKeyChecking(): boolean | undefined {
+    return this._strictHostKeyChecking;
+  }
+  private _strictHostKeyChecking: boolean | undefined;
   /** Enable ControlMaster. */
   readonly controlMaster: boolean;
   /** ControlPersist (default: 5m). */
@@ -82,7 +85,7 @@ export class SSHConnector extends ConnectorBase {
     this.key = options.key;
     this.password = options.password;
     this.timeout = options.timeout ?? 5;
-    this.strictHostKeyChecking = options.strictHostKeyChecking;
+    this._strictHostKeyChecking = options.strictHostKeyChecking;
     this.controlMaster = options.controlMaster ?? true;
     this.controlPersist = options.controlPersist ?? '5m';
     this.env = options.authSocket
@@ -93,6 +96,26 @@ export class SSHConnector extends ConnectorBase {
     this.connectionError = void 0;
     this.tmpPath = void 0;
     this.controlPath = void 0;
+    this._rsh = void 0;
+  }
+
+  /**
+   * Permanently stop verifying host keys on subsequently established
+   * connections. One-way: cannot be re-enabled on the same instance.
+   *
+   * A live multiplex master (verified under strict) is untouched until it
+   * dies; post-downgrade spawns use `StrictHostKeyChecking=no` +
+   * `UserKnownHostsFile=/dev/null`, matching `strictHostKeyChecking: false`
+   * construction. For ephemeral targets that rotate keys across reboots
+   * (kexec rescue, fresh installs). Callers should log the downgrade via
+   * the current context (`ctx.warn(...)`) so op logs show exactly when
+   * verification stopped.
+   */
+  disableStrictHostKeyChecking(): void {
+    if (this._strictHostKeyChecking === false) {
+      return;
+    }
+    this._strictHostKeyChecking = false;
     this._rsh = void 0;
   }
 

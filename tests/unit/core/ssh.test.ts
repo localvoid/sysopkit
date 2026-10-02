@@ -91,3 +91,68 @@ describe('SSHConnector connect', () => {
     expect(error.message).toContain('Offering public key');
   });
 });
+
+describe('SSHConnector strict host key checking', () => {
+  function hasLaxFlags(rsh: string[]): boolean {
+    return rsh.includes('StrictHostKeyChecking=no') && rsh.includes('UserKnownHostsFile=/dev/null');
+  }
+
+  test('strict by default, lax after downgrade with cache invalidation', async () => {
+    const conn = new SSHConnector({ host: 'localhost', user: 'testuser', controlMaster: false });
+    try {
+      expect(conn.strictHostKeyChecking).toBeUndefined();
+      expect(hasLaxFlags(conn.rsh)).toBe(false);
+      // Populate the cached rsh, then downgrade must drop the stale entry.
+      void conn.rsh;
+      conn.disableStrictHostKeyChecking();
+      expect(conn.strictHostKeyChecking).toBe(false);
+      expect(hasLaxFlags(conn.rsh)).toBe(true);
+    } finally {
+      await conn[Symbol.asyncDispose]();
+    }
+  });
+
+  test('downgrade matches strict:false construction', async () => {
+    const downgraded = new SSHConnector({
+      host: 'localhost',
+      user: 'testuser',
+      controlMaster: false,
+    });
+    const constructed = new SSHConnector({
+      host: 'localhost',
+      user: 'testuser',
+      controlMaster: false,
+      strictHostKeyChecking: false,
+    });
+    try {
+      downgraded.disableStrictHostKeyChecking();
+      expect(downgraded.rsh).toEqual(constructed.rsh);
+    } finally {
+      await downgraded[Symbol.asyncDispose]();
+      await constructed[Symbol.asyncDispose]();
+    }
+  });
+
+  test('disable is idempotent', async () => {
+    const conn = new SSHConnector({ host: 'localhost', user: 'testuser', controlMaster: false });
+    try {
+      conn.disableStrictHostKeyChecking();
+      conn.disableStrictHostKeyChecking();
+      expect(conn.strictHostKeyChecking).toBe(false);
+      expect(hasLaxFlags(conn.rsh)).toBe(true);
+    } finally {
+      await conn[Symbol.asyncDispose]();
+    }
+  });
+
+  test('downgrade applies without an ambient context', async () => {
+    const conn = new SSHConnector({ host: 'localhost', user: 'testuser', controlMaster: false });
+    try {
+      conn.disableStrictHostKeyChecking();
+      expect(conn.strictHostKeyChecking).toBe(false);
+      expect(hasLaxFlags(conn.rsh)).toBe(true);
+    } finally {
+      await conn[Symbol.asyncDispose]();
+    }
+  });
+});

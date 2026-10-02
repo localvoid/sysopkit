@@ -66,6 +66,36 @@ await using c = new SSHConnector({
 
 The SSH connector builds a ControlMaster socket for multiplexing, validates the connection on `connect()`, and cleans up the control socket on dispose.
 
+### Rotating host keys (reinstall flows)
+
+`disableStrictHostKeyChecking()` permanently stops verifying host keys on subsequently established connections — same flag set as constructing with `strictHostKeyChecking: false` (`StrictHostKeyChecking=no` + `UserKnownHostsFile=/dev/null`). One-way: no re-enable on the same instance; re-pinning is a new connector's job. A live multiplex master is untouched until it dies. Log the downgrade via the current context (`ctx.warn(...)`) so op logs show exactly when verification stopped.
+
+```ts
+import { SSHConnector } from 'sysopkit/connector/ssh';
+
+await using c = new SSHConnector({ host: '192.168.1.1', user: 'sysop' });
+// strict phase...
+c.disableStrictHostKeyChecking();
+// lax phase: survives key rotation across reboots
+```
+
+### Updating current connector options
+
+`updateConnectorOptions(fn)` unwraps any middleware chain and invokes `fn` with the base connector, so callers narrow with `instanceof`. Only operates on the ambient context's connector; for single-connector flows (not parallel `apply()` batches).
+
+```ts
+import { updateConnectorOptions } from 'sysopkit';
+import { SSHConnector } from 'sysopkit/connector/ssh';
+
+updateConnectorOptions((conn) => {
+  if (conn instanceof SSHConnector) {
+    conn.disableStrictHostKeyChecking();
+  } else {
+    throw new Error(`refusing: unsupported connector '${conn.name}'`);
+  }
+});
+```
+
 ## Waiting for readiness
 
 `waitForReady(conn)` polls the side-effect-free `isReady()` probe until the target accepts connections — useful for boot/wait flows. It takes a live connector instance:

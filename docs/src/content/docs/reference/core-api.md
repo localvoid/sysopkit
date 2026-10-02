@@ -41,13 +41,21 @@ Base class that implements the shared connector behavior.
 
 ```ts
 abstract class ConnectorMiddleware implements Connector {
-  protected next: Connector;
+  readonly next: Connector;
   // All methods delegate to next by default
   // Subclasses override specific methods
 }
 ```
 
 Base class for the decorator pattern. Subclasses override methods to intercept or transform behavior.
+
+## updateConnectorOptions
+
+```ts
+function updateConnectorOptions<R>(fn: (conn: Connector) => R): R;
+```
+
+Unwraps any middleware decorator chain to the base connector and invokes `fn` with it (narrow with `instanceof`). Operates only on the ambient context's connector; throws when there is none. For single-connector flows — do not mutate a connector shared across parallel `apply()` batches.
 
 ## ExecutionContext
 

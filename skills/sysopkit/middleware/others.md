@@ -12,11 +12,14 @@ For `sudo`, see [sudo](sudo.md). For `chroot`, see [chroot](chroot.md).
 ## Model
 
 ```typescript
-abstract class ConnectorMiddleware implements Connector { constructor(protected readonly next: Connector) }
+abstract class ConnectorMiddleware implements Connector { constructor(public readonly next: Connector) }
 function middleware<R>(name, fn, wrap: (next, ctx) => Connector, options?: { info? }): Promise<R>;
+function updateConnectorOptions<R>(fn: (conn: Connector) => R): R;
 ```
 
 `middleware()` creates a `DEBUG`-verbosity child context whose connector is `wrap(parent.conn, parent)`. Layers stack by nesting; execution order follows nesting order (`sudo → trace → connector` means sudo wraps trace wraps the raw connector).
+
+`updateConnectorOptions()` unwraps to the base connector and invokes `fn` (narrow with `instanceof`). Current-connector only; single-connector flows.
 
 ## trace (`sysopkit/middleware/trace`)
 

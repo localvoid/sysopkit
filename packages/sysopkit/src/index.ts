@@ -2,6 +2,7 @@ export { AbortError, ConnectorError, isAbortError, OperationError } from './core
 export { type Var } from './core/vars.js';
 export { CHANGE_EVENT, type ChangeEntry, type Event } from './core/events.js';
 export { ConnectorBase, type Connector, type ConnectorOptions } from './core/connector.js';
+export { updateConnectorOptions } from './core/connector-options.js';
 export { ConnectorMiddleware, middleware } from './core/middleware.js';
 export {
   VERBOSITY_DEBUG,

@@ -11,7 +11,7 @@ import { VERBOSITY_DEBUG } from './reporter.js';
  * `sudo`, tracing output, matching prompts).
  */
 export abstract class ConnectorMiddleware implements Connector {
-  constructor(protected readonly next: Connector) {}
+  constructor(readonly next: Connector) {}
 
   get host(): string {
     return this.next.host;
