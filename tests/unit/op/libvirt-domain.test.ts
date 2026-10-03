@@ -152,6 +152,23 @@ describe('serializeDomainXml', () => {
     }
   });
 
+  test('serializes localhost graphics as a loopback address listen', () => {
+    const xml = serializeDomainXml({ ...BASIC, graphics: { type: 'spice', listen: 'localhost' } });
+    expect(xml).toContain(
+      '<graphics type="spice" port="-1" autoport="yes">' +
+        '<listen type="address" address="127.0.0.1"/></graphics>',
+    );
+    expect(parseDomainXml(xml).graphics).toEqual({ type: 'spice', listen: 'localhost' });
+    // What libvirt stores (resolved port, legacy listen attribute) maps back too.
+    const live =
+      '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
+      '<graphics type="spice" autoport="yes" listen="127.0.0.1">' +
+      '<listen type="address" address="127.0.0.1"/></graphics></devices></domain>';
+    expect(parseDomainXml(live).graphics).toEqual({ type: 'spice', listen: 'localhost' });
+    const none = serializeDomainXml({ ...BASIC, graphics: { type: 'spice', listen: 'none' } });
+    expect(none).toContain('<graphics type="spice"><listen type="none"/></graphics>');
+  });
+
   test('serializes video devices with attributes and omits them by default', () => {
     expect(serializeDomainXml(BASIC)).not.toContain('<video');
     const xml = serializeDomainXml({

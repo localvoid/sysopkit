@@ -136,7 +136,11 @@ export type DomainGraphicsType = 'spice' | 'vnc';
 /** Graphical console configuration (`graphics: 'none'` omits the device). */
 export interface DomainGraphics {
   readonly type: DomainGraphicsType;
-  /** Listen scope. Default: `none` (no network exposure). */
+  /**
+   * Listen scope. Default: `none` (no listener — `virsh screenshot`
+   * only). `localhost` serializes to a loopback-address listener
+   * (`<listen type='address' address='127.0.0.1'/>`) for local viewers.
+   */
   readonly listen?: 'none' | 'localhost';
 }
 
@@ -405,10 +409,24 @@ export function serializeDomainXml(domain: DomainConf): string {
   }
   const graphics = domain.graphics ?? { type: 'spice' as const };
   if (graphics !== 'none') {
-    devices['graphics'] = {
-      '@type': graphics.type,
-      'listen': { '@type': graphics.listen ?? 'none' },
-    };
+    // Schema note: <listen> type is address|network|socket|none —
+    // 'localhost' is not a valid type, so it maps to a loopback address.
+    // The port/autoport pair is required too: libvirt 12 drops an
+    // address listen without it (normalizes back to none). port=-1 lets
+    // libvirt allocate the port at start.
+    const listen = graphics.listen ?? 'none';
+    devices['graphics'] =
+      listen === 'localhost'
+        ? {
+            '@type': graphics.type,
+            '@port': '-1',
+            '@autoport': 'yes',
+            'listen': { '@type': 'address', '@address': '127.0.0.1' },
+          }
+        : {
+            '@type': graphics.type,
+            'listen': { '@type': 'none' },
+          };
   }
 
   const root: MutableXmlElement = {
@@ -427,6 +445,24 @@ export function serializeDomainXml(domain: DomainConf): string {
   };
   const doc: XmlDocument = { domain: root };
   return stringifyXmlDocument(doc);
+}
+
+/** Resolves a graphics `<listen>` child (plus the legacy `listen` attribute) to the model. */
+function _parseGraphicsListen(
+  type: string | undefined,
+  address: string | undefined,
+  legacy: string | undefined,
+): 'none' | 'localhost' | undefined {
+  if (type === 'none') {
+    return 'none';
+  }
+  if (type === 'address' && (address === '127.0.0.1' || address === 'localhost')) {
+    return 'localhost';
+  }
+  if (type === undefined && (legacy === '127.0.0.1' || legacy === 'localhost')) {
+    return 'localhost';
+  }
+  return undefined;
 }
 
 /** Reads an `<memory>`-style element value into MiB. */
@@ -624,7 +660,11 @@ export function parseDomainXml(xml: string): DomainConf {
   const graphicsEl = childElement(devices, 'graphics');
   const graphicsType = isXmlElement(graphicsEl) ? xmlAttr(graphicsEl, 'type') : undefined;
   const listenEl = isXmlElement(graphicsEl) ? childElement(graphicsEl, 'listen') : undefined;
-  const listen = isXmlElement(listenEl) ? xmlAttr(listenEl, 'type') : undefined;
+  const listen = _parseGraphicsListen(
+    isXmlElement(listenEl) ? xmlAttr(listenEl, 'type') : undefined,
+    isXmlElement(listenEl) ? xmlAttr(listenEl, 'address') : undefined,
+    isXmlElement(graphicsEl) ? xmlAttr(graphicsEl, 'listen') : undefined,
+  );
 
   // First `<video>` only (multi-GPU passthrough is outside the model).
   // Unknown models are ignored (previously the whole element was) so
@@ -704,7 +744,7 @@ export function parseDomainXml(xml: string): DomainConf {
       ? {
           graphics: {
             type: graphicsType,
-            ...(listen === 'none' || listen === 'localhost' ? { listen } : {}),
+            ...(listen === undefined ? {} : { listen }),
           },
         }
       : { graphics: 'none' as const }),
