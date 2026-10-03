@@ -34,6 +34,7 @@ await defineDomain({
     networks: [{ type?: 'network', source, model?: 'virtio', mac?, bootOrder? }],
     filesystems?: [{ source /* host dir */, target /* mount tag */, readonly? }], // 9p passthrough host shares; guest mounts `mount -t 9p <target> <path>`
     graphics?: { type: 'spice'|'vnc', listen?: 'none' } | 'none', // default spice/none
+    video?: { model: 'cirrus'|'vga'|'vmvga'|'qxl'|'virtio'|'bochs'|'ramfb', vramKiB?, heads?, primary? }, // omitted → no <video>, libvirt adds cirrus default; virtio for modern desktops
     agent?: true, // qemu-guest-agent channel
     consoles?: true, // serial+console pty (default true)
   },
@@ -43,6 +44,8 @@ await defineDomain({
 Disk targets default to `vdX`/`sdX` in order (`_targetSuffix`: a..z, aa..). Serializer output is fully explicit (defaulted bus/model/format/listen written out); the parser keeps only the modeled subset. Seed cdrom: `{ device: 'cdrom', source: 'seed.iso', target: 'sda', bus: 'sata', readonly: true }` — an ejected drive parses as `source: ''`.
 
 Filesystems are 9p `mount`/`passthrough` host-directory shares (`<driver type='path' wrpolicy='immediate'/>` + `<readonly/>` when `readonly: true`); non-`mount` types (e.g. `ram`) throw client-side — use the raw XML path for those.
+
+Video is `<video><model type vram? heads? primary?/>` (first device only; multi-GPU passthrough is outside the model). Omitted → no `<video>` written, libvirt adds its default (usually `cirrus`); `vramKiB`/`heads` must be positive integers (client-side throw), `primary` maps to `yes`/`no`. Parse keeps only known models — unknown types are ignored so exotic guests still parse; bad `vram`/`heads` values are dropped. Match is by `model` with unset `vramKiB`/`heads`/`primary` (and unset `video` itself) as wildcards.
 
 `defineDomain` is idempotent (redefines only on drift, unset fields are wildcards), but a replacement define over an existing name requires the same explicit `<uuid>` — pass the `uuid` from `getDomain()` when redefining, otherwise libvirt rejects it.
 

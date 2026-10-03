@@ -140,6 +140,25 @@ export interface DomainGraphics {
   readonly listen?: 'none' | 'localhost';
 }
 
+/** Video device models modeled by `DomainVideo`. */
+export type DomainVideoModel = 'cirrus' | 'vga' | 'vmvga' | 'qxl' | 'virtio' | 'bochs' | 'ramfb';
+
+/**
+ * Video device (`<video><model .../>`). When omitted, libvirt adds its
+ * default on define (usually `cirrus` — unsuitable for modern desktops;
+ * set `virtio` for interactive guests).
+ */
+export interface DomainVideo {
+  /** Device model (`virtio` for modern desktops, `qxl` for classic SPICE). */
+  readonly model: DomainVideoModel;
+  /** Video memory in KiB (`<model vram>`). */
+  readonly vramKiB?: number;
+  /** Head count (`<model heads>`). */
+  readonly heads?: number;
+  /** Primary display (`<model primary='yes'|'no'>`). */
+  readonly primary?: boolean;
+}
+
 /** UEFI firmware description with explicit loader paths. */
 export interface DomainUefi {
   /** Firmware code image (e.g. `/usr/share/edk2/ovmf/OVMF_CODE.fd`). */
@@ -165,7 +184,7 @@ export interface DomainUefi {
  * Only the modeled subset participates in idempotency checks: fields left
  * undefined act as wildcards when comparing against `virsh dumpxml` output
  * (see `domainConfigMatches`). Libvirt-assigned values (generated MAC,
- * emulator path, auto-added video/memballoon) are ignored.
+ * emulator path, auto-added memballoon) are ignored.
  */
 export interface DomainConf {
   /** Domain name. */
@@ -204,6 +223,11 @@ export interface DomainConf {
   readonly filesystems?: readonly DomainFilesystem[];
   /** Graphical console. Default: spice with no network listener. */
   readonly graphics?: DomainGraphics | 'none';
+  /**
+   * Video device. When omitted, no `<video>` is written and libvirt adds
+   * its default (usually `cirrus`).
+   */
+  readonly video?: DomainVideo;
   /** Attach the qemu-guest-agent virtio channel. Default: false. */
   readonly agent?: boolean;
   /** Attach serial + console pty devices (for `virsh console`). Default: true. */
@@ -360,6 +384,23 @@ export function serializeDomainXml(domain: DomainConf): string {
     devices['channel'] = {
       '@type': 'unix',
       'target': { '@type': 'virtio', '@name': 'org.qemu.guest_agent.0' },
+    };
+  }
+  const video = domain.video;
+  if (video !== undefined) {
+    if (video.vramKiB !== undefined && (!Number.isInteger(video.vramKiB) || video.vramKiB <= 0)) {
+      throw new Error(`invalid vramKiB '${video.vramKiB}'`);
+    }
+    if (video.heads !== undefined && (!Number.isInteger(video.heads) || video.heads <= 0)) {
+      throw new Error(`invalid heads '${video.heads}'`);
+    }
+    devices['video'] = {
+      model: {
+        '@type': video.model,
+        ...(video.vramKiB === undefined ? {} : { '@vram': String(video.vramKiB) }),
+        ...(video.heads === undefined ? {} : { '@heads': String(video.heads) }),
+        ...(video.primary === undefined ? {} : { '@primary': video.primary ? 'yes' : 'no' }),
+      },
     };
   }
   const graphics = domain.graphics ?? { type: 'spice' as const };
@@ -585,6 +626,41 @@ export function parseDomainXml(xml: string): DomainConf {
   const listenEl = isXmlElement(graphicsEl) ? childElement(graphicsEl, 'listen') : undefined;
   const listen = isXmlElement(listenEl) ? xmlAttr(listenEl, 'type') : undefined;
 
+  // First `<video>` only (multi-GPU passthrough is outside the model).
+  // Unknown models are ignored (previously the whole element was) so
+  // existing domains with exotic video keep parsing.
+  const videoEl = childElement(devices, 'video');
+  const videoModelEl = isXmlElement(videoEl) ? childElement(videoEl, 'model') : undefined;
+  const videoModel = isXmlElement(videoModelEl) ? xmlAttr(videoModelEl, 'type') : undefined;
+  const videoVramRaw = isXmlElement(videoModelEl) ? xmlAttr(videoModelEl, 'vram') : undefined;
+  const videoHeadsRaw = isXmlElement(videoModelEl) ? xmlAttr(videoModelEl, 'heads') : undefined;
+  const videoPrimaryRaw = isXmlElement(videoModelEl) ? xmlAttr(videoModelEl, 'primary') : undefined;
+  const videoVram = videoVramRaw === undefined ? undefined : parseInt(videoVramRaw, 10);
+  const videoHeads = videoHeadsRaw === undefined ? undefined : parseInt(videoHeadsRaw, 10);
+  const video: DomainVideo | undefined =
+    videoModel === 'cirrus' ||
+    videoModel === 'vga' ||
+    videoModel === 'vmvga' ||
+    videoModel === 'qxl' ||
+    videoModel === 'virtio' ||
+    videoModel === 'bochs' ||
+    videoModel === 'ramfb'
+      ? {
+          model: videoModel,
+          ...(videoVram === undefined || !Number.isInteger(videoVram) || videoVram <= 0
+            ? {}
+            : { vramKiB: videoVram }),
+          ...(videoHeads === undefined || !Number.isInteger(videoHeads) || videoHeads <= 0
+            ? {}
+            : { heads: videoHeads }),
+          ...(videoPrimaryRaw === 'yes'
+            ? { primary: true as const }
+            : videoPrimaryRaw === 'no'
+              ? { primary: false as const }
+              : {}),
+        }
+      : undefined;
+
   const channels = asArray<XmlValue>(devices?.['channel']);
   const agent = channels.some((c) => {
     if (!isXmlElement(c)) {
@@ -632,6 +708,7 @@ export function parseDomainXml(xml: string): DomainConf {
           },
         }
       : { graphics: 'none' as const }),
+    ...(video === undefined ? {} : { video }),
     ...(agent ? { agent: true as const } : {}),
     consoles: hasSerial,
   };
@@ -731,6 +808,21 @@ export function domainConfigMatches(current: DomainConf, desired: DomainConf): b
       if (want.listen !== undefined && want.listen !== have.listen) {
         return false;
       }
+    }
+  }
+  if (desired.video !== undefined) {
+    const have = current.video;
+    if (have === undefined || have.model !== desired.video.model) {
+      return false;
+    }
+    if (desired.video.vramKiB !== undefined && desired.video.vramKiB !== have.vramKiB) {
+      return false;
+    }
+    if (desired.video.heads !== undefined && desired.video.heads !== have.heads) {
+      return false;
+    }
+    if (desired.video.primary !== undefined && desired.video.primary !== have.primary) {
+      return false;
     }
   }
   if (desired.agent !== undefined && (current.agent ?? false) !== desired.agent) {

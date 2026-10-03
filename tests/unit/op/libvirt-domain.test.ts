@@ -152,6 +152,29 @@ describe('serializeDomainXml', () => {
     }
   });
 
+  test('serializes video devices with attributes and omits them by default', () => {
+    expect(serializeDomainXml(BASIC)).not.toContain('<video');
+    const xml = serializeDomainXml({
+      ...BASIC,
+      video: { model: 'virtio', heads: 1, primary: true },
+    });
+    expect(xml).toContain('<video><model type="virtio" heads="1" primary="yes"/></video>');
+    const vram = serializeDomainXml({ ...BASIC, video: { model: 'qxl', vramKiB: 65536 } });
+    expect(vram).toContain('<video><model type="qxl" vram="65536"/></video>');
+    for (const video of [
+      { model: 'virtio', vramKiB: 0 },
+      { model: 'virtio', heads: 0 },
+      { model: 'virtio', vramKiB: 1.5 },
+    ]) {
+      try {
+        serializeDomainXml({ ...BASIC, video: video as DomainConf['video'] });
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    }
+  });
+
   test('serializes cdrom devices for seed images', () => {
     const xml = serializeDomainXml({
       ...BASIC,
@@ -349,6 +372,7 @@ describe('parseDomainXml', () => {
       ],
       networks: [{ source: 'default', model: 'virtio', mac: '52:54:00:11:22:33' }],
       graphics: { type: 'spice', listen: 'none' },
+      video: { model: 'qxl' },
       agent: true,
       consoles: true,
     });
@@ -504,6 +528,44 @@ describe('parseDomainXml', () => {
     ]);
   });
 
+  test('parses video attributes and ignores unknown models', () => {
+    const conf = parseDomainXml(
+      '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
+        '<video><model type="virtio" vram="32768" heads="1" primary="yes"/></video>' +
+        '</devices></domain>',
+    );
+    expect(conf.video).toEqual({ model: 'virtio', vramKiB: 32768, heads: 1, primary: true });
+    const bare = parseDomainXml(
+      '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
+        '<video><model type="cirrus"/></video></devices></domain>',
+    );
+    expect(bare.video).toEqual({ model: 'cirrus' });
+    const exotic = parseDomainXml(
+      '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
+        '<video><model type="unobtainium"/></video></devices></domain>',
+    );
+    expect(exotic.video).toBeUndefined();
+    expect(parseDomainXml(serializeDomainXml({ ...BASIC, video: conf.video }))).toEqual({
+      name: 'guest',
+      memoryMiB: 2048,
+      vcpus: 2,
+      firmware: 'bios',
+      bootDevices: ['hd'],
+      disks: [
+        {
+          source: '/var/lib/libvirt/images/guest.qcow2',
+          target: 'vda',
+          bus: 'virtio',
+          format: 'qcow2',
+        },
+      ],
+      networks: [{ source: 'default', model: 'virtio' }],
+      graphics: { type: 'spice', listen: 'none' },
+      video: conf.video,
+      consoles: true,
+    });
+  });
+
   test('rejects missing fields, bad arch, and unmodeled device types', () => {
     const cases = [
       '<domain><memory>512</memory><vcpu>1</vcpu></domain>',
@@ -568,6 +630,14 @@ describe('domainConfigMatches', () => {
         disks: [{ source: '/var/lib/libvirt/images/guest.qcow2', device: 'disk' }],
       }),
     ).toBe(true);
+  });
+
+  test('compares video models with unset video as wildcard', () => {
+    const live = parseDomainXml(DUMPXML);
+    expect(domainConfigMatches(live, { ...BASIC })).toBe(true);
+    expect(domainConfigMatches(live, { ...BASIC, video: { model: 'qxl' } })).toBe(true);
+    expect(domainConfigMatches(live, { ...BASIC, video: { model: 'virtio' } })).toBe(false);
+    expect(domainConfigMatches({ ...BASIC }, { ...BASIC, video: { model: 'qxl' } })).toBe(false);
   });
 
   test('treats unset direct kernel boot fields as wildcards', () => {
