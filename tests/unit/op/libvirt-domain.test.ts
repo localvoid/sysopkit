@@ -105,6 +105,38 @@ describe('serializeDomainXml', () => {
     ).not.toContain('secure=');
   });
 
+  test('serializes 9p host shares as read-only passthrough mounts', () => {
+    const xml = serializeDomainXml({
+      ...BASIC,
+      filesystems: [{ source: '/srv/lab-data', target: 'labdata', readonly: true }],
+    });
+    expect(xml).toContain(
+      '<filesystem type="mount" accessmode="passthrough">' +
+        '<source dir="/srv/lab-data"/><target dir="labdata"/>' +
+        '<driver type="path" wrpolicy="immediate"/><readonly/>',
+    );
+  });
+
+  test('omits readonly on writable shares and rejects empty source/target', () => {
+    const xml = serializeDomainXml({
+      ...BASIC,
+      filesystems: [{ source: '/srv/lab-data', target: 'labdata' }],
+    });
+    expect(xml).toContain('<filesystem type="mount" accessmode="passthrough">');
+    expect(xml).not.toContain('<readonly/>');
+    for (const filesystems of [
+      [{ source: '', target: 'labdata' }],
+      [{ source: '/srv/lab-data', target: '' }],
+    ]) {
+      try {
+        serializeDomainXml({ ...BASIC, filesystems });
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    }
+  });
+
   test('rejects invalid configs', () => {
     for (const bad of [
       { ...BASIC, name: '' },
@@ -441,6 +473,26 @@ describe('parseDomainXml', () => {
     expect(conf.cmdline).toBe('console=ttyS0');
   });
 
+  test('round-trips 9p shares and rejects non-mount filesystem types', () => {
+    const conf: DomainConf = {
+      ...BASIC,
+      filesystems: [{ source: '/srv/lab-data', target: 'labdata', readonly: true }],
+    };
+    const parsed = parseDomainXml(serializeDomainXml(conf));
+    expect(parsed.filesystems).toEqual(conf.filesystems);
+    expect(parseDomainXml(serializeDomainXml(parsed))).toEqual(parsed);
+    try {
+      parseDomainXml(
+        '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
+          '<filesystem type="ram"><source usage="1024"/><target dir="memfs"/></filesystem>' +
+          '</devices></domain>',
+      );
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(Error);
+    }
+  });
+
   test('parses ejected cdroms as sourceless entries', () => {
     const conf = parseDomainXml(
       '<domain><name>x</name><memory>512</memory><vcpu>1</vcpu><devices>' +
@@ -540,6 +592,28 @@ describe('domainConfigMatches', () => {
     expect(domainConfigMatches(live, { ...live, initrd: '/boot/other.img' })).toBe(false);
     expect(domainConfigMatches(live, { ...live, cmdline: 'console=ttyS1' })).toBe(false);
     expect(domainConfigMatches({ ...BASIC }, { ...live, kernel: '/boot/vmlinuz' })).toBe(false);
+  });
+
+  test('detects drift in 9p shares', () => {
+    const live: DomainConf = {
+      ...BASIC,
+      filesystems: [{ source: '/srv/lab-data', target: 'labdata', readonly: true }],
+    };
+    expect(domainConfigMatches(live, { ...BASIC })).toBe(true);
+    expect(domainConfigMatches(live, { ...live })).toBe(true);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        filesystems: [{ source: '/srv/other', target: 'labdata', readonly: true }],
+      }),
+    ).toBe(false);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        filesystems: [{ source: '/srv/lab-data', target: 'other', readonly: true }],
+      }),
+    ).toBe(false);
+    expect(domainConfigMatches({ ...BASIC }, { ...live })).toBe(false);
   });
 
   test('treats unset desired uuid as wildcard and differing uuids as drift', () => {

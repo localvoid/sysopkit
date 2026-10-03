@@ -32,6 +32,7 @@ await defineDomain({
     bootDevices?: ['hd'], // default
     disks: [{ source, target?, bus?: 'virtio', format?: 'qcow2', kind?: 'file', device?: 'disk'|'cdrom', readonly?, bootOrder? }],
     networks: [{ type?: 'network', source, model?: 'virtio', mac?, bootOrder? }],
+    filesystems?: [{ source /* host dir */, target /* mount tag */, readonly? }], // 9p passthrough host shares; guest mounts `mount -t 9p <target> <path>`
     graphics?: { type: 'spice'|'vnc', listen?: 'none' } | 'none', // default spice/none
     agent?: true, // qemu-guest-agent channel
     consoles?: true, // serial+console pty (default true)
@@ -40,6 +41,8 @@ await defineDomain({
 ```
 
 Disk targets default to `vdX`/`sdX` in order (`_targetSuffix`: a..z, aa..). Serializer output is fully explicit (defaulted bus/model/format/listen written out); the parser keeps only the modeled subset. Seed cdrom: `{ device: 'cdrom', source: 'seed.iso', target: 'sda', bus: 'sata', readonly: true }` — an ejected drive parses as `source: ''`.
+
+Filesystems are 9p `mount`/`passthrough` host-directory shares (`<driver type='path' wrpolicy='immediate'/>` + `<readonly/>` when `readonly: true`); non-`mount` types (e.g. `ram`) throw client-side — use the raw XML path for those.
 
 `defineDomain` is idempotent (redefines only on drift, unset fields are wildcards), but a replacement define over an existing name requires the same explicit `<uuid>` — pass the `uuid` from `getDomain()` when redefining, otherwise libvirt rejects it.
 

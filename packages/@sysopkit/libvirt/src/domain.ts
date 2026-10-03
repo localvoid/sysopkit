@@ -120,6 +120,16 @@ export interface DomainInterface {
   readonly bootOrder?: number;
 }
 
+/** A 9p host-directory share (e.g. read-only lab payloads). */
+export interface DomainFilesystem {
+  /** Host directory exported to the guest (`<source dir>`). */
+  readonly source: string;
+  /** Guest mount tag (`<target dir>`; guest mounts `mount -t 9p <target> <path>`). */
+  readonly target: string;
+  /** Enforce host-side read-only (`<readonly/>`). */
+  readonly readonly?: boolean;
+}
+
 /** Graphical console types modeled by `DomainGraphics`. */
 export type DomainGraphicsType = 'spice' | 'vnc';
 
@@ -190,6 +200,8 @@ export interface DomainConf {
   readonly disks?: readonly DomainDisk[];
   /** Attached network interfaces. */
   readonly networks?: readonly DomainInterface[];
+  /** 9p host-directory shares (`passthrough` access, always read-only in practice). */
+  readonly filesystems?: readonly DomainFilesystem[];
   /** Graphical console. Default: spice with no network listener. */
   readonly graphics?: DomainGraphics | 'none';
   /** Attach the qemu-guest-agent virtio channel. Default: false. */
@@ -246,6 +258,15 @@ export function serializeDomainXml(domain: DomainConf): string {
   const bootDevices = domain.bootDevices ?? ['hd'];
   const disks = domain.disks ?? [];
   const networks = domain.networks ?? [];
+  const filesystems = domain.filesystems ?? [];
+  for (const fs of filesystems) {
+    if (fs.source === '') {
+      throw new Error('domain filesystem source must not be empty');
+    }
+    if (fs.target === '') {
+      throw new Error('domain filesystem target (mount tag) must not be empty');
+    }
+  }
 
   const os: MutableXmlElement = {
     type: {
@@ -314,6 +335,19 @@ export function serializeDomainXml(domain: DomainConf): string {
       }
       if (iface.bootOrder !== undefined) {
         entry['boot'] = { '@order': String(iface.bootOrder) };
+      }
+      return entry;
+    }),
+    filesystem: filesystems.map((fs) => {
+      const entry: MutableXmlElement = {
+        '@type': 'mount',
+        '@accessmode': 'passthrough',
+        'source': { '@dir': fs.source },
+        'target': { '@dir': fs.target },
+        'driver': { '@type': 'path', '@wrpolicy': 'immediate' },
+      };
+      if (fs.readonly === true) {
+        entry['readonly'] = '';
       }
       return entry;
     }),
@@ -525,6 +559,27 @@ export function parseDomainXml(xml: string): DomainConf {
     };
   });
 
+  const filesystems: DomainFilesystem[] = asArray<XmlValue>(devices?.['filesystem']).map((f) => {
+    if (!isXmlElement(f)) {
+      throw new Error('invalid domain XML: <filesystem> must be an element');
+    }
+    const type = xmlAttr(f, 'type') ?? 'mount';
+    if (type !== 'mount') {
+      throw new Error(
+        `filesystem type '${type}' is outside the normalized model (use the raw XML path of defineDomain)`,
+      );
+    }
+    const sourceEl = childElement(f, 'source');
+    const targetEl = childElement(f, 'target');
+    const source = isXmlElement(sourceEl) ? (xmlAttr(sourceEl, 'dir') ?? '') : '';
+    const target = isXmlElement(targetEl) ? (xmlAttr(targetEl, 'dir') ?? '') : '';
+    return {
+      source,
+      target,
+      ...('readonly' in f ? { readonly: true as const } : {}),
+    };
+  });
+
   const graphicsEl = childElement(devices, 'graphics');
   const graphicsType = isXmlElement(graphicsEl) ? xmlAttr(graphicsEl, 'type') : undefined;
   const listenEl = isXmlElement(graphicsEl) ? childElement(graphicsEl, 'listen') : undefined;
@@ -568,6 +623,7 @@ export function parseDomainXml(xml: string): DomainConf {
     ...(boot.length === 0 ? {} : { bootDevices: boot as ('hd' | 'cdrom' | 'network')[] }),
     ...(disks.length === 0 ? {} : { disks }),
     ...(networks.length === 0 ? {} : { networks }),
+    ...(filesystems.length === 0 ? {} : { filesystems }),
     ...(graphicsType === 'spice' || graphicsType === 'vnc'
       ? {
           graphics: {
@@ -651,6 +707,13 @@ export function domainConfigMatches(current: DomainConf, desired: DomainConf): b
     desired.networks !== undefined &&
     ((current.networks ?? []).length !== desired.networks.length ||
       desired.networks.some((n, i) => !_interfaceMatches((current.networks ?? [])[i], n)))
+  ) {
+    return false;
+  }
+  if (
+    desired.filesystems !== undefined &&
+    ((current.filesystems ?? []).length !== desired.filesystems.length ||
+      desired.filesystems.some((f, i) => !_filesystemMatches((current.filesystems ?? [])[i], f)))
   ) {
     return false;
   }
@@ -743,6 +806,19 @@ function _interfaceMatches(current: DomainInterface, desired: DomainInterface): 
     return false;
   }
   if (desired.bootOrder !== undefined && desired.bootOrder !== current.bootOrder) {
+    return false;
+  }
+  return true;
+}
+
+function _filesystemMatches(current: DomainFilesystem, desired: DomainFilesystem): boolean {
+  if (current.source !== desired.source) {
+    return false;
+  }
+  if (current.target !== desired.target) {
+    return false;
+  }
+  if (desired.readonly !== undefined && desired.readonly !== (current.readonly ?? false)) {
     return false;
   }
   return true;
