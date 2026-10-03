@@ -1241,18 +1241,81 @@ export type ScopeUnitConf = {
   Install?: InstallSectionOptions;
 };
 
+// ---------------------------------------------------------------------------
+// Drop-in configurations (<unit>.d/*.conf overrides)
+// ---------------------------------------------------------------------------
+
 /**
- * Any systemd unit configuration.
+ * Shared shape of a unit drop-in override: only changed keys, every
+ * section optional, no `[Install]` section. Drop-in `[Install]` is
+ * silently ignored (`systemctl enable` reads it only from the main
+ * unit file), so the aliases below leave it out on purpose — full
+ * units keep the `*UnitConf` types. Serialize with `serializeIni`
+ * from `sysopkit/op/ini`.
+ *
+ * @see systemd.unit(5) - drop-in files
  */
-export type UnitConf =
-  | ServiceUnitConf
-  | TimerUnitConf
-  | SocketUnitConf
-  | MountUnitConf
-  | AutomountUnitConf
-  | SwapUnitConf
-  | DeviceUnitConf
-  | TargetUnitConf
-  | PathUnitConf
-  | SliceUnitConf
-  | ScopeUnitConf;
+
+/** Drop-in override for a service unit. */
+export type ServiceUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Service?: Partial<ServiceSectionOptions>;
+};
+
+/** Drop-in override for a timer unit. */
+export type TimerUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Timer?: Partial<TimerSectionOptions>;
+};
+
+/** Drop-in override for a socket unit. */
+export type SocketUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Socket?: Partial<SocketSectionOptions>;
+};
+
+/** Drop-in override for a mount unit. */
+export type MountUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Mount?: Partial<MountSectionOptions>;
+};
+
+/** Drop-in override for an automount unit. */
+export type AutomountUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Automount?: Partial<AutomountSectionOptions>;
+};
+
+/** Drop-in override for a swap unit. */
+export type SwapUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Swap?: Partial<SwapSectionOptions>;
+};
+
+/** Drop-in override for a device unit. */
+export type DeviceUnitDropIn = {
+  Unit?: UnitSectionOptions;
+};
+
+/** Drop-in override for a target unit. */
+export type TargetUnitDropIn = {
+  Unit?: UnitSectionOptions;
+};
+
+/** Drop-in override for a path unit. */
+export type PathUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Path?: Partial<PathSectionOptions>;
+};
+
+/** Drop-in override for a slice unit. */
+export type SliceUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Slice?: Partial<SliceSectionOptions>;
+};
+
+/** Drop-in override for a scope unit. */
+export type ScopeUnitDropIn = {
+  Unit?: UnitSectionOptions;
+  Scope?: Partial<ScopeSectionOptions>;
+};

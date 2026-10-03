@@ -59,7 +59,7 @@ const text = serializeSudoersConf([
 ]);
 ```
 
-Systemd config-file types (`journald`, `coredump`, `logind`, `resolved`, `sleep`, `timesyncd`, `zram-generator`, system manager `system.conf`/`user.conf`), unit-file types (`ServiceUnitConf`, `TimerUnitConf`, `SocketUnitConf`, `MountUnitConf`, …), and `sysusers.d`/`tmpfiles.d` `parse`/`serialize` helpers live under `@sysopkit/linux/systemd`.
+Systemd config-file types (`journald`, `coredump`, `logind`, `resolved`, `sleep`, `timesyncd`, `zram-generator`, system manager `system.conf`/`user.conf`), unit-file types (`ServiceUnitConf`, `TimerUnitConf`, `SocketUnitConf`, `MountUnitConf`, …) plus per-kind drop-in override types (`ServiceUnitDropIn`, `MountUnitDropIn`, … — changed keys only, no inert `[Install]`), and `sysusers.d`/`tmpfiles.d` `parse`/`serialize` helpers live under `@sysopkit/linux/systemd`.
 
 ## License
 
