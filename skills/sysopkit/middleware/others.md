@@ -2,8 +2,8 @@
 
 ```typescript
 import { middleware, ConnectorMiddleware } from 'sysopkit';
-import { trace } from 'sysopkit/middleware/trace';
 import { expectStderrPrompt } from 'sysopkit/middleware/expect';
+import { trace } from 'sysopkit/middleware/trace';
 import { TransformCmdMiddleware } from 'sysopkit/middleware/transform-cmd';
 ```
 
@@ -12,7 +12,9 @@ For `sudo`, see [sudo](sudo.md). For `chroot`, see [chroot](chroot.md).
 ## Model
 
 ```typescript
-abstract class ConnectorMiddleware implements Connector { constructor(public readonly next: Connector) }
+abstract class ConnectorMiddleware implements Connector {
+  constructor(public readonly next: Connector);
+}
 function middleware<R>(name, fn, wrap: (next, ctx) => Connector, options?: { info? }): Promise<R>;
 function updateConnectorOptions<R>(fn: (conn: Connector) => R): R;
 ```

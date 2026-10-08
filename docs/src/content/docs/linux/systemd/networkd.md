@@ -13,7 +13,16 @@ import type {
   LinkSRIOV,
   LinkEnergyEfficientEthernet,
 } from '@sysopkit/linux/systemd/networkd/link';
-
+import type {
+  NetDevConf,
+  NetDevBridge,
+  NetDevVLAN,
+  NetDevVXLAN,
+  NetDevTunnel,
+  NetDevWireGuard,
+  NetDevWireGuardPeer,
+  NetDevBond,
+} from '@sysopkit/linux/systemd/networkd/netdev';
 import type {
   NetworkConf,
   NetworkMatch,
@@ -25,17 +34,6 @@ import type {
   NetworkDHCPv6,
   NetworkBridgePort,
 } from '@sysopkit/linux/systemd/networkd/network';
-
-import type {
-  NetDevConf,
-  NetDevBridge,
-  NetDevVLAN,
-  NetDevVXLAN,
-  NetDevTunnel,
-  NetDevWireGuard,
-  NetDevWireGuardPeer,
-  NetDevBond,
-} from '@sysopkit/linux/systemd/networkd/netdev';
 ```
 
 ## Link Files (`.link`)

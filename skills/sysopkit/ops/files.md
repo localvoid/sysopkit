@@ -1,10 +1,10 @@
 # File ops: files, rsync, tar, curl, temp
 
 ```typescript
+import { curl } from 'sysopkit/op/curl';
 import { createFile, createDir, createLink, cp, sha256 } from 'sysopkit/op/file';
 import { rsyncPush, rsyncPull } from 'sysopkit/op/rsync';
 import { tar, untar } from 'sysopkit/op/tar';
-import { curl } from 'sysopkit/op/curl';
 import { withTempFile, withTempDir } from 'sysopkit/op/temp';
 ```
 

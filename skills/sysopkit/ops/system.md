@@ -1,11 +1,11 @@
 # System ops: users, mount, network, config serializers
 
 ```typescript
-import { createUser, createGroup } from 'sysopkit/op/users';
+import { serializeIni } from 'sysopkit/op/ini';
 import { mount, umount } from 'sysopkit/op/mount';
 import { parseHosts, serializeHosts } from 'sysopkit/op/net';
 import { serializeSshConf } from 'sysopkit/op/ssh';
-import { serializeIni } from 'sysopkit/op/ini';
+import { createUser, createGroup } from 'sysopkit/op/users';
 ```
 
 ## Users (`sysopkit/op/users`)

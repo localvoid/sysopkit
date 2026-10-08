@@ -1,17 +1,17 @@
 # Linux config files and host facts
 
 ```typescript
-import { serializeSysctlConf } from '@sysopkit/linux/sysctl';
-import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
-import { serializeLimitsConf } from '@sysopkit/linux/limits';
 import type { FwupdConf } from '@sysopkit/linux/fwupd';
 import type { IwdMainConf, IwdPskConf } from '@sysopkit/linux/iwd';
-import { getIwdNetworkPath } from '@sysopkit/linux/iwd';
-import { getOSInfo } from '@sysopkit/linux/os';
-import { lsblk } from '@sysopkit/linux/disk';
 import { lscpu } from '@sysopkit/linux/cpu';
-import { getMemInfo } from '@sysopkit/linux/mem';
+import { lsblk } from '@sysopkit/linux/disk';
+import { getIwdNetworkPath } from '@sysopkit/linux/iwd';
 import { dmesg, lsmod } from '@sysopkit/linux/kernel';
+import { serializeLimitsConf } from '@sysopkit/linux/limits';
+import { getMemInfo } from '@sysopkit/linux/mem';
+import { getOSInfo } from '@sysopkit/linux/os';
+import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
+import { serializeSysctlConf } from '@sysopkit/linux/sysctl';
 import { setTuneProfile } from '@sysopkit/linux/tuned';
 ```
 

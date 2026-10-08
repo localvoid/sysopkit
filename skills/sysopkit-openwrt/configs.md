@@ -1,14 +1,14 @@
 # UCI config reference
 
 ```typescript
-import type { UciNetwork } from '@sysopkit/openwrt/uci/network';
-import type { UciWireless } from '@sysopkit/openwrt/uci/wireless';
-import type { UciFirewall } from '@sysopkit/openwrt/uci/firewall';
-import type { UciSystem } from '@sysopkit/openwrt/uci/system';
 import type { UciDhcp } from '@sysopkit/openwrt/uci/dhcp';
 import type { UciDropbear } from '@sysopkit/openwrt/uci/dropbear';
+import type { UciFirewall } from '@sysopkit/openwrt/uci/firewall';
+import type { UciNetwork } from '@sysopkit/openwrt/uci/network';
 import type { UciSqm } from '@sysopkit/openwrt/uci/sqm';
+import type { UciSystem } from '@sysopkit/openwrt/uci/system';
 import type { UciUpnpd } from '@sysopkit/openwrt/uci/upnpd';
+import type { UciWireless } from '@sysopkit/openwrt/uci/wireless';
 ```
 
 All submodules above are **types-only** — pair each with `serializeUci` (see [uci](uci.md)). Each entry shows the top-level config type (`/etc/config/<name>`) and its section union.

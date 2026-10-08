@@ -36,10 +36,10 @@ bun add @sysopkit/linux sysopkit
 ## Usage
 
 ```typescript
-import { installPackages } from '@sysopkit/linux/pkg/apt';
-import { service } from '@sysopkit/linux/systemd';
 import { getOSInfo } from '@sysopkit/linux/os';
+import { installPackages } from '@sysopkit/linux/pkg/apt';
 import { serializeSudoersConf } from '@sysopkit/linux/sudoers';
+import { service } from '@sysopkit/linux/systemd';
 
 await installPackages({ packages: ['nginx', 'curl'] });
 

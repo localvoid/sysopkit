@@ -7,9 +7,9 @@ Type definitions for `main.conf` — the iwd system-wide configuration file (`iw
 
 ```ts
 import type { IwdMainConf, IwdPskConf } from '@sysopkit/linux/iwd';
-import { serializeIni } from 'sysopkit/op/ini';
-import { createFile } from 'sysopkit/op/file';
 import { IWD_MAIN_CONF_PATH, IWD_NETWORK_DIR, getIwdNetworkPath } from '@sysopkit/linux/iwd';
+import { createFile } from 'sysopkit/op/file';
+import { serializeIni } from 'sysopkit/op/ini';
 
 await createFile({
   path: IWD_MAIN_CONF_PATH,

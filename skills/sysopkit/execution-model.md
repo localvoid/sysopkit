@@ -1,8 +1,8 @@
 # Execution model
 
 ```typescript
-import { start } from 'sysopkit/start';
 import { task, utility, context, middleware } from 'sysopkit';
+import { start } from 'sysopkit/start';
 ```
 
 ## Context tree

@@ -43,8 +43,8 @@ task('inner', async (ctx) => {
 Variables are typically set when creating a context:
 
 ```ts
-import { start } from 'sysopkit/start';
 import { SUDO_PASSWORD } from 'sysopkit/middleware/sudo';
+import { start } from 'sysopkit/start';
 
 await start(
   async () => {

@@ -11,10 +11,10 @@ TypeScript-first infrastructure automation (programmatic Ansible alternative). Z
 
 ```typescript
 import { apply } from 'sysopkit';
-import { main } from 'sysopkit/start';
 import { resolveInventory } from 'sysopkit/inventory';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { sh } from 'sysopkit/op/sh';
+import { main } from 'sysopkit/start';
 
 await main(async () => {
   await using hosts = resolveInventory({

@@ -27,8 +27,8 @@ await main(async () => {
 Define the target host with an SSH connector.
 
 ```ts
-import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
+import { main } from 'sysopkit/start';
 
 await main(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
@@ -43,9 +43,9 @@ Use `apply()` to run operations against one or more hosts:
 
 ```ts
 import { apply } from 'sysopkit';
-import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
 import { sh } from 'sysopkit/op/sh';
+import { main } from 'sysopkit/start';
 
 await main(async () => {
   await using c = new SSHConnector({ host: '192.168.1.10', user: 'sysop' });
@@ -144,11 +144,11 @@ await sudo(async () => {
 
 ```ts
 import { apply, task, onChange, latch } from 'sysopkit';
-import { main } from 'sysopkit/start';
 import { SSHConnector } from 'sysopkit/connector/ssh';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { createFile } from 'sysopkit/op/file';
 import { sh } from 'sysopkit/op/sh';
+import { main } from 'sysopkit/start';
 
 const NGINX_CONFIG = `server {
   listen 80 default_server;

@@ -6,8 +6,8 @@ description: Declarative system user and group management (sysusers.d).
 Parsing and serialization for `sysusers.d` configuration files, used to declaratively create system users and groups at boot time.
 
 ```ts
-import { parseSysusersConf, serializeSysusersConf } from '@sysopkit/linux/systemd/sysusers';
 import type { SysusersConf, SysusersEntry, SysusersType } from '@sysopkit/linux/systemd/sysusers';
+import { parseSysusersConf, serializeSysusersConf } from '@sysopkit/linux/systemd/sysusers';
 ```
 
 ## Usage

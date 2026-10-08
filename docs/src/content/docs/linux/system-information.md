@@ -5,8 +5,8 @@ description: CPU, memory, disk, and OS information operations.
 
 ```ts
 import { lscpu } from '@sysopkit/linux/cpu';
-import { getMemInfo } from '@sysopkit/linux/mem';
 import { lsblk } from '@sysopkit/linux/disk';
+import { getMemInfo } from '@sysopkit/linux/mem';
 import { getOSInfo } from '@sysopkit/linux/os';
 ```
 

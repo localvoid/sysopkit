@@ -1,8 +1,8 @@
 # UCI model and workflow
 
 ```typescript
-import { serializeUci } from '@sysopkit/openwrt/uci';
 import type { UciConfig, UciSection } from '@sysopkit/openwrt/uci';
+import { serializeUci } from '@sysopkit/openwrt/uci';
 ```
 
 ## Types

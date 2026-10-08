@@ -10,8 +10,8 @@ Typed OpenWrt UCI builders (`@sysopkit/openwrt/uci/*`). Pure serializers — no 
 ## Workflow
 
 ```typescript
-import { serializeUci } from '@sysopkit/openwrt/uci';
 import type { UciNetwork } from '@sysopkit/openwrt/uci/network';
+import { serializeUci } from '@sysopkit/openwrt/uci';
 import { createFile } from 'sysopkit/op/file';
 import { sh } from 'sysopkit/op/sh';
 

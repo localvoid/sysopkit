@@ -13,8 +13,8 @@ bun add @sysopkit/openwrt sysopkit @sysopkit/linux
 ## Usage
 
 ```typescript
-import { serializeUci } from '@sysopkit/openwrt/uci';
 import type { UciNetwork } from '@sysopkit/openwrt/uci/network';
+import { serializeUci } from '@sysopkit/openwrt/uci';
 
 const config: UciNetwork = [
   {

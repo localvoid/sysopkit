@@ -21,11 +21,11 @@ bun add sysopkit
 
 ```typescript
 import { apply } from 'sysopkit';
-import { main } from 'sysopkit/start';
 import { resolveInventory } from 'sysopkit/inventory';
 import { sudo } from 'sysopkit/middleware/sudo';
-import { sh } from 'sysopkit/op/sh';
 import { createFile } from 'sysopkit/op/file';
+import { sh } from 'sysopkit/op/sh';
+import { main } from 'sysopkit/start';
 
 await main(async () => {
   await using hosts = resolveInventory({
@@ -77,10 +77,10 @@ Idempotent where marked. Non-idempotent helpers (`sh`, `exec`, `curl`, …) run 
 ## Connectors
 
 ```typescript
-import { LocalConnector } from 'sysopkit/connector/local';
-import { SSHConnector } from 'sysopkit/connector/ssh';
-import { PodmanConnector } from 'sysopkit/connector/podman';
 import { apply } from 'sysopkit';
+import { LocalConnector } from 'sysopkit/connector/local';
+import { PodmanConnector } from 'sysopkit/connector/podman';
+import { SSHConnector } from 'sysopkit/connector/ssh';
 import { start } from 'sysopkit/start';
 
 await start(async () => {
@@ -102,9 +102,9 @@ Connectors implement `connect(signal?)`, `spawn(cmd[], signal?)`, and `AsyncDisp
 Middleware wraps the current connector for the scope of `fn`:
 
 ```typescript
+import { expectStderrPrompt } from 'sysopkit/middleware/expect';
 import { sudo } from 'sysopkit/middleware/sudo';
 import { trace } from 'sysopkit/middleware/trace';
-import { expectStderrPrompt } from 'sysopkit/middleware/expect';
 
 await sudo(
   async () => {

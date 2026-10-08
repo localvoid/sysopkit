@@ -37,8 +37,8 @@ interface Process {
 Runs commands directly on the local host.
 
 ```ts
-import { LocalConnector } from 'sysopkit/connector/local';
 import { start, apply } from 'sysopkit';
+import { LocalConnector } from 'sysopkit/connector/local';
 
 await start(async () => {
   await using c = new LocalConnector();

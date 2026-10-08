@@ -10,10 +10,10 @@ The `apply()` function orchestrates operations across target hosts. It handles c
 Connects to a single host, creates a connector context, and runs the function:
 
 ```ts
-import { start } from 'sysopkit/start';
 import { apply } from 'sysopkit';
 import { LocalConnector } from 'sysopkit/connector/local';
 import { sh } from 'sysopkit/op/sh';
+import { start } from 'sysopkit/start';
 
 await start(async () => {
   await using c = new LocalConnector();
@@ -31,9 +31,9 @@ await start(async () => {
 Processes multiple hosts in parallel batches:
 
 ```ts
-import { start } from 'sysopkit/start';
 import { apply } from 'sysopkit';
 import { resolveInventory } from 'sysopkit/inventory';
+import { start } from 'sysopkit/start';
 
 const inventory = {
   groups: {
@@ -75,8 +75,8 @@ await start(async () => {
 In multi-host mode, failures are collected per host. If `maxFailPercent` is exceeded, `apply()` throws `ApplyError` (extends `AggregateError`) containing all per-host results:
 
 ```ts
-import { start } from 'sysopkit/start';
 import { apply, ApplyError } from 'sysopkit';
+import { start } from 'sysopkit/start';
 
 await start(async (ctx) => {
   try {

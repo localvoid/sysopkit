@@ -1,16 +1,16 @@
 # Shell ops: exec, sh, bash, which
 
 ```typescript
+import { bash } from 'sysopkit/op/bash';
 import { exec } from 'sysopkit/op/exec';
 import { sh, $_, ShellError } from 'sysopkit/op/sh';
-import { bash } from 'sysopkit/op/bash';
 import { which, resolveTools } from 'sysopkit/op/which';
 ```
 
 ```typescript
+import { bash } from 'sysopkit/op/bash';
 import { exec } from 'sysopkit/op/exec';
 import { sh, $_ } from 'sysopkit/op/sh';
-import { bash } from 'sysopkit/op/bash';
 
 await exec(['systemctl', 'restart', 'nginx']); // raw argv, no throw, inspect exitCode
 await sh('cat > file <<EOF\n…'); // runs via `sh -c`, throws ShellError

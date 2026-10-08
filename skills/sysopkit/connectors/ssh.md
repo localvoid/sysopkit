@@ -1,8 +1,8 @@
 # SSH connector
 
 ```typescript
-import { SSHConnector } from 'sysopkit/connector/ssh';
 import { apply } from 'sysopkit';
+import { SSHConnector } from 'sysopkit/connector/ssh';
 ```
 
 The default connector — inventory hosts without a known prefix become `SSHConnector`, and it is what `apply()` connects before running your function.

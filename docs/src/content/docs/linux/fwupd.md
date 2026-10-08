@@ -7,9 +7,9 @@ Type definitions for `fwupd.conf` — the fwupd firmware update daemon configura
 
 ```ts
 import type { FwupdConf } from '@sysopkit/linux/fwupd';
-import { serializeIni } from 'sysopkit/op/ini';
-import { createFile } from 'sysopkit/op/file';
 import { FWUPD_CONF_PATH } from '@sysopkit/linux/fwupd';
+import { createFile } from 'sysopkit/op/file';
+import { serializeIni } from 'sysopkit/op/ini';
 
 await createFile({
   path: FWUPD_CONF_PATH,

@@ -14,6 +14,7 @@ Distros are explicit: every suite picks one via `ContainerOptions.distro` (regis
 
 ```typescript
 import { beforeAll, afterAll } from 'bun:test';
+
 import {
   remoteTempPath,
   sharedPodman, // or sharedSsh / startSharedSshContainer (debian + openwrt)
@@ -177,6 +178,7 @@ Use `jest.useFakeTimers()` from `bun:test` directly. Restore real timers in `aft
 
 ```typescript
 import { afterEach, jest } from 'bun:test';
+
 import { drainFakeTimers } from '../timers.js';
 
 afterEach(() => {

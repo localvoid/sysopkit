@@ -6,8 +6,8 @@ description: Volatile file management (tmpfiles.d).
 Parsing and serialization for `tmpfiles.d` configuration files, used to create, clean, and manage volatile files and directories at boot time.
 
 ```ts
-import { parseTmpFilesConf, serializeTmpFilesConf } from '@sysopkit/linux/systemd/tmpfiles';
 import type { TmpFilesConf, TmpFilesEntry, TmpfilesType } from '@sysopkit/linux/systemd/tmpfiles';
+import { parseTmpFilesConf, serializeTmpFilesConf } from '@sysopkit/linux/systemd/tmpfiles';
 ```
 
 ## Usage

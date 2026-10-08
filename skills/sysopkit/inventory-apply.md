@@ -1,8 +1,8 @@
 # Inventory and apply
 
 ```typescript
-import { resolveInventory } from 'sysopkit/inventory';
 import { apply, ApplyError } from 'sysopkit';
+import { resolveInventory } from 'sysopkit/inventory';
 ```
 
 ## Defining inventory

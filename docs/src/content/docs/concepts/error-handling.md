@@ -28,8 +28,8 @@ try {
 When a multi-host `apply()` exceeds its failure threshold, it throws `ApplyError` with every per-host result:
 
 ```ts
-import { start } from 'sysopkit/start';
 import { apply, ApplyError } from 'sysopkit';
+import { start } from 'sysopkit/start';
 
 await start(async (ctx) => {
   try {
