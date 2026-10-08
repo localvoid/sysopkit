@@ -13,11 +13,12 @@ bun add @sysopkit/cli
 ## Usage
 
 ```typescript
-import { password, select, confirm, InterruptError } from '@sysopkit/cli';
+import { password, select, multiselect, confirm, InterruptError } from '@sysopkit/cli';
 
 try {
   const pwd = await password('Enter sudo password: ');
   const env = await select('Choose a target:', { Production: 'prod', Staging: 'staging' });
+  const gpus = await multiselect('Choose GPUs:', { AMD: 'amd', Intel: 'intel', Nvidia: 'nvidia' });
   const ok = await confirm('Apply changes?');
   if (!ok) return;
 } catch (err) {
@@ -30,6 +31,7 @@ try {
 
 - `password(query, silent = false)` — raw-mode input; `*` echo unless `silent`. Keys: Enter submit, Ctrl+C → `InterruptError`, Ctrl+U clear line, Ctrl+W delete word, Backspace delete char.
 - `select<T>(query, options: Record<string, T>)` — arrow-key menu (Up/Down wrap, Enter confirm, Ctrl+C → `InterruptError`); resolves the chosen value.
+- `multiselect<T>(query, options: Record<string, T>)` — arrow-key checkbox menu (Up/Down move, Space toggle, Enter confirm, Ctrl+C → `InterruptError`); resolves checked values in option order, empty when nothing checked.
 - `confirm(query)` — `select` wrapper with `{ Yes: true, No: false }`.
 - `InterruptError` — thrown on Ctrl+C in any prompt.
 

@@ -147,6 +147,78 @@ export async function select<T>(query: string, options: Record<string, T>): Prom
 }
 
 /**
+ * Render an interactive multi-selection menu with keyboard navigation.
+ *
+ * Displays `query` followed by option keys from `options`. User navigates
+ * with Up/Down arrows, toggles with Space, and confirms with Enter.
+ * Returns the selected values in option order (empty when nothing
+ * checked). Throws `InterruptError` on Ctrl+C.
+ */
+export async function multiselect<T>(query: string, options: Record<string, T>): Promise<T[]> {
+  const { stdin, stdout } = process;
+  const entries = Object.entries(options);
+  let index = 0;
+  const checked = new Set<number>();
+
+  const render = () => {
+    stdout.write(`${CURSOR_START}${ERASE_LINE}${query} (Space to toggle, Enter to confirm)\n`);
+    for (let i = 0; i < entries.length; i++) {
+      const isCursor = i === index;
+      const isChecked = checked.has(i);
+      const box = isChecked ? '[x]' : '[ ]';
+      const prefix = isCursor ? ' ● ' : ' ○ ';
+      const color = isCursor ? '\x1B[32m' : '\x1B[90m';
+      stdout.write(`${ERASE_LINE}${prefix}${color}${box} ${entries[i][0]}\x1B[0m\n`);
+    }
+    stdout.write(cursorMoveUp(entries.length + 1));
+  };
+  stdout.write(CURSOR_HIDE);
+  stdin.setRawMode(true);
+  stdin.resume();
+  render();
+
+  return new Promise((resolve) => {
+    const onData = (chunk: Buffer) => {
+      const char = chunk.toString();
+
+      if (char === '\r' || char === '\n') {
+        process.stdout.write(CURSOR_START);
+        process.stdout.write(ERASE_SCREEN);
+        cleanup();
+        resolve(entries.filter((_, i) => checked.has(i)).map(([, value]) => value));
+      } else if (char === '\x03') {
+        stdout.write(cursorMoveDown(entries.length + 1));
+        cleanup();
+        throw new InterruptError();
+      } else if (char === '\x1B[A') {
+        index = (index - 1 + entries.length) % entries.length;
+        render();
+      } else if (char === '\x1B[B') {
+        index = (index + 1) % entries.length;
+        render();
+      } else if (char === ' ') {
+        if (checked.has(index)) {
+          checked.delete(index);
+        } else {
+          checked.add(index);
+        }
+        index = (index + 1) % entries.length;
+        render();
+      }
+    };
+
+    const cleanup = () => {
+      stdout.write(CURSOR_SHOW);
+      stdin.removeListener('data', onData);
+      stdin.setRawMode(false);
+      stdin.pause();
+    };
+
+    stdin.on('data', onData);
+  });
+}
+
+/**
  * Prompt for a yes/no confirmation.
  *
  * Convenience wrapper around `select` with Yes/No options.
