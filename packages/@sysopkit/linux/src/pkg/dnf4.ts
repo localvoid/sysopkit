@@ -39,6 +39,7 @@ export type DnfRepoConfEntry = {
   readonly gpgkey?: string;
   readonly exclude?: string;
   readonly includepkgs?: string;
+  readonly type?: string;
 };
 
 /**
