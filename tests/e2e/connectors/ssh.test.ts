@@ -71,6 +71,18 @@ describe('SSHConnector', () => {
       });
     });
 
+    test('pipes empty stdin as EOF via SSH', async () => {
+      await sharedSsh(shared, async () => {
+        const empty = await sh('cat', { stdin: '' });
+        expect(empty.exitCode).toBe(0);
+        expect(empty.stdout).toBe('');
+
+        const emptyBin = await sh('cat', { stdin: new Uint8Array(0) });
+        expect(emptyBin.exitCode).toBe(0);
+        expect(emptyBin.stdout).toBe('');
+      });
+    });
+
     test('unknown command should exit with 127 exit code', async () => {
       await sharedSsh(shared, async () => {
         const { exitCode } = await exec(['unknown']);

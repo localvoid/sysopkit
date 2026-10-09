@@ -106,7 +106,10 @@ export async function processExec<Out extends ExecOutput = 'text', Err extends E
 ): Promise<ExecResult<Out, Err>> {
   const proc = processSpawn(cmd, options?.signal, env);
   let stdin: Promise<void> | undefined;
-  if (options?.stdin) {
+  // Absent stdin inherits; empty stdin still pipes (closed stream = EOF).
+  // A truthiness check here hangs consumers like `cat >` on empty input:
+  // they inherit the terminal instead of reading EOF.
+  if (options?.stdin !== undefined) {
     const content = new ReadableStream({
       start(controller) {
         controller.enqueue(

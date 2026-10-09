@@ -76,6 +76,18 @@ describe('PodmanConnector', () => {
         expect(stdout).toBe(stdin);
       });
     });
+
+    test('pipes empty stdin as EOF', async () => {
+      await sharedPodman(shared, async () => {
+        const empty = await exec(['cat'], { stdin: '' });
+        expect(empty.exitCode).toBe(0);
+        expect(empty.stdout).toBe('');
+
+        const emptyBin = await exec(['cat'], { stdin: new Uint8Array(0) });
+        expect(emptyBin.exitCode).toBe(0);
+        expect(emptyBin.stdout).toBe('');
+      });
+    });
   });
 
   describe('sudo operations', () => {
