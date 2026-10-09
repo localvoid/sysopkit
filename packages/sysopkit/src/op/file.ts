@@ -314,7 +314,18 @@ export async function createDir({
 
         await _updateFileStat(ctx, path, mode, user, group, atime, mtime, attributes);
       } else {
-        if (!ctx.dryRun) await sh(`mkdir ${recursive ? '-p ' : ''}${$_(path)}`);
+        if (!ctx.dryRun) {
+          await sh(`mkdir ${recursive ? '-p ' : ''}${$_(path)}`);
+          if (mode !== void 0) {
+            await sh(`chmod ${mode.toString(8)} ${$_(path)}`);
+          }
+          if (user !== void 0 || group !== void 0) {
+            let owner = '';
+            if (user !== void 0) owner = user;
+            if (group !== void 0) owner += `:${group}`;
+            await sh(`chown ${$_(`${owner}`)} ${$_(path)}`);
+          }
+        }
         emitChanged({
           type: 'dir',
           resource: path,
@@ -361,7 +372,7 @@ export async function createLink({
   target,
 }: CreateLinkOptions): Promise<void> {
   return task(
-    `create file ${path}`,
+    `create link ${path}`,
     async (ctx) => {
       const pathInfo = await getPathInfo(path);
       if (pathInfo) {
@@ -382,9 +393,17 @@ export async function createLink({
           });
         }
 
-        await _updateFileStat(ctx, path, void 0, user, group, atime, mtime, attributes);
+        await _updateFileStat(ctx, path, void 0, user, group, atime, mtime, attributes, true);
       } else {
-        if (!ctx.dryRun) await sh(`ln -sn ${$_(target)} ${$_(path)}`);
+        if (!ctx.dryRun) {
+          await sh(`ln -sn ${$_(target)} ${$_(path)}`);
+          if (user !== void 0 || group !== void 0) {
+            let owner = '';
+            if (user !== void 0) owner = user;
+            if (group !== void 0) owner += `:${group}`;
+            await sh(`chown -h ${$_(`${owner}`)} ${$_(path)}`);
+          }
+        }
         emitChanged({
           type: 'link',
           resource: path,
@@ -395,6 +414,7 @@ export async function createLink({
     },
     {
       details: () => ({
+        target,
         user,
         group,
         atime: atime,
@@ -415,6 +435,7 @@ async function _updateFileStat(
   atime?: number,
   mtime?: number,
   attributes?: string[],
+  noDereference?: boolean,
 ): Promise<void> {
   if (
     mode !== void 0 ||
@@ -452,7 +473,7 @@ async function _updateFileStat(
         changes.push({
           type: 'file',
           resource: path,
-          property: 'user',
+          property: 'group',
           from: remoteStat.group,
           to: group,
         });
@@ -461,7 +482,7 @@ async function _updateFileStat(
         let owner = '';
         if (user !== void 0) owner = user;
         if (group !== void 0) owner += `:${group}`;
-        await sh(`chown ${$_(`${owner}`)} ${$_(path)}`);
+        await sh(`chown ${noDereference === true ? '-h ' : ''}${$_(`${owner}`)} ${$_(path)}`);
       }
       emitChanged(changes);
     }
@@ -541,7 +562,7 @@ export interface DeleteDirOptions {
 }
 
 /**
- * **[IDEMPOTENT]** Deletes a file.
+ * **[IDEMPOTENT]** Deletes a directory.
  *
  * Does nothing if the path doesn't exist.
  */
@@ -557,10 +578,11 @@ export async function deleteDir({ path, recursive }: DeleteDirOptions): Promise<
           );
         }
         if (!ctx.dryRun) {
-          let cmd = 'rm -f';
-          if (recursive) cmd += 'r';
-          cmd += ` ${$_(path)}`;
-          await sh(cmd);
+          if (recursive) {
+            await sh(`rm -rf ${$_(path)}`);
+          } else {
+            await sh(`rmdir ${$_(path)}`);
+          }
         }
         emitChanged({
           type: 'dir',
@@ -585,7 +607,7 @@ export interface DeleteLinkOptions {
  */
 export async function deleteLink({ path }: DeleteLinkOptions): Promise<void> {
   return task(
-    `delete file ${path}`,
+    `delete link ${path}`,
     async (ctx) => {
       const pathInfo = await getPathInfo(path);
       if (pathInfo) {

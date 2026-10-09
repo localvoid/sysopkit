@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { trackChanged } from '@sysopkit/test-utils';
-import { waitUntil } from 'sysopkit';
+import { onChange, waitUntil, type ChangeEntry } from 'sysopkit';
 import { exec } from 'sysopkit/op/exec';
 import {
   cp,
@@ -59,16 +59,57 @@ describe('filesystem ops', () => {
     });
   });
 
-  test('createFile applies mode', async () => {
+  test('createFile applies mode and ownership', async () => {
     await sharedPodman(shared, async () => {
       const p = remoteTempPath('fs-mode-');
-      await createFile({ path: p, content: 'x\n', mode: 0o600 });
-      expect((await getFileStat(p)).mode).toBe(0o600);
+      await createFile({
+        path: p,
+        content: 'x\n',
+        mode: 0o600,
+        user: 'testuser',
+        group: 'testuser',
+      });
+      const s1 = await getFileStat(p);
+      expect(s1.mode).toBe(0o600);
+      expect(s1.user).toBe('testuser');
+      expect(s1.group).toBe('testuser');
+
+      const tSame = trackChanged();
+      await createFile({
+        path: p,
+        content: 'x\n',
+        mode: 0o600,
+        user: 'testuser',
+        group: 'testuser',
+      });
+      expect(tSame.changed).toBe(false);
 
       const t = trackChanged();
-      await createFile({ path: p, content: 'x\n', mode: 0o644 });
+      await createFile({ path: p, content: 'x\n', mode: 0o644, user: 'root', group: 'root' });
       expect(t.changed).toBe(true);
-      expect((await getFileStat(p)).mode).toBe(0o644);
+      const s2 = await getFileStat(p);
+      expect(s2.mode).toBe(0o644);
+      expect(s2.user).toBe('root');
+      expect(s2.group).toBe('root');
+
+      // Group-only update reports property 'group' (not 'user').
+      const seen: (ChangeEntry | ChangeEntry[])[] = [];
+      await onChange(
+        (e) => {
+          seen.push(e);
+        },
+        async () => {
+          await createFile({
+            path: p,
+            content: 'x\n',
+            mode: 0o644,
+            user: 'root',
+            group: 'testuser',
+          });
+        },
+      );
+      expect(seen.flat().some((c) => c.property === 'group' && c.to === 'testuser')).toBe(true);
+      expect((await getFileStat(p)).group).toBe('testuser');
     });
   });
 
@@ -108,12 +149,48 @@ describe('filesystem ops', () => {
       const base = remoteTempPath('fs-dir-');
       const nested = `${base}/a/b`;
       const t = trackChanged();
-      await createDir({ path: nested, recursive: true });
+      await createDir({
+        path: nested,
+        recursive: true,
+        mode: 0o750,
+        user: 'testuser',
+        group: 'testuser',
+      });
       expect(t.changed).toBe(true);
       expect((await getPathInfo(nested))?.type).toBe('dir');
+      const s1 = await getFileStat(nested);
+      expect(s1.mode).toBe(0o750);
+      expect(s1.user).toBe('testuser');
+      expect(s1.group).toBe('testuser');
+
+      const tSame = trackChanged();
+      await createDir({
+        path: nested,
+        recursive: true,
+        mode: 0o750,
+        user: 'testuser',
+        group: 'testuser',
+      });
+      expect(tSame.changed).toBe(false);
+
+      const tUpdate = trackChanged();
+      await createDir({ path: nested, mode: 0o755, user: 'root', group: 'root' });
+      expect(tUpdate.changed).toBe(true);
+      const s2 = await getFileStat(nested);
+      expect(s2.mode).toBe(0o755);
+      expect(s2.user).toBe('root');
+      expect(s2.group).toBe('root');
 
       await deleteDir({ path: base, recursive: true });
       expect(await getPathInfo(base)).toBeUndefined();
+
+      const single = remoteTempPath('fs-dir-single-');
+      await createDir({ path: single });
+      expect((await getPathInfo(single))?.type).toBe('dir');
+      const tDel = trackChanged();
+      await deleteDir({ path: single });
+      expect(tDel.changed).toBe(true);
+      expect(await getPathInfo(single)).toBeUndefined();
     });
   });
 
@@ -123,9 +200,27 @@ describe('filesystem ops', () => {
       const link = remoteTempPath('fs-link-');
       await writeFile(target, 'target\n');
       const t = trackChanged();
-      await createLink({ path: link, target });
+      await createLink({ path: link, target, user: 'testuser', group: 'testuser' });
       expect(t.changed).toBe(true);
       expect((await getPathInfo(link))?.type).toBe('link');
+      const s1 = await getFileStat(link);
+      expect(s1.user).toBe('testuser');
+      expect(s1.group).toBe('testuser');
+      // Ownership applies to the link itself, never the target.
+      const st1 = await getFileStat(target);
+      expect(st1.user).toBe('root');
+      expect(st1.group).toBe('root');
+
+      const tSame = trackChanged();
+      await createLink({ path: link, target, user: 'testuser', group: 'testuser' });
+      expect(tSame.changed).toBe(false);
+
+      const tUpdate = trackChanged();
+      await createLink({ path: link, target, user: 'root', group: 'root' });
+      expect(tUpdate.changed).toBe(true);
+      const s2 = await getFileStat(link);
+      expect(s2.user).toBe('root');
+      expect(s2.group).toBe('root');
       expect(await readFile(link)).toBe('target\n');
 
       await deleteLink({ path: link });
@@ -179,6 +274,8 @@ describe('filesystem ops', () => {
       const s = await getFileStat(p);
       expect(s.size).toBe(5);
       expect(s.mode).toBe(0o644);
+      expect(s.user).toBe('root');
+      expect(s.group).toBe('root');
       expect(s.type).toContain('regular');
     });
   });
