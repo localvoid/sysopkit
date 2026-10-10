@@ -10,7 +10,8 @@
  * Networks with options outside the normalized model (static DHCP host
  * entries, DNS forwarders, portgroups, ...) can still be managed through the
  * raw XML path of `defineNetwork()` (`{ name, xml }`), which defines by
- * existence and only redefines with `update: true`.
+ * existence and only redefines with `update: true`. Live section updates
+ * without a network restart go through `updateNetwork()` (`virsh net-update`).
  *
  * @see virsh(1) - management user interface for libvirt guests and hypervisor
  */
@@ -474,5 +475,131 @@ export async function setNetworkAutostart(options: SetNetworkAutostartOptions): 
       });
     },
     { details: () => ({ uri }), verbosity: VERBOSITY_TRACE },
+  );
+}
+
+/** Update directive for `updateNetwork()` (`virsh net-update` command). */
+export type NetworkUpdateCommand = 'add-first' | 'add-last' | 'add' | 'delete' | 'modify';
+
+/** Updatable network config section (`virsh net-update` section). */
+export type NetworkUpdateSection =
+  | 'bridge'
+  | 'domain'
+  | 'ip'
+  | 'ip-dhcp-host'
+  | 'ip-dhcp-range'
+  | 'forward'
+  | 'forward-interface'
+  | 'forward-pf'
+  | 'portgroup'
+  | 'dns-host'
+  | 'dns-txt'
+  | 'dns-srv';
+
+/** Options for `updateNetwork()`. */
+export interface UpdateNetworkOptions extends NetworkOptions {
+  /** Update directive (`add` is a synonym for `add-last`). */
+  readonly command: NetworkUpdateCommand;
+  /** Config section to update (XML element hierarchy, e.g. `ip-dhcp-host`). */
+  readonly section: NetworkUpdateSection;
+  /** Complete XML element to add/modify, or to match for delete. */
+  readonly xml: string;
+  /** Which parent element to target when several exist (0-based). */
+  readonly parentIndex?: number;
+  /** Affect the running network. May combine with `config`. */
+  readonly live?: boolean;
+  /** Affect the persistent config (next startup). May combine with `live`. */
+  readonly config?: boolean;
+  /** Affect the current network state. Exclusive with `live`/`config`. */
+  readonly current?: boolean;
+}
+
+const NETWORK_UPDATE_COMMANDS: readonly string[] = [
+  'add-first',
+  'add-last',
+  'add',
+  'delete',
+  'modify',
+];
+
+const NETWORK_UPDATE_SECTIONS: readonly string[] = [
+  'bridge',
+  'domain',
+  'ip',
+  'ip-dhcp-host',
+  'ip-dhcp-range',
+  'forward',
+  'forward-interface',
+  'forward-pf',
+  'portgroup',
+  'dns-host',
+  'dns-txt',
+  'dns-srv',
+];
+
+/** Sections that only support add/delete (`modify` is rejected by libvirt). */
+const NETWORK_UPDATE_ADD_DELETE_ONLY: readonly string[] = ['ip-dhcp-range', 'forward-interface'];
+
+/**
+ * Updates one section of an existing network (`virsh net-update`).
+ *
+ * Always acts (like `revertSnapshot()`): there is no idempotency check, so
+ * adding an existing entry or deleting a missing one throws. The network
+ * must exist; `--live` requires it to be active. Omitting
+ * `live`/`config`/`current` targets the current network state (the virsh
+ * default).
+ */
+export async function updateNetwork(options: UpdateNetworkOptions): Promise<void> {
+  const { name, uri, command, section, xml, parentIndex, live, config, current } = options;
+  return task(
+    `virsh net-update ${name}`,
+    async (ctx) => {
+      if (name === '') {
+        throw new Error('network name must not be empty');
+      }
+      if (!NETWORK_UPDATE_COMMANDS.includes(command)) {
+        throw new Error(
+          `net-update command must be one of ${NETWORK_UPDATE_COMMANDS.join(', ')} (got '${command}')`,
+        );
+      }
+      if (!NETWORK_UPDATE_SECTIONS.includes(section)) {
+        throw new Error(
+          `net-update section must be one of ${NETWORK_UPDATE_SECTIONS.join(', ')} (got '${section}')`,
+        );
+      }
+      if (xml.trim() === '') {
+        throw new Error('net-update xml must not be empty');
+      }
+      if (command === 'modify' && NETWORK_UPDATE_ADD_DELETE_ONLY.includes(section)) {
+        throw new Error(`net-update modify is not supported for '${section}' (add/delete only)`);
+      }
+      if (parentIndex !== undefined && (!Number.isInteger(parentIndex) || parentIndex < 0)) {
+        throw new Error(
+          `net-update parentIndex must be a non-negative integer (got '${parentIndex}')`,
+        );
+      }
+      if (current === true && (live === true || config === true)) {
+        throw new Error('net-update --current is exclusive with --live/--config');
+      }
+      let cmd = `net-update ${$_(name)} ${command} ${section} ${$_(xml)}`;
+      if (parentIndex !== undefined) {
+        cmd += ` --parent-index ${parentIndex}`;
+      }
+      if (current === true) {
+        cmd += ' --current';
+      } else {
+        if (live === true) {
+          cmd += ' --live';
+        }
+        if (config === true) {
+          cmd += ' --config';
+        }
+      }
+      if (!ctx.dryRun) {
+        await sh(_virsh(uri, cmd));
+      }
+      emitChanged({ type: 'network', resource: name, property: section, to: command });
+    },
+    { details: () => ({ uri, command, section }), verbosity: VERBOSITY_TRACE },
   );
 }

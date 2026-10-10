@@ -28,7 +28,7 @@ Rules that always apply:
 | Task | Read |
 | --- | --- |
 | Domains: `DomainConf`, define/lifecycle/autostart, snapshots, cdrom media, `domifaddr`, inactive XML | [domain.md](domain.md) |
-| Networks: `NetworkConf` (`nat`/`isolated`/`bridge`), define/lifecycle/autostart | [network.md](network.md) |
+| Networks: `NetworkConf` (`nat`/`isolated`/`bridge`), define/lifecycle/autostart, `net-update` section edits | [network.md](network.md) |
 | Pools (`dir`) and volumes: define/build/start, create/delete | [storage.md](storage.md) |
 
 ## Pitfalls

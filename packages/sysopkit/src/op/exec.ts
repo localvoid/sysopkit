@@ -17,12 +17,7 @@ import { context } from '../core/context.js';
 import { TEXT_ENCODER } from '../utils/constants.js';
 
 export { ExecError } from '../utils/process.js';
-export type {
-  ExecOptions,
-  ExecOutput,
-  ExecOutputResult,
-  ExecResult,
-} from '../utils/process.js';
+export type { ExecOptions, ExecOutput, ExecOutputResult, ExecResult } from '../utils/process.js';
 
 /**
  * Spawns a process using the current connector.

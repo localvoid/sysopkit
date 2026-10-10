@@ -15,6 +15,7 @@ import {
   setNetworkAutostart,
   startNetwork,
   undefineNetwork,
+  updateNetwork,
 } from '@sysopkit/libvirt/network';
 ```
 
@@ -44,6 +45,25 @@ Networks with options outside the model (static DHCP host entries, DNS forwarder
 ```ts
 await defineNetwork({ name: 'special', xml, update: true });
 ```
+
+## updateNetwork()
+
+> Always acts (no idempotency check — adding an existing entry or deleting a missing one throws).
+
+Updates one section of an existing network without restarting it (`virsh net-update`). All sections are supported: `bridge`, `domain`, `ip`, `ip-dhcp-host`, `ip-dhcp-range`, `forward`, `forward-interface`, `forward-pf`, `portgroup`, `dns-host`, `dns-txt`, `dns-srv`. Directives: `add-first`, `add-last` (`add` is a synonym), `delete`, `modify` (`modify` is rejected by libvirt for `ip-dhcp-range` and `forward-interface`).
+
+```ts
+await updateNetwork({
+  name: 'default',
+  command: 'add',
+  section: 'ip-dhcp-host',
+  xml: `<host mac='52:54:00:00:00:01' name='bob' ip='192.168.122.45'/>`,
+  live: true,
+  config: true,
+});
+```
+
+Omitting `live`/`config`/`current` targets the current network state (the virsh default). `current: true` is exclusive with `live`/`config`, and `parentIndex` selects the parent element when several exist (e.g. multiple `<ip>` elements). The network must exist; `live` requires it to be active.
 
 ## Lifecycle
 
