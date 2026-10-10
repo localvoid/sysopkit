@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   networkConfigMatches,
+  parseNetworkDhcpHosts,
   parseNetworkInfo,
   parseNetworkList,
   parseNetworkXml,
@@ -92,6 +93,61 @@ describe('parseNetworkXml', () => {
   test('rejects missing names', () => {
     try {
       parseNetworkXml('<network><bridge name="virbr0"/></network>');
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(Error);
+    }
+  });
+});
+
+describe('parseNetworkDhcpHosts', () => {
+  test('parses dhcp hosts and ignores dns hosts', () => {
+    expect(
+      parseNetworkDhcpHosts(
+        '<network><name>default</name>' +
+          '<ip address="192.168.122.1" netmask="255.255.255.0">' +
+          '<dhcp>' +
+          '<range start="192.168.122.2" end="192.168.122.254"/>' +
+          "<host mac='52:54:00:aa:bb:cc' name='alice' ip='192.168.122.10'/>" +
+          "<host mac='52:54:00:dd:ee:ff' ip='192.168.122.11'/>" +
+          '</dhcp></ip>' +
+          '<dns>' +
+          "<host ip='192.168.122.10'><hostname>alice</hostname></host>" +
+          '</dns></network>',
+      ),
+    ).toEqual([
+      { mac: '52:54:00:aa:bb:cc', name: 'alice', ip: '192.168.122.10' },
+      { mac: '52:54:00:dd:ee:ff', ip: '192.168.122.11' },
+    ]);
+  });
+
+  test('collects hosts across multiple ip elements and skips incomplete entries', () => {
+    expect(
+      parseNetworkDhcpHosts(
+        '<network><name>m</name>' +
+          '<ip address="10.0.0.1" netmask="255.255.255.0">' +
+          '<dhcp>' +
+          "<host mac='52:54:00:00:00:01' name='a' ip='10.0.0.2'/>" +
+          "<host mac='52:54:00:00:00:02' name='no-ip'/>" +
+          '</dhcp></ip>' +
+          '<ip address="10.0.1.1" netmask="255.255.255.0">' +
+          '<dhcp>' +
+          "<host mac='52:54:00:00:01:01' name='b' ip='10.0.1.2'/>" +
+          '</dhcp></ip>' +
+          '<ip address="10.0.2.1" netmask="255.255.255.0"/>' +
+          '</network>',
+      ),
+    ).toEqual([
+      { mac: '52:54:00:00:00:01', name: 'a', ip: '10.0.0.2' },
+      { mac: '52:54:00:00:01:01', name: 'b', ip: '10.0.1.2' },
+    ]);
+  });
+
+  test('returns empty when no dhcp hosts exist and rejects malformed xml', () => {
+    expect(parseNetworkDhcpHosts(NET_DUMPXML)).toEqual([]);
+    expect(parseNetworkDhcpHosts('<network><name>n</name></network>')).toEqual([]);
+    try {
+      parseNetworkDhcpHosts('<network><name>broken</name>');
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(Error);

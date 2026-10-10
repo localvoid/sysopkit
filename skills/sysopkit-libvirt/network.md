@@ -67,4 +67,4 @@ await startNetwork({ name: 'test-isolated' });
 
 ## Pure helpers
 
-`serializeNetworkXml`, `parseNetworkXml`, `networkConfigMatches`, `parseNetworkList`, `parseNetworkInfo`.
+`serializeNetworkXml`, `parseNetworkXml`, `parseNetworkDhcpHosts`, `networkConfigMatches`, `parseNetworkList`, `parseNetworkInfo`.

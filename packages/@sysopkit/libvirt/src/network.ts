@@ -169,6 +169,56 @@ export function parseNetworkXml(xml: string): NetworkConf {
 }
 
 /**
+ * A static DHCP host reservation (`<host/>` under `<ip><dhcp>`).
+ *
+ * `name` is optional in libvirt; `virsh net-dumpxml` omits it when unset.
+ */
+export interface NetworkDhcpHost {
+  readonly mac: string;
+  readonly name?: string;
+  readonly ip: string;
+}
+
+/**
+ * Parses static DHCP host reservations from libvirt network XML
+ * (e.g. `virsh net-dumpxml` output).
+ *
+ * Only `<ip><dhcp><host mac="..." [name="..."] ip="..."/>` entries are
+ * collected, across all `<ip>` elements; `<dns><host>` entries carry no
+ * `mac` and are never included. Entries missing `mac` or `ip` are skipped.
+ */
+export function parseNetworkDhcpHosts(xml: string): NetworkDhcpHost[] {
+  const doc = parseXmlDocument(xml);
+  const root = doc['network'];
+  if (!isXmlElement(root)) {
+    throw new Error('invalid network XML: missing <network> root');
+  }
+  const hosts: NetworkDhcpHost[] = [];
+  for (const ipEl of asArray<XmlValue>(root['ip'])) {
+    if (!isXmlElement(ipEl)) {
+      continue;
+    }
+    const dhcpEl = childElement(ipEl, 'dhcp');
+    if (!isXmlElement(dhcpEl)) {
+      continue;
+    }
+    for (const hostEl of asArray<XmlValue>(dhcpEl['host'])) {
+      if (!isXmlElement(hostEl)) {
+        continue;
+      }
+      const mac = xmlAttr(hostEl, 'mac');
+      const ip = xmlAttr(hostEl, 'ip');
+      if (mac === undefined || ip === undefined) {
+        continue;
+      }
+      const name = xmlAttr(hostEl, 'name');
+      hosts.push(name === undefined ? { mac, ip } : { mac, name, ip });
+    }
+  }
+  return hosts;
+}
+
+/**
  * Compares live configuration against desired configuration.
  *
  * Fields left undefined in `desired` act as wildcards (libvirt-assigned

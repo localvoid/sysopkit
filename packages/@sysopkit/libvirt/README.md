@@ -15,7 +15,7 @@ bun add @sysopkit/libvirt sysopkit
 | Module | Import | Highlights |
 | --- | --- | --- |
 | `domain` | `@sysopkit/libvirt/domain` | **Idempotent** `defineDomain` (`DomainConf` incl. `cdrom` devices, or raw `xml`), `undefineDomain` (`removeNvram?`, `snapshotsMetadata?`), `startDomain`, `shutdownDomain`, `destroyDomain`, `setDomainAutostart`, `createSnapshot` (`memspec?`, `diskspecs?`), `revertSnapshot`, `changeDomainMedia` (`eject`/`insert`/`update`); `listDomains`, `listSnapshots`, `snapshotExists`, `getDomain`, `getDomainXml` (`inactive?`), `getDomainInfo`, `getDomainIfAddr` |
-| `network` | `@sysopkit/libvirt/network` | **Idempotent** `defineNetwork`, `undefineNetwork`, `startNetwork`, `destroyNetwork`, `setNetworkAutostart`; always-acts `updateNetwork` (`net-update`: all sections/commands, `live`/`config`/`current`, `parentIndex?`); `NetworkConf` (`nat`/`isolated`/`bridge`), `serializeNetworkXml`, `parseNetworkXml`, `listNetworks`, `getNetworkInfo` |
+| `network` | `@sysopkit/libvirt/network` | **Idempotent** `defineNetwork`, `undefineNetwork`, `startNetwork`, `destroyNetwork`, `setNetworkAutostart`; always-acts `updateNetwork` (`net-update`: all sections/commands, `live`/`config`/`current`, `parentIndex?`); `NetworkConf` (`nat`/`isolated`/`bridge`), `serializeNetworkXml`, `parseNetworkXml`, `parseNetworkDhcpHosts`, `listNetworks`, `getNetworkInfo` |
 | `storage` | `@sysopkit/libvirt/storage` | **Idempotent** `definePool`, `undefinePool`, `buildPool`, `startPool`, `destroyPool`, `setPoolAutostart`, `createVolume`, `deleteVolume`; `PoolConf` (`dir`), `VolumeConf`, `listPools`, `listVolumes`, `getVolumeInfo` |
 
 All virsh operations accept an optional connection URI (`{ uri: 'qemu:///system' }`). When omitted, the virsh default connection is used.

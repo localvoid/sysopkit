@@ -107,14 +107,21 @@ All operations accept an optional connection URI (`{ uri: 'qemu:///system' }`). 
 ## Configuration types
 
 ```ts
-import type { NetworkConf, NetworkDhcpRange, NetworkInfo } from '@sysopkit/libvirt/network';
+import type {
+  NetworkConf,
+  NetworkDhcpHost,
+  NetworkDhcpRange,
+  NetworkInfo,
+} from '@sysopkit/libvirt/network';
 import {
   networkConfigMatches,
+  parseNetworkDhcpHosts,
   parseNetworkXml,
   serializeNetworkXml,
 } from '@sysopkit/libvirt/network';
 ```
 
 - `serializeNetworkXml(conf)` / `parseNetworkXml(xml)` — build and read network XML; `parseNetworkXml` keeps only the modeled subset.
+- `parseNetworkDhcpHosts(xml)` — static DHCP reservations (`<ip><dhcp><host>`, all `<ip>` elements; `<dns>` hosts excluded).
 - `networkConfigMatches(current, desired)` — the drift check used by `defineNetwork()`.
 - `parseNetworkList(output)` / `parseNetworkInfo(output)` — parse `virsh net-list` / `net-info` output.
