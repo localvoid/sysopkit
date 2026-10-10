@@ -388,3 +388,34 @@ export class SSHConnector extends ConnectorBase {
 }
 
 const RECURSIVE_TRUE = { recursive: true };
+
+/**
+ * Removes all keys for a host from a known_hosts file via `ssh-keygen -R`.
+ *
+ * Controller-local (no apply context needed): call it before
+ * (re)connecting to hosts with fresh keys — lab VMs and reinstalled
+ * servers whose keys rotate every boot — so a stale entry can't trip
+ * strict host key checking.
+ *
+ * @param host - Host name, alias, or address to remove.
+ * @param file - Known hosts file. Default: the user's `~/.ssh/known_hosts`.
+ */
+export async function removeKnownHost(host: string, file?: string): Promise<void> {
+  if (host === '' || /\s/.test(host)) {
+    throw new Error(`refusing: bad host '${host}'`);
+  }
+  const cmd =
+    file === undefined ? ['ssh-keygen', '-R', host] : ['ssh-keygen', '-R', host, '-f', file];
+  const proc = processSpawn(cmd);
+  const [exitCode, stdout, stderr] = await Promise.all([
+    proc.exited,
+    text(proc.stdout),
+    text(proc.stderr),
+  ]);
+  if (exitCode !== 0) {
+    const detail = `${stdout}\n${stderr}`.trim();
+    throw new Error(
+      `ssh-keygen -R failed for '${host}' (exit ${exitCode})${detail === '' ? '' : `: ${detail}`}`,
+    );
+  }
+}

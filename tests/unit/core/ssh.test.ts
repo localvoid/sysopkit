@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { join } from 'node:path';
-import { SSHConnector } from 'sysopkit/connector/ssh';
+import { SSHConnector, removeKnownHost } from 'sysopkit/connector/ssh';
 
 let tmpDirs: string[] = [];
 
@@ -153,6 +153,45 @@ describe('SSHConnector strict host key checking', () => {
       expect(hasLaxFlags(conn.rsh)).toBe(true);
     } finally {
       await conn[Symbol.asyncDispose]();
+    }
+  });
+});
+
+describe('removeKnownHost', () => {
+  test('removes matching entries from the given file', async () => {
+    const dir = await makeTempDir('sysopkit-known-hosts-');
+    const file = join(dir, 'known_hosts');
+    await fs.writeFile(
+      file,
+      '192.168.122.95 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI95\n192.168.122.96 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI96\n',
+    );
+
+    await removeKnownHost('192.168.122.95', file);
+
+    const rest = await fs.readFile(file, 'utf8');
+    expect(rest).not.toContain('192.168.122.95');
+    expect(rest).toContain('192.168.122.96');
+  });
+
+  test('missing entry still succeeds', async () => {
+    const dir = await makeTempDir('sysopkit-known-hosts-');
+    const file = join(dir, 'known_hosts');
+    await fs.writeFile(file, '192.168.122.96 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI96\n');
+
+    await removeKnownHost('192.168.122.95', file);
+
+    expect(await fs.readFile(file, 'utf8')).toContain('192.168.122.96');
+  });
+
+  test('refuses empty or blank host', async () => {
+    for (const host of ['', 'a b']) {
+      let err: unknown;
+      try {
+        await removeKnownHost(host);
+      } catch (e) {
+        err = e;
+      }
+      expect(String(err)).toContain('refusing');
     }
   });
 });

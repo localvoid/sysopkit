@@ -54,3 +54,10 @@ updateConnectorOptions((conn) => {
   else throw new Error(`refusing: unsupported connector '${conn.name}'`);
 });
 ```
+
+Before (re)connecting to a host with fresh keys, drop its stale `known_hosts` entry so strict checking can't trip on the rotated key (`ssh-keygen -R`, controller-local — no apply context needed):
+
+```typescript
+import { removeKnownHost } from 'sysopkit/connector/ssh';
+await removeKnownHost('192.168.122.93');
+```
