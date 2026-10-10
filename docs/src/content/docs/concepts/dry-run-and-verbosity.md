@@ -5,7 +5,7 @@ description: Controlling execution mode and output verbosity.
 
 ## Dry Run Mode
 
-Dry run mode prevents actual changes while still showing what would happen. The flag is global (set once at `start()`, inherited down the context tree) but enforcement is per-op: idempotent operations emit change events but skip modification. Exceptions: `tar`/`untar` emit unconditionally, and `curl` has no dry-run guard.
+Dry run mode prevents actual changes while still showing what would happen. The flag is global (set once at `start()`, inherited down the context tree) but enforcement is per-op: idempotent operations emit change events but skip modification. Exceptions: `tar`/`untar` emit unconditionally. `curl` with `path` skips the download but still emits a change; `curl` stdout mode still runs (read-only).
 
 Enable dry-run mode via the environment variable:
 
@@ -48,6 +48,8 @@ SYSOPKIT_VERBOSITY=debug bun run script.ts
 The valid values are `minimal`, `normal`, `trace`, and `debug`.
 
 Invalid values produce a warning and fall back to `normal`.
+
+Built-in reusable ops (`createFile`, `mount`, `curl`, `installPackages`, …) run at trace verbosity: hidden by default, their change events bubble up and display grouped under your `task()`. Wrap related ops in `task('description', …)` for one summary line at default verbosity; pass `SYSOPKIT_VERBOSITY=trace` to see each internal op.
 
 ## TUI
 

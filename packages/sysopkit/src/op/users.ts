@@ -11,7 +11,7 @@
  */
 
 import { emitChanged, task } from '../core/context.js';
-import { VERBOSITY_NORMAL } from '../core/reporter.js';
+import { VERBOSITY_TRACE } from '../core/reporter.js';
 import { diffArrays } from '../utils/diff.js';
 import { readFile } from './file.js';
 import { $_, sh } from './sh.js';
@@ -264,7 +264,7 @@ export async function createUser({
         shell,
         groups: groups !== void 0 ? groups.join(',') : void 0,
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -291,7 +291,7 @@ export async function deleteUser({ user }: DeleteUserOptions): Promise<void> {
         emitChanged({ type: 'user', resource: user, property: 'deleted' });
       }
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -415,7 +415,7 @@ export async function createGroup({ name, gid, members, system }: GroupOptions):
         gid,
         members: members !== void 0 ? members.join(',') : void 0,
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -440,6 +440,6 @@ export async function deleteGroup({ name }: DeleteGroupOptions): Promise<void> {
         emitChanged({ type: 'group', resource: name, property: 'deleted' });
       }
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }

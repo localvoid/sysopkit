@@ -10,7 +10,7 @@
  * @see dmesg(1) - Print or control the kernel ring buffer
  */
 
-import { task, VERBOSITY_NORMAL } from 'sysopkit';
+import { task, VERBOSITY_TRACE } from 'sysopkit';
 import { readFile, tryReadFile } from 'sysopkit/op/file';
 import { $_, sh } from 'sysopkit/op/sh';
 
@@ -276,7 +276,7 @@ export async function kexecLoad(options: KexecLoadOptions): Promise<void> {
         ...(typeof raw?.cmdline === 'string' ? { cmdline: raw.cmdline } : {}),
         ...(typeof raw?.syscall === 'string' ? { syscall: raw.syscall } : {}),
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -375,7 +375,7 @@ export async function kexecExec(options?: KexecExecOptions): Promise<void> {
           ? { skipLoadedCheck: String(options.skipLoadedCheck) }
           : {}),
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }

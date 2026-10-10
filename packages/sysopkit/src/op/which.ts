@@ -10,6 +10,7 @@
  */
 
 import { task } from '../core/context.js';
+import { VERBOSITY_TRACE } from '../core/reporter.js';
 import { $_, sh } from './sh.js';
 
 /**
@@ -49,11 +50,15 @@ export async function which(name: string): Promise<string> {
  * Throws on the first missing tool.
  */
 export async function resolveTools(names: readonly string[]): Promise<string[]> {
-  return task('resolve tools', async () => {
-    const paths: string[] = [];
-    for (const name of names) {
-      paths.push(await which(name));
-    }
-    return paths;
-  });
+  return task(
+    'resolve tools',
+    async () => {
+      const paths: string[] = [];
+      for (const name of names) {
+        paths.push(await which(name));
+      }
+      return paths;
+    },
+    { verbosity: VERBOSITY_TRACE },
+  );
 }

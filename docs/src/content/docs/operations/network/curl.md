@@ -9,7 +9,7 @@ import { curl } from 'sysopkit/op/curl';
 
 ## curl()
 
-Downloads a URL to a local path (not idempotent — always downloads). Omit `path` to capture the body as stdout instead of writing a file.
+Downloads a URL to a local path (not idempotent — always downloads). Runs at trace verbosity (visible with `SYSOPKIT_VERBOSITY=trace`, grouped under your task at default verbosity). File mode emits a `curl downloaded` change event and is skipped in dry-run; omit `path` to capture the body as stdout instead of writing a file.
 
 ```ts
 await curl({ url: 'https://example.com/file.tar.gz', path: '/tmp/file.tar.gz' });

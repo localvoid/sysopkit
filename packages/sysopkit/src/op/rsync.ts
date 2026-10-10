@@ -14,7 +14,7 @@ import { text } from 'node:stream/consumers';
 
 import { emitChanged, type ExecutionContext, task } from '../core/context.js';
 import { type ChangeEntry } from '../core/events.js';
-import { VERBOSITY_NORMAL } from '../core/reporter.js';
+import { VERBOSITY_TRACE } from '../core/reporter.js';
 import { processSpawn } from '../utils/process.js';
 import { $_ } from './sh.js';
 
@@ -104,7 +104,7 @@ export async function rsyncPush(options: RsyncOptions): Promise<RsyncEntry[]> {
       }
       return entries;
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -128,7 +128,7 @@ export async function rsyncPull(options: RsyncOptions): Promise<RsyncEntry[]> {
       }
       return entries;
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 

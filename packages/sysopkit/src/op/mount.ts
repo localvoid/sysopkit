@@ -9,7 +9,7 @@
  */
 
 import { emitChanged, task } from '../core/context.js';
-import { VERBOSITY_NORMAL } from '../core/reporter.js';
+import { VERBOSITY_TRACE } from '../core/reporter.js';
 import { $_, sh } from './sh.js';
 
 /** Path to the fstab configuration file. */
@@ -472,7 +472,7 @@ export async function mount(o: MountOptions): Promise<void> {
               ...(noCanonicalize ? { noCanonicalize: 'true' } : {}),
               propagation,
             },
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -603,6 +603,6 @@ export async function umount(o: UmountOptions): Promise<void> {
       }
       emitChanged({ type: 'mount', resource: path, property: 'state', to: 'unmounted' });
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }

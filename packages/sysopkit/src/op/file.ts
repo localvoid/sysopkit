@@ -12,7 +12,7 @@
 
 import type { ExecutionContext } from '../core/context.js';
 import { emitChanged, task } from '../core/context.js';
-import { VERBOSITY_NORMAL } from '../core/reporter.js';
+import { VERBOSITY_TRACE } from '../core/reporter.js';
 import { $_, ShellError, sh } from './sh.js';
 
 /** Path type: regular file. */
@@ -176,7 +176,7 @@ export async function touchFile({ path }: TouchFileOptions): Promise<void> {
         to: 'touched',
       });
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -445,7 +445,7 @@ export async function createFile({
         mtime: mtime,
         attributes: attributes && attributes.join(''),
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -516,7 +516,7 @@ export async function createDir({
         attributes: attributes && attributes.join(''),
         recursive: String(recursive),
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -593,7 +593,7 @@ export async function createLink({
         mtime: mtime,
         attributes: attributes && attributes.join(''),
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }
@@ -724,7 +724,7 @@ export async function deleteFile({ path }: DeleteFileOptions): Promise<void> {
         });
       }
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -764,7 +764,7 @@ export async function deleteDir({ path, recursive }: DeleteDirOptions): Promise<
         });
       }
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -797,7 +797,7 @@ export async function deleteLink({ path }: DeleteLinkOptions): Promise<void> {
         });
       }
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -899,7 +899,7 @@ export async function cp(o: CpOptions): Promise<void> {
         ...(o.reflink !== undefined ? { reflink: o.reflink } : {}),
         ...(o.sparse !== undefined ? { sparse: o.sparse } : {}),
       }),
-      verbosity: VERBOSITY_NORMAL,
+      verbosity: VERBOSITY_TRACE,
     },
   );
 }

@@ -2,6 +2,7 @@ import type { Connector } from './connector.js';
 import { ExecError } from '../utils/process.js';
 import { task } from './context.js';
 import { ConnectorError, isAbortError } from './errors.js';
+import { VERBOSITY_TRACE } from './reporter.js';
 import { sleep } from './sleep.js';
 import { TimeoutError } from './timeout.js';
 
@@ -77,7 +78,7 @@ export async function waitForReady(conn: Connector, opts?: WaitForReadyOptions):
         `Timed out waiting for '${conn.host}' to become ready after ${timeoutMs}ms`,
       );
     },
-    { signal: opts?.signal },
+    { signal: opts?.signal, verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -182,6 +183,6 @@ export async function waitUntil(
         lastError === void 0 ? void 0 : { cause: lastError },
       );
     },
-    { signal: opts?.signal },
+    { signal: opts?.signal, verbosity: VERBOSITY_TRACE },
   );
 }

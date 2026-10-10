@@ -10,7 +10,7 @@
  * @see tuned-adm(8) - command line tool for tuned
  */
 
-import { emitChanged, task, VERBOSITY_NORMAL } from 'sysopkit';
+import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { tryReadFile } from 'sysopkit/op/file';
 import { $_, sh } from 'sysopkit/op/sh';
 
@@ -51,7 +51,7 @@ export async function setTuneProfile({ profile }: SetTuneProfileOptions): Promis
         to: profile,
       });
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 

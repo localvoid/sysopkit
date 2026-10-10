@@ -1,4 +1,4 @@
-import { emitChanged, task, VERBOSITY_NORMAL } from 'sysopkit';
+import { emitChanged, task, VERBOSITY_TRACE } from 'sysopkit';
 import { $_, sh } from 'sysopkit/op/sh';
 
 export interface TarOptions {
@@ -23,7 +23,7 @@ export async function tar({ src, dst, exclude = [] }: TarOptions): Promise<void>
       }
       emitChanged({ type: 'tar', resource: dst, property: 'packed' });
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
 
@@ -49,6 +49,6 @@ export async function untar({ src, dst, exclude = [] }: UntarOptions): Promise<v
       }
       emitChanged({ type: 'untar', resource: dst, property: 'extracted' });
     },
-    { verbosity: VERBOSITY_NORMAL },
+    { verbosity: VERBOSITY_TRACE },
   );
 }
