@@ -17,6 +17,7 @@ import {
   deleteLink,
   getPathInfo,
   getFileStat,
+  findFiles,
   sha256,
 } from 'sysopkit/op/file';
 ```
@@ -94,6 +95,17 @@ Options: `recursive` (`-r`), `force` (`-f`), `archive` (`-a`), `preserve` (`-p`)
 ## getFileStat()
 
 Returns file metadata: type, user, group, mode, timestamps, size.
+
+## findFiles()
+
+Lists paths under a directory with `find` (name globs, min/max depth, type filters, optional symlink following). A missing dir returns `[]`.
+
+```ts
+const keys = await findFiles({ dir: '/etc/ssh', maxDepth: 1, name: 'ssh_host_*' });
+for (const f of keys) await deleteFile({ path: f.path });
+```
+
+Options: `minDepth` / `maxDepth`, `name`, `type` (`PathType`), `followSymlinks` (`find -L`, default false).
 
 ## sha256()
 

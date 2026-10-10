@@ -2,7 +2,7 @@
 
 ```typescript
 import { curl } from 'sysopkit/op/curl';
-import { createFile, createDir, createLink, cp, sha256 } from 'sysopkit/op/file';
+import { createFile, createDir, createLink, cp, sha256, findFiles } from 'sysopkit/op/file';
 import { rsyncPush, rsyncPull } from 'sysopkit/op/rsync';
 import { tar, untar } from 'sysopkit/op/tar';
 import { withTempFile, withTempDir } from 'sysopkit/op/temp';
@@ -23,7 +23,18 @@ await cp({ src: '/var/www', dst: '/backup/www', recursive?, force?, archive?, pr
 
 `cp` is a **non-idempotent** task: it always copies (single `src` or `src[]` into a directory) and emits `copied`, skipping the command in dry-run like `tar`. `reflink`/`sparse` (`always` | `auto` | `never`) are GNU-only — unavailable on busybox targets.
 
-Read-only helpers (run even in dry-run): `getPathInfo`, `readFile` / `readFileBuffer` (throw) and `tryReadFile` / `tryReadFileBuffer` (`undefined` on exit 64), `getFileStat`, `sha256`.
+Read-only helpers (run even in dry-run): `getPathInfo`, `readFile` / `readFileBuffer` (throw) and `tryReadFile` / `tryReadFileBuffer` (`undefined` on exit 64), `getFileStat`, `sha256`, `findFiles`.
+
+`findFiles` lists paths without mutating (GNU `find -printf`, NUL-separated `%y`/`%p` pairs — safe for spaces/newlines in names); pair with the typed deleters to remove matches. A missing `dir` returns `[]`.
+
+```typescript
+import { findFiles, deleteFile } from 'sysopkit/op/file';
+
+const keys = await findFiles({ dir: '/etc/ssh', maxDepth: 1, name: 'ssh_host_*' });
+for (const f of keys) await deleteFile({ path: f.path }); // f: { path, type: PathType }
+```
+
+Options: `minDepth` / `maxDepth`, `name` (glob or globs, ORed), `type` (`PathType` or array, ORed), `followSymlinks` (`find -L`, default false — `-type l` then matches broken links only).
 
 **Pitfall:** `deleteDir({ recursive: true })` is `rm -fr` — double-check `path`.
 

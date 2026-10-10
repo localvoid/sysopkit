@@ -10,6 +10,7 @@ import {
   deleteDir,
   deleteFile,
   deleteLink,
+  findFiles,
   getFileStat,
   getPathInfo,
   readFile,
@@ -241,6 +242,65 @@ describe('filesystem ops', () => {
       const t2 = trackChanged();
       await deleteFile({ path: p });
       expect(t2.changed).toBe(false);
+    });
+  });
+
+  test('findFiles lists matches with types and filters', async () => {
+    await sharedPodman(shared, async () => {
+      const base = remoteTempPath('fs-find-');
+      await sh(
+        `mkdir -p ${$_(base)}/sub && echo key > ${$_(base)}/ssh_host_key && echo k2 > ${$_(base)}/ssh_host_key.pub && echo hist > ${$_(base)}/sub/.bash_history && ln -s ssh_host_key ${$_(base)}/keylink && echo spaced > ${$_(base)}/'sp ace'`,
+      );
+
+      const byPath = new Map(
+        (await findFiles({ dir: base, minDepth: 1 })).map((f) => [f.path, f.type]),
+      );
+      expect([...byPath.keys()].sort()).toEqual(
+        [
+          `${base}/keylink`,
+          `${base}/sp ace`,
+          `${base}/ssh_host_key`,
+          `${base}/ssh_host_key.pub`,
+          `${base}/sub`,
+          `${base}/sub/.bash_history`,
+        ].sort(),
+      );
+      expect(byPath.get(`${base}/sub`)).toBe('dir');
+      expect(byPath.get(`${base}/keylink`)).toBe('link');
+      expect(byPath.get(`${base}/sp ace`)).toBe('file');
+
+      const named = await findFiles({ dir: base, maxDepth: 1, name: 'ssh_host_*' });
+      expect(named.map((f) => f.path).sort()).toEqual([
+        `${base}/ssh_host_key`,
+        `${base}/ssh_host_key.pub`,
+      ]);
+      expect(new Set(named.map((f) => f.type))).toEqual(new Set(['file']));
+
+      const deep = await findFiles({ dir: base, minDepth: 2, maxDepth: 2, name: '.bash_history' });
+      expect(deep).toEqual([{ path: `${base}/sub/.bash_history`, type: 'file' }]);
+
+      const dirsAndLinks = await findFiles({ dir: base, type: ['dir', 'link'] });
+      expect(dirsAndLinks.map((f) => f.path).sort()).toEqual(
+        [base, `${base}/keylink`, `${base}/sub`].sort(),
+      );
+
+      expect(await findFiles({ dir: `${base}-missing` })).toEqual([]);
+    });
+  });
+
+  test('findFiles follows symlinked dirs only when asked', async () => {
+    await sharedPodman(shared, async () => {
+      const base = remoteTempPath('fs-findlink-');
+      await sh(
+        `mkdir -p ${$_(base)}/real && echo z > ${$_(base)}/real/z && ln -s real ${$_(base)}/dirlink`,
+      );
+      expect(await findFiles({ dir: base, name: 'z' })).toEqual([
+        { path: `${base}/real/z`, type: 'file' },
+      ]);
+      expect(await findFiles({ dir: base, name: 'z', followSymlinks: true })).toEqual([
+        { path: `${base}/dirlink/z`, type: 'file' },
+        { path: `${base}/real/z`, type: 'file' },
+      ]);
     });
   });
 

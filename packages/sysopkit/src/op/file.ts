@@ -13,7 +13,7 @@
 import type { ExecutionContext } from '../core/context.js';
 import { emitChanged, task } from '../core/context.js';
 import { VERBOSITY_NORMAL } from '../core/reporter.js';
-import { $_, sh } from './sh.js';
+import { $_, ShellError, sh } from './sh.js';
 
 /** Path type: regular file. */
 const PATH_REGULAR_FILE = 1;
@@ -184,6 +184,178 @@ export async function touchFile({ path }: TouchFileOptions): Promise<void> {
 export async function sha256(path: string): Promise<string> {
   const { stdout } = await sh(`sha256sum ${$_(path)}`);
   return stdout.trim().split(/\s+/)[0];
+}
+
+/** A path matched by `findFiles`, with its remote type. */
+export interface FoundFile {
+  readonly path: string;
+  readonly type: PathType;
+}
+
+/**
+ * Options for listing paths with `findFiles` (GNU `find`, `-printf`).
+ */
+export interface FindFilesOptions {
+  /** Root to search (listed itself when no `minDepth` excludes it). */
+  readonly dir: string;
+  /** `find -mindepth`. Default none (the root itself is listed). */
+  readonly minDepth?: number;
+  /** `find -maxdepth`. Default none (unbounded). */
+  readonly maxDepth?: number;
+  /** `-name` glob(s), ORed. Default none (all names). */
+  readonly name?: string | string[];
+  /** `-type` filter(s), ORed. Default none (all types). */
+  readonly type?: PathType | PathType[];
+  /**
+   * Follow symlinked directories during the search (`find -L`).
+   * Type reporting still names links as links (`%y`); the `-type l`
+   * filter matches broken links only under `-L` (GNU semantics).
+   * Default false.
+   */
+  readonly followSymlinks?: boolean;
+}
+
+/** `find -type` letter per `PathType`. */
+const FIND_TYPE_CHARS: Record<PathType, string> = {
+  file: 'f',
+  dir: 'd',
+  link: 'l',
+  socket: 's',
+  pipe: 'p',
+  char: 'c',
+  block: 'b',
+};
+
+/** Maps a `find -printf %y` letter to a `PathType`. */
+function _findTypeChar(c: string): PathType {
+  switch (c) {
+    case 'f':
+      return 'file';
+    case 'd':
+      return 'dir';
+    case 'l':
+      return 'link';
+    case 's':
+      return 'socket';
+    case 'p':
+      return 'pipe';
+    case 'c':
+      return 'char';
+    case 'b':
+      return 'block';
+  }
+  throw new Error(`Unknown find type '${c}'`);
+}
+
+/**
+ * Generates a `find` command listing `dir` matches as NUL-separated
+ * `%y`/`%p` pairs (safe against spaces and newlines in names).
+ * Requires GNU `find` (`-printf`).
+ */
+export function _findFilesCmd(o: FindFilesOptions): string {
+  const parts = ['find'];
+  if (o.followSymlinks === true) {
+    parts.push('-L');
+  }
+  parts.push($_(o.dir));
+  if (o.minDepth !== undefined) {
+    parts.push('-mindepth', String(o.minDepth));
+  }
+  if (o.maxDepth !== undefined) {
+    parts.push('-maxdepth', String(o.maxDepth));
+  }
+  const names = o.name === undefined ? [] : Array.isArray(o.name) ? o.name : [o.name];
+  if (names.length === 1) {
+    parts.push('-name', $_(names[0]));
+  } else if (names.length > 1) {
+    parts.push(
+      '\\(',
+      ...names.flatMap((n, i) => (i === 0 ? ['-name', $_(n)] : ['-o', '-name', $_(n)])),
+      '\\)',
+    );
+  }
+  const types = o.type === undefined ? [] : Array.isArray(o.type) ? o.type : [o.type];
+  if (types.length === 1) {
+    parts.push('-type', FIND_TYPE_CHARS[types[0]]);
+  } else if (types.length > 1) {
+    parts.push(
+      '\\(',
+      ...types.flatMap((t, i) =>
+        i === 0 ? ['-type', FIND_TYPE_CHARS[t]] : ['-o', '-type', FIND_TYPE_CHARS[t]],
+      ),
+      '\\)',
+    );
+  }
+  parts.push('-printf', $_('%y\\0%p\\0'));
+  return parts.join(' ');
+}
+
+/**
+ * Parses `find -printf '%y\\0%p\\0'` output into matches sorted by
+ * path. Pure (unit-tested without a connector).
+ */
+export function parseFindFilesOutput(stdout: string): FoundFile[] {
+  const recs = stdout.split('\0');
+  if (recs[recs.length - 1] === '') {
+    recs.pop();
+  }
+  if (recs.length % 2 !== 0) {
+    throw new Error('malformed find output (uneven type/path records)');
+  }
+  const out: FoundFile[] = [];
+  for (let i = 0; i < recs.length; i += 2) {
+    out.push({ type: _findTypeChar(recs[i]), path: recs[i + 1] });
+  }
+  out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return out;
+}
+
+/**
+ * Lists paths under `dir` with GNU `find` (name globs, depths, type
+ * filters, optional symlink following).
+ *
+ * Pure listing — no changes, no task frame (like `getPathInfo`): pair
+ * with `deleteFile`/`deleteDir`/`deleteLink` to remove matches.
+ * A missing `dir` returns `[]`.
+ */
+export async function findFiles(o: FindFilesOptions): Promise<FoundFile[]> {
+  if (o.dir === '') {
+    throw new Error('refusing: dir is required');
+  }
+  for (const [label, v] of [
+    ['minDepth', o.minDepth],
+    ['maxDepth', o.maxDepth],
+  ] as const) {
+    if (v !== undefined && (!Number.isInteger(v) || v < 0)) {
+      throw new Error(`refusing: bad ${label} '${v}' (want an integer >= 0)`);
+    }
+  }
+  const names = o.name === undefined ? [] : Array.isArray(o.name) ? o.name : [o.name];
+  for (const n of names) {
+    if (n === '') {
+      throw new Error('refusing: name pattern must not be empty');
+    }
+  }
+  const types = o.type === undefined ? [] : Array.isArray(o.type) ? o.type : [o.type];
+  for (const t of types) {
+    if (FIND_TYPE_CHARS[t] === undefined) {
+      throw new Error(`refusing: bad type '${t}'`);
+    }
+  }
+  if ((await getPathInfo(o.dir)) === undefined) {
+    return [];
+  }
+  let stdout: string;
+  try {
+    ({ stdout } = await sh(_findFilesCmd(o)));
+  } catch (e) {
+    // Raced deletion between the check above and the search.
+    if (e instanceof ShellError && e.stderr.includes('No such file or directory')) {
+      return [];
+    }
+    throw e;
+  }
+  return parseFindFilesOutput(stdout);
 }
 
 /** Common options for file creation. */
