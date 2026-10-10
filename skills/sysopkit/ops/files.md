@@ -2,7 +2,7 @@
 
 ```typescript
 import { curl } from 'sysopkit/op/curl';
-import { createFile, createDir, createLink, cp, sha256, findFiles } from 'sysopkit/op/file';
+import { createFile, createDir, createLink, cp, sha256, sha512, findFiles } from 'sysopkit/op/file';
 import { rsyncPush, rsyncPull } from 'sysopkit/op/rsync';
 import { tar, untar } from 'sysopkit/op/tar';
 import { withTempFile, withTempDir } from 'sysopkit/op/temp';
@@ -11,7 +11,7 @@ import { withTempFile, withTempDir } from 'sysopkit/op/temp';
 ## Idempotent file ops (`sysopkit/op/file`)
 
 ```typescript
-import { createFile, createDir, createLink, deleteFile, cp, sha256 } from 'sysopkit/op/file';
+import { createFile, createDir, createLink, deleteFile, cp, sha256, sha512 } from 'sysopkit/op/file';
 
 await createFile({ path: '/etc/app.conf', content, mode?, user?, group?, atime?, mtime?, attributes? });
 await createDir({ path: '/var/lib/app', recursive?, mode?, user?, group? });
@@ -23,7 +23,7 @@ await cp({ src: '/var/www', dst: '/backup/www', recursive?, force?, archive?, pr
 
 `cp` is a **non-idempotent** task: it always copies (single `src` or `src[]` into a directory) and emits `copied`, skipping the command in dry-run like `tar`. `reflink`/`sparse` (`always` | `auto` | `never`) are GNU-only — unavailable on busybox targets.
 
-Read-only helpers (run even in dry-run): `getPathInfo`, `readFile` / `readFileBuffer` (throw) and `tryReadFile` / `tryReadFileBuffer` (`undefined` on exit 64), `getFileStat`, `sha256`, `findFiles`.
+Read-only helpers (run even in dry-run): `getPathInfo`, `readFile` / `readFileBuffer` (throw) and `tryReadFile` / `tryReadFileBuffer` (`undefined` on exit 64), `getFileStat`, `sha256`, `sha512`, `findFiles`.
 
 `findFiles` lists paths without mutating (GNU `find -printf`, NUL-separated `%y`/`%p` pairs — safe for spaces/newlines in names); pair with the typed deleters to remove matches. A missing `dir` returns `[]`.
 

@@ -19,6 +19,7 @@ import {
   getFileStat,
   findFiles,
   sha256,
+  sha512,
 } from 'sysopkit/op/file';
 ```
 
@@ -110,5 +111,9 @@ Options: `minDepth` / `maxDepth`, `name`, `type` (`PathType`), `followSymlinks` 
 ## sha256()
 
 Computes the SHA256 hash of a file.
+
+## sha512()
+
+Computes the SHA512 hash of a file.
 
 Poll file state with `waitUntil()` (see Utilities): `await waitUntil(async () => (await getPathInfo(p)) !== undefined, { describe: 'file to appear' })`.

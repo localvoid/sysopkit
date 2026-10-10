@@ -186,6 +186,12 @@ export async function sha256(path: string): Promise<string> {
   return stdout.trim().split(/\s+/)[0];
 }
 
+/** Computes the SHA512 hash of a file. */
+export async function sha512(path: string): Promise<string> {
+  const { stdout } = await sh(`sha512sum ${$_(path)}`);
+  return stdout.trim().split(/\s+/)[0];
+}
+
 /** A path matched by `findFiles`, with its remote type. */
 export interface FoundFile {
   readonly path: string;

@@ -16,6 +16,7 @@ import {
   readFile,
   readFileBuffer,
   sha256,
+  sha512,
   touchFile,
   tryReadFile,
   tryReadFileBuffer,
@@ -320,6 +321,29 @@ describe('filesystem ops', () => {
       const p = remoteTempPath('fs-hash-missing-');
       try {
         await sha256(p);
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
+    });
+  });
+
+  test('sha512 matches system sha512sum', async () => {
+    await sharedPodman(shared, async () => {
+      const p = remoteTempPath('fs-hash512-');
+      await writeFile(p, 'hash me\n');
+      const hash = await sha512(p);
+      const { stdout } = await sh(`sha512sum ${$_(p)}`);
+      expect(hash).toBe(stdout.trim().split(/\s+/)[0]);
+      expect(hash).toMatch(/^[0-9a-f]{128}$/);
+    });
+  });
+
+  test('sha512 throws for missing file', async () => {
+    await sharedPodman(shared, async () => {
+      const p = remoteTempPath('fs-hash512-missing-');
+      try {
+        await sha512(p);
         expect.unreachable();
       } catch (e) {
         expect(e).toBeInstanceOf(Error);
