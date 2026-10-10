@@ -50,10 +50,10 @@ export {
 
 export type {
   Process,
-  ExecError,
   ExecOptions,
   ExecOutput,
   ExecOutputResult,
   ExecResult,
 } from './utils/process.js';
+export { ExecError } from './utils/process.js';
 export { latch } from './utils/handlers.js';

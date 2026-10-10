@@ -16,8 +16,8 @@ import type {
 import { context } from '../core/context.js';
 import { TEXT_ENCODER } from '../utils/constants.js';
 
+export { ExecError } from '../utils/process.js';
 export type {
-  ExecError,
   ExecOptions,
   ExecOutput,
   ExecOutputResult,
