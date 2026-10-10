@@ -4,7 +4,7 @@ description: Resolve tool paths via `command -v`.
 ---
 
 ```ts
-import { which, resolveTools } from 'sysopkit/op/which';
+import { tryWhich, which, resolveTools } from 'sysopkit/op/which';
 ```
 
 ## which()
@@ -13,6 +13,16 @@ Resolves one tool name to an absolute path. Throws when the tool is not installe
 
 ```ts
 const shPath = await which('sh');
+```
+
+## tryWhich()
+
+Resolves one tool name to an absolute path. Returns `undefined` when the tool is not installed (still throws on malformed tool names).
+
+```ts
+if ((await tryWhich('cloud-init')) !== undefined) {
+  // tool is present
+}
 ```
 
 ## resolveTools()

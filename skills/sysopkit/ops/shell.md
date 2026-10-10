@@ -4,7 +4,7 @@
 import { bash } from 'sysopkit/op/bash';
 import { exec } from 'sysopkit/op/exec';
 import { sh, $_, ShellError } from 'sysopkit/op/sh';
-import { which, resolveTools } from 'sysopkit/op/which';
+import { tryWhich, which, resolveTools } from 'sysopkit/op/which';
 ```
 
 ```typescript
@@ -16,6 +16,9 @@ await exec(['systemctl', 'restart', 'nginx']); // raw argv, no throw, inspect ex
 await sh('cat > file <<EOF\n…'); // runs via `sh -c`, throws ShellError
 await bash('echo $EPOCHREALTIME'); // runs via `bash -c`
 await which('parted'); // absolute path via `command -v`, throws when missing
+if ((await tryWhich('cloud-init')) !== undefined) {
+  // present — no throw on absence (still throws on malformed names)
+}
 ```
 
 All three are **non-idempotent** — they run every time. Guard with `if (!context().dryRun)` and track changes yourself when the command mutates.

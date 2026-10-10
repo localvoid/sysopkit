@@ -15,15 +15,29 @@ import { $_, sh } from './sh.js';
 /**
  * Resolves one tool name to an absolute path via `command -v`.
  *
- * Throws when the tool is not installed.
+ * Returns `undefined` when the tool is not installed. Still throws
+ * on malformed tool names.
  */
-export async function which(name: string): Promise<string> {
+export async function tryWhich(name: string): Promise<string | undefined> {
   if (name === '' || /[\s"'`$\\]/.test(name)) {
     throw new Error(`refusing: bad tool name '${name}'`);
   }
   const { stdout } = await sh(`command -v ${$_(name)} || true`);
   const path = stdout.trim().split('\n')[0] ?? '';
   if (path === '' || !path.startsWith('/')) {
+    return undefined;
+  }
+  return path;
+}
+
+/**
+ * Resolves one tool name to an absolute path via `command -v`.
+ *
+ * Throws when the tool is not installed.
+ */
+export async function which(name: string): Promise<string> {
+  const path = await tryWhich(name);
+  if (path === undefined) {
     throw new Error(`tool '${name}' not installed`);
   }
   return path;

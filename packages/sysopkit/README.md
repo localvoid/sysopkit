@@ -71,7 +71,7 @@ Idempotent where marked. Non-idempotent helpers (`sh`, `exec`, `curl`, …) run 
 | `mount` | `sysopkit/op/mount` | `mount({ src, path, … })`, `umount({ path })`, `mountInfo({ path })`, `parseFstab`, `serializeFstab` |
 | `net` | `sysopkit/op/net` | `parseHosts`, `serializeHosts` (`/etc/hosts`) |
 | `ssh` | `sysopkit/op/ssh` | `serializeSshConf(config)` (`sshd_config`) |
-| `which` | `sysopkit/op/which` | `which(name)`, `resolveTools(names)` via `command -v` |
+| `which` | `sysopkit/op/which` | `which(name)`, `tryWhich(name)`, `resolveTools(names)` via `command -v` |
 | `gpg` | `sysopkit/utils/gpg` | `parseGpgKey`, `showGpgKeys` |
 
 ## Connectors
