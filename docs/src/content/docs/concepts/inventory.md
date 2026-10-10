@@ -20,9 +20,11 @@ interface GroupConfig {
 }
 
 interface HostConfig {
-  host?: string; // Connection target (hostname, IP, or prefix)
-  user?: string; // Username for authentication
-  port?: number; // Port number
+  // Built-ins: SshHostConfig | PodHostConfig. Custom types extend
+  // BaseHostConfig and combine into your own union (see below).
+  host?: string; // Plain address (default: host name)
+  type?: string; // Connector type (default 'ssh')
+  options?: Record<string, any>; // Per-type options, into the connector constructor
   vars?: Record<symbol | string, any>;
   tags?: string[];
 }
@@ -59,8 +61,8 @@ const INVENTORY = {
       vars: { role: 'webserver' },
       tags: ['frontend'],
       hosts: {
-        'web-1': { host: '10.0.1.1', user: 'admin' },
-        'web-2': { host: '10.0.1.2', user: 'admin' },
+        'web-1': { host: '10.0.1.1', options: { user: 'admin' } },
+        'web-2': { host: '10.0.1.2', options: { user: 'admin' } },
       },
     },
   },
@@ -85,30 +87,43 @@ await start(async () => {
 | `getAll()`         | All hosts                              |
 | `match(pattern)`   | Glob pattern matching (`web-*`, `db?`) |
 
-## Connection Prefixes
+## Host Types
 
-Host strings with prefixes determine connection type:
+The `type` field selects the connector:
 
-- `ssh:hostname` — SSH connector (default for any hostname)
-- `pod:container` — Podman connector
+- absent — SSH connector (default)
+- `pod` — Podman connector
 
-Unknown prefixes fall back to the SSH connector with the remainder after `:` as the host, so prefer explicit `ssh:` or bare hostnames.
-
-Custom factories can be registered:
+Unknown types throw at `resolveInventory` time. Custom types pair a factory with your own config member:
 
 ```ts
-await using hosts = resolveInventory(inventory, {
+import type { BaseHostConfig, Inventory, SshHostConfig } from 'sysopkit/inventory';
+
+interface K8sHostConfig extends BaseHostConfig {
+  readonly type: 'k8s';
+  readonly options?: { readonly namespace?: string };
+}
+
+type MyHosts = SshHostConfig | K8sHostConfig;
+
+await using hosts = resolveInventory<Inventory<MyHosts>>(inventory, {
   connectors: {
-    k8s: (host) => new K8sConnector({ name: host }),
+    k8s: (h) => new K8sConnector({ name: h.name, host: h.host }),
   },
 });
 ```
 
 ## SSH Authentication
 
-`HostConfig` has no `key` or `password` fields by design. Inventory only carries `host`, `user`, and `port` — authentication is delegated to your native OpenSSH client and ssh-agent.
+Connection specifics live in per-type `options`, so an explicit `key` or `password` rides the inventory when you need it:
 
-SysopKit shells out to the system `ssh`, and inventory connections run non-interactively, so anything `ssh user@host exit` can do already works: `~/.ssh/config` entries (`Host`, `IdentityFile`, `ProxyJump`), keys loaded in `ssh-agent`, and default keys.
+```ts
+hosts: {
+  'web-1': { host: '10.0.1.1', options: { user: 'admin', key: '~/.ssh/id_ed25519' } },
+},
+```
+
+Prefer ssh-agent and native OpenSSH config where you can: inventory connections run non-interactively through the system `ssh`, so anything `ssh user@host exit` can do already works — `~/.ssh/config` entries (`Host`, `IdentityFile`, `ProxyJump`), keys loaded in `ssh-agent`, and default keys.
 
 ```ssh-config
 Host web-1
@@ -122,4 +137,4 @@ ssh-add ~/.ssh/id_ed25519
 ssh admin@10.0.1.1 exit # smoke test before running SysopKit
 ```
 
-If you need an explicit `key` or `password` for a one-off script, skip the inventory and construct `SSHConnector` directly (see [Connectors](/concepts/connectors/)) and pass it to `apply()`.
+For a one-off script you can also skip the inventory and construct `SSHConnector` directly (see [Connectors](/concepts/connectors/)) and pass it to `apply()`.

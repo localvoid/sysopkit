@@ -32,7 +32,7 @@ await main(async () => {
     groups: {
       web: {
         hosts: {
-          'web-1': { host: '192.168.1.10', user: 'admin' },
+          'web-1': { host: '192.168.1.10', options: { user: 'admin' } },
         },
       },
     },
@@ -136,8 +136,8 @@ await expectStderrPrompt(
 import { resolveInventory } from 'sysopkit/inventory';
 
 await using hosts = resolveInventory(INVENTORY, {
-  // optional custom factories, keyed by host prefix
-  connectors: { 'k8s:': (host, h) => new MyConnector(host) },
+  // optional custom factories, keyed by host type
+  connectors: { k8s: (h) => new MyConnector({ name: h.name, host: h.host }) },
 });
 
 hosts.getByGroup('web');
@@ -147,7 +147,7 @@ hosts.match('web-*');
 hosts.getAll();
 ```
 
-Host prefixes select the connector: `ssh:` (default) and `pod:`. Variables merge with precedence inventory → group → host.
+Host `type` selects the connector: `ssh` (default when absent) and `pod`. Connection specifics (`user`, `port`, keys, timeouts, …) live in per-type `options`, passed straight into the connector constructor. Variables merge with precedence inventory → group → host.
 
 ```typescript
 // Single host — returns { success, conn, result }, throws ApplyError on failure

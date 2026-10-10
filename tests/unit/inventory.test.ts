@@ -1,16 +1,30 @@
 import { describe, expect, test } from 'bun:test';
 import { LocalConnector } from 'sysopkit/connector/local';
-import { resolveInventory, type ConnectorFactory, type Inventory } from 'sysopkit/inventory';
+import { SSHConnector } from 'sysopkit/connector/ssh';
+import {
+  resolveInventory,
+  type BaseHostConfig,
+  type ConnectorFactory,
+  type Inventory,
+  type SshHostConfig,
+} from 'sysopkit/inventory';
 
 const localConnector: ConnectorFactory = () => new LocalConnector();
 
+/** Test-only combination: built-in SSH plus the local stub. */
+interface LocalHostConfig extends BaseHostConfig {
+  readonly type: 'local';
+}
+
+type TestHosts = SshHostConfig | LocalHostConfig;
+
 describe('resolveInventory', () => {
   test('creates connected inventory from simple inventory', () => {
-    const inventory: Inventory = {
+    const inventory: Inventory<TestHosts> = {
       groups: {
         web: {
           hosts: {
-            server1: { host: 'local:' },
+            server1: { type: 'local' },
           },
         },
       },
@@ -23,11 +37,11 @@ describe('resolveInventory', () => {
   });
 
   test('uses host name as host address when not specified', () => {
-    const inventory: Inventory = {
+    const inventory: Inventory<TestHosts> = {
       groups: {
         web: {
           hosts: {
-            myserver: { host: 'local:' },
+            myserver: { type: 'local' },
           },
         },
       },
@@ -40,17 +54,17 @@ describe('resolveInventory', () => {
   });
 
   test('resolves multiple groups', () => {
-    const inventory: Inventory = {
+    const inventory: Inventory<TestHosts> = {
       groups: {
         web: {
           hosts: {
-            web1: { host: 'local:' },
-            web2: { host: 'local:' },
+            web1: { type: 'local' },
+            web2: { type: 'local' },
           },
         },
         db: {
           hosts: {
-            db1: { host: 'local:' },
+            db1: { type: 'local' },
           },
         },
       },
@@ -63,7 +77,7 @@ describe('resolveInventory', () => {
   });
 
   test('returns empty for empty groups', () => {
-    const inventory: Inventory = { groups: {} };
+    const inventory: Inventory<TestHosts> = { groups: {} };
 
     const hosts = resolveInventory(inventory);
     const all = hosts.getAll();
@@ -77,13 +91,13 @@ describe('resolveInventory', () => {
         groups: {
           web: {
             hosts: {
-              web1: { host: 'local:' },
-              web2: { host: 'local:' },
+              web1: { type: 'local' },
+              web2: { type: 'local' },
             },
           },
           db: {
             hosts: {
-              db1: { host: 'local:' },
+              db1: { type: 'local' },
             },
           },
         },
@@ -104,8 +118,8 @@ describe('resolveInventory', () => {
         groups: {
           web: {
             hosts: {
-              web1: { host: 'local:' },
-              web2: { host: 'local:' },
+              web1: { type: 'local' },
+              web2: { type: 'local' },
             },
           },
         },
@@ -127,14 +141,14 @@ describe('resolveInventory', () => {
           web: {
             tags: ['frontend'],
             hosts: {
-              web1: { host: 'local:' },
-              web2: { host: 'local:' },
+              web1: { type: 'local' },
+              web2: { type: 'local' },
             },
           },
           db: {
             tags: ['backend'],
             hosts: {
-              db1: { host: 'local:' },
+              db1: { type: 'local' },
             },
           },
         },
@@ -152,7 +166,7 @@ describe('resolveInventory', () => {
       {
         groups: {
           web: {
-            hosts: { web1: { host: 'local:' } },
+            hosts: { web1: { type: 'local' } },
           },
         },
       },
@@ -169,14 +183,14 @@ describe('resolveInventory', () => {
           web: {
             tags: ['frontend'],
             hosts: {
-              web1: { host: 'local:', tags: ['primary'] },
-              web2: { host: 'local:' },
+              web1: { type: 'local', tags: ['primary'] },
+              web2: { type: 'local' },
             },
           },
           db: {
             tags: ['backend'],
             hosts: {
-              db1: { host: 'local:', tags: ['primary'] },
+              db1: { type: 'local', tags: ['primary'] },
             },
           },
         },
@@ -196,7 +210,7 @@ describe('resolveInventory', () => {
           web: {
             tags: ['http', 'frontend'],
             hosts: {
-              web1: { host: 'local:' },
+              web1: { type: 'local' },
             },
           },
         },
@@ -215,13 +229,13 @@ describe('resolveInventory', () => {
         groups: {
           web: {
             hosts: {
-              web1: { host: 'local:' },
-              web2: { host: 'local:' },
+              web1: { type: 'local' },
+              web2: { type: 'local' },
             },
           },
           db: {
             hosts: {
-              db1: { host: 'local:' },
+              db1: { type: 'local' },
             },
           },
         },
@@ -240,13 +254,13 @@ describe('resolveInventory', () => {
   });
 
   test('hosts inherit tags from group', () => {
-    const inventory: Inventory = {
+    const inventory: Inventory<TestHosts> = {
       groups: {
         web: {
           tags: ['http', 'frontend'],
           hosts: {
-            web1: { host: 'local:' },
-            web2: { host: 'local:' },
+            web1: { type: 'local' },
+            web2: { type: 'local' },
           },
         },
       },
@@ -259,12 +273,12 @@ describe('resolveInventory', () => {
   });
 
   test('host tags merge with group tags', () => {
-    const inventory: Inventory = {
+    const inventory: Inventory<TestHosts> = {
       groups: {
         web: {
           tags: ['http'],
           hosts: {
-            web1: { host: 'local:', tags: ['primary'] },
+            web1: { type: 'local', tags: ['primary'] },
           },
         },
       },
@@ -279,12 +293,12 @@ describe('resolveInventory', () => {
   });
 
   test('duplicate tags are deduplicated', () => {
-    const inventory: Inventory = {
+    const inventory: Inventory<TestHosts> = {
       groups: {
         web: {
           tags: ['http', 'frontend'],
           hosts: {
-            web1: { host: 'local:', tags: ['frontend', 'primary'] },
+            web1: { type: 'local', tags: ['frontend', 'primary'] },
           },
         },
       },
@@ -302,7 +316,7 @@ describe('resolveInventory', () => {
         groups: {
           web: {
             hosts: {
-              web1: { host: 'local:' },
+              web1: { type: 'local' },
             },
           },
         },
@@ -322,7 +336,7 @@ describe('resolveInventory', () => {
         groups: {
           web: {
             hosts: {
-              web1: { host: 'local:' },
+              web1: { type: 'local' },
             },
           },
         },
@@ -346,7 +360,7 @@ describe('resolveInventory', () => {
         groups: {
           web: {
             hosts: {
-              web1: { host: 'local:' },
+              web1: { type: 'local' },
             },
           },
         },
@@ -356,5 +370,68 @@ describe('resolveInventory', () => {
 
     await inventory[Symbol.asyncDispose]();
     await inventory[Symbol.asyncDispose]();
+  });
+
+  test('passes strictHostKeyChecking through to SSH connectors', () => {
+    const inventory = resolveInventory({
+      groups: {
+        lab: {
+          hosts: {
+            strict: { host: '192.168.122.100', options: { strictHostKeyChecking: false } },
+            plain: { host: '192.168.122.101' },
+          },
+        },
+      },
+    });
+
+    const strict = inventory.getByName('strict');
+    expect(strict).toBeInstanceOf(SSHConnector);
+    expect((strict as SSHConnector).strictHostKeyChecking).toBe(false);
+
+    const plain = inventory.getByName('plain');
+    expect(plain).toBeInstanceOf(SSHConnector);
+    expect((plain as SSHConnector).strictHostKeyChecking).toBeUndefined();
+  });
+
+  test('merges options over resolved fields', () => {
+    const inventory = resolveInventory({
+      groups: {
+        lab: {
+          hosts: {
+            edge: {
+              host: '192.168.122.100',
+              options: { user: 'admin', timeout: 30, strictHostKeyChecking: false },
+            },
+          },
+        },
+      },
+    });
+
+    const conn = inventory.getByName('edge');
+    expect(conn).toBeInstanceOf(SSHConnector);
+    expect((conn as SSHConnector).user).toBe('admin');
+    expect((conn as SSHConnector).timeout).toBe(30);
+    expect((conn as SSHConnector).strictHostKeyChecking).toBe(false);
+  });
+
+  test('rejects unknown host types', () => {
+    expect(() =>
+      resolveInventory({
+        groups: {
+          lab: {
+            hosts: {
+              edge: { host: '192.168.122.100', type: 'nope' },
+            },
+          },
+        },
+      }),
+    ).toThrow("unknown host type 'nope' for host 'edge'");
+  });
+
+  test('defaults bare hosts to SSH by name', () => {
+    const inventory = resolveInventory({ groups: { lab: { hosts: { edge: {} } } } });
+
+    const conn = inventory.getByName('edge');
+    expect(conn).toBeInstanceOf(SSHConnector);
   });
 });

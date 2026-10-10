@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { MockReporter } from '@sysopkit/test-utils';
 import { apply, VERBOSITY_DEBUG } from 'sysopkit';
 import { LocalConnector } from 'sysopkit/connector/local';
-import { resolveInventory, type ConnectorFactory, type Inventory } from 'sysopkit/inventory';
+import { resolveInventory, type ConnectorFactory } from 'sysopkit/inventory';
 import { main, start } from 'sysopkit/start';
 
 function expectExitCode(expected: number): void {
@@ -11,11 +11,11 @@ function expectExitCode(expected: number): void {
 
 const local: ConnectorFactory = () => new LocalConnector();
 
-const INVENTORY: Inventory = {
+const INVENTORY = {
   groups: {
     default: {
       hosts: {
-        localhost: { host: 'local:' },
+        localhost: { host: 'localhost', type: 'local' },
       },
     },
   },
@@ -175,25 +175,5 @@ describe('main', () => {
         process.env['SYSOPKIT_VERBOSITY'] = prevVerb;
       }
     }
-  });
-});
-
-describe('connector errors', () => {
-  test('empty ssh prefix throws error', async () => {
-    const inventory: Inventory = {
-      groups: {
-        default: {
-          hosts: {
-            testhost: { host: 'ssh:' },
-          },
-        },
-      },
-    };
-
-    await start(async () => {
-      await using hosts = resolveInventory(inventory);
-      expect(() => hosts.getAll()).toThrow(Error);
-      expect(() => hosts.getAll()).toThrow('requires a host');
-    });
   });
 });

@@ -4,65 +4,87 @@
  * Inventory types and utilities for host management.
  */
 
-import { PodmanConnector } from './connector/podman.js';
-import { SSHConnector } from './connector/ssh.js';
+import { PodmanConnector, type PodmanConnectorOptions } from './connector/podman.js';
+import { SSHConnector, type SSHOptions } from './connector/ssh.js';
 import { type Connector } from './core/connector.js';
 
 /**
- * Configuration for an individual host.
+ * Base host config: universal fields only. Connection specifics
+ * (user, port, keys, timeouts, …) live in per-type `options`,
+ * passed straight into the connector constructor.
+ *
+ * Custom types: declare your own member over this base and combine
+ * it with the built-ins, e.g.
+ * `type MyHosts = SshHostConfig | K8sHostConfig`, then use
+ * `Inventory<MyHosts>`.
  */
-export interface HostConfig {
-  /** Connection target (e.g., hostname, IP, or special prefix like "ssh:", "pod:"). */
+export interface BaseHostConfig {
+  /** Connection target (plain address; default: host name). */
   readonly host?: string;
-  /** Username for authentication. */
-  readonly user?: string;
-  /** Port number for connection. */
-  readonly port?: number;
+  /** Connector type (default `'ssh'`). */
+  readonly type?: string;
+  /** Extra options passed straight into the connector constructor. */
+  readonly options?: Record<string, any>;
   /** Host-specific variables that override group/inventory vars. */
   readonly vars?: Record<symbol | string, any>;
   /** Host-specific tags. */
   readonly tags?: string[];
 }
 
+/** SSH host (default when `type` is absent). */
+export interface SshHostConfig extends BaseHostConfig {
+  readonly type?: 'ssh';
+  readonly options?: Partial<SSHOptions>;
+}
+
+/** Podman host. */
+export interface PodHostConfig extends BaseHostConfig {
+  readonly type: 'pod';
+  readonly options?: Partial<PodmanConnectorOptions>;
+}
+
+/** Built-in host configs. */
+export type HostConfig = SshHostConfig | PodHostConfig;
+
 /**
  * Configuration for a group of hosts.
  */
-export interface GroupConfig {
+export interface GroupConfig<T extends BaseHostConfig = HostConfig> {
   /** Group-level variables that override inventory vars. */
   readonly vars?: Record<symbol | string, any>;
   /** Group-level tags inherited by all hosts in the group. */
   readonly tags?: string[];
   /** Map of host names to their configurations. */
-  readonly hosts: Record<string, HostConfig>;
+  readonly hosts: Record<string, T>;
 }
 
 /**
  * Root inventory structure defining all hosts and groups.
  */
-export interface Inventory {
+export interface Inventory<T extends BaseHostConfig = HostConfig> {
   /** Top-level variables available to all hosts. */
   readonly vars?: Record<symbol | string, any>;
   /** Map of group names to their configurations. */
-  readonly groups: Record<string, GroupConfig>;
+  readonly groups: Record<string, GroupConfig<T>>;
 }
 
 /** A resolved host with merged variables and connection details from inventory configuration. */
 export interface ResolvedHost {
   readonly name: string;
   readonly host: string;
-  readonly user?: string;
-  readonly port?: number;
+  readonly type: string;
+  readonly options: Record<string, any>;
   readonly vars: Record<symbol | string, any>;
   /** Merged tags from group and host (deduplicated). */
   readonly tags: string[];
 }
 
-/** Factory function that creates a connector from a resolved host configuration. */
-export type ConnectorFactory = (host: string, h: ResolvedHost) => Connector;
+/** Factory function that creates a connector from a resolved host. */
+export type ConnectorFactory = (host: ResolvedHost) => Connector;
 
 /** Options for inventory connection creation. */
 export interface ConnectOptions {
-  /** Custom connector factories keyed by host prefix (e.g., "k8s:", "docker:"). */
+  /** Custom connector factories keyed by host type (e.g., "k8s", "docker"). */
   readonly connectors?: Record<string, ConnectorFactory>;
 }
 
@@ -93,7 +115,7 @@ export class ResolvedInventory implements AsyncDisposable {
   private readonly factories: Record<string, ConnectorFactory>;
   private disposed: boolean;
 
-  constructor(inventory: Inventory, options?: ConnectOptions) {
+  constructor(inventory: Inventory<BaseHostConfig>, options?: ConnectOptions) {
     this.hosts = [];
     this.groupMap = new Map();
     this.nameMap = new Map();
@@ -114,12 +136,18 @@ export class ResolvedInventory implements AsyncDisposable {
         const hostVars = hostConfig.vars ?? {};
         const hostTags = hostConfig.tags ?? [];
         const mergedTags = [...new Set([...groupTags, ...hostTags])];
+        const type = hostConfig.type ?? 'ssh';
+        if (!this.factories[type]) {
+          throw new Error(
+            `unknown host type '${type}' for host '${name}' (want ${Object.keys(this.factories).join(', ')})`,
+          );
+        }
 
         const resolved: ResolvedHost = {
           name,
           host: hostConfig.host ?? name,
-          user: hostConfig.user,
-          port: hostConfig.port,
+          type,
+          options: hostConfig.options ?? {},
           vars: { ...groupVars, ...hostVars },
           tags: mergedTags,
         };
@@ -251,61 +279,48 @@ export class ResolvedInventory implements AsyncDisposable {
  * });
  *
  * @example
- * // With custom connector
- * await using hosts = resolveInventory(
- *   { groups: { k8s: { hosts: { node1: { host: "k8s:node1" } } } } },
- *   { connectors: { k8s: (h) => new K8sConnector({ name: h.name, host: h.host.slice(4) }) } }
+ * // With a custom connector type (declare your own combination)
+ * interface K8sHostConfig extends BaseHostConfig {
+ *   readonly type: 'k8s';
+ *   readonly options?: { readonly namespace?: string };
+ * }
+ * await using hosts = resolveInventory<Inventory<SshHostConfig | K8sHostConfig>>(
+ *   { groups: { k8s: { hosts: { node1: { host: 'node1', type: 'k8s' } } } } },
+ *   { connectors: { k8s: (h) => new K8sConnector({ name: h.name, host: h.host }) } },
  * );
  */
-export function resolveInventory(
-  inventory: Inventory,
+export function resolveInventory<T extends BaseHostConfig = HostConfig>(
+  inventory: Inventory<T>,
   options?: ConnectOptions,
 ): ResolvedInventory {
   return new ResolvedInventory(inventory, options);
 }
 
 const DEFAULT_CONNECTORS: Record<string, ConnectorFactory> = {
-  pod: (host: string, h: ResolvedHost): Connector => {
-    if (!host) {
-      throw new Error(`Podman connector requires a container ID: ${host}`);
-    }
+  pod: (h: ResolvedHost): Connector => {
     return new PodmanConnector({
-      ...h,
-      host,
+      host: h.host,
+      name: h.name,
+      vars: h.vars,
+      ...h.options,
     });
   },
-  ssh: (host: string, h: ResolvedHost): Connector => {
-    if (!host) {
-      throw new Error(`SSH connector requires a host: ${host}`);
-    }
+  ssh: (h: ResolvedHost): Connector => {
     return new SSHConnector({
-      ...h,
-      host,
+      host: h.host,
+      name: h.name,
+      vars: h.vars,
+      ...h.options,
     });
   },
 };
 
 function _createConnector(h: ResolvedHost, factories: Record<string, ConnectorFactory>): Connector {
-  const hostStr = h.host;
-  let prefix: string | undefined = void 0;
-  let host = hostStr;
-  const idx = hostStr.indexOf(':');
-  if (idx !== -1) {
-    prefix = hostStr.slice(0, idx);
-    host = hostStr.slice(idx + 1);
+  const factory = factories[h.type];
+  if (!factory) {
+    throw new Error(`unknown host type '${h.type}' for host '${h.name}'`);
   }
-
-  if (prefix && factories[prefix]) {
-    return factories[prefix](host, h);
-  }
-
-  return new SSHConnector({
-    host,
-    name: h.name,
-    vars: h.vars,
-    user: h.user,
-    port: h.port,
-  });
+  return factory(h);
 }
 
 function _matchHosts(hosts: ResolvedHost[], pattern: string): ResolvedHost[] {
