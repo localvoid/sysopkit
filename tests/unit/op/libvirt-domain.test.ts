@@ -55,6 +55,15 @@ describe('serializeDomainXml', () => {
     expect(xml).toContain('<target dev="vdc" bus="virtio"/>');
   });
 
+  test('serializes the discard mode on the driver and omits it by default', () => {
+    expect(serializeDomainXml(BASIC)).not.toContain('discard=');
+    const xml = serializeDomainXml({
+      ...BASIC,
+      disks: [{ source: '/a.qcow2', discard: 'unmap' }],
+    });
+    expect(xml).toContain('<driver name="qemu" type="qcow2" discard="unmap"/>');
+  });
+
   test('serializes UEFI, agent, bridge, and disabled consoles', () => {
     const xml = serializeDomainXml({
       ...BASIC,
@@ -408,6 +417,25 @@ describe('parseDomainXml', () => {
     });
   });
 
+  test('parses the driver discard mode and round-trips it', () => {
+    const xml = serializeDomainXml({
+      ...BASIC,
+      disks: [{ source: '/a.qcow2', discard: 'unmap' }],
+    });
+    const parsed = parseDomainXml(xml);
+    expect(parsed.disks).toEqual([
+      { source: '/a.qcow2', target: 'vda', bus: 'virtio', format: 'qcow2', discard: 'unmap' },
+    ]);
+    expect(parseDomainXml(DUMPXML).disks).toEqual([
+      {
+        source: '/var/lib/libvirt/images/guest.qcow2',
+        target: 'vda',
+        bus: 'virtio',
+        format: 'qcow2',
+      },
+    ]);
+  });
+
   test('parses virt-install firmware autoselection via its explicit loader', () => {
     const parsed = parseDomainXml(SECBOOT_DUMPXML);
     expect(parsed.firmware).toEqual({
@@ -647,6 +675,23 @@ describe('domainConfigMatches', () => {
         disks: [{ source: '/var/lib/libvirt/images/guest.qcow2', device: 'disk' }],
       }),
     ).toBe(true);
+  });
+
+  test('compares disk discard modes with unset as wildcard', () => {
+    const live = parseDomainXml(DUMPXML);
+    expect(domainConfigMatches(live, { ...BASIC })).toBe(true);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        disks: [{ source: '/var/lib/libvirt/images/guest.qcow2', discard: 'ignore' }],
+      }),
+    ).toBe(true);
+    expect(
+      domainConfigMatches(live, {
+        ...BASIC,
+        disks: [{ source: '/var/lib/libvirt/images/guest.qcow2', discard: 'unmap' }],
+      }),
+    ).toBe(false);
   });
 
   test('compares video models with unset video as wildcard', () => {

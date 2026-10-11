@@ -80,6 +80,9 @@ export type DomainDiskBus = 'virtio' | 'scsi' | 'sata' | 'ide';
 /** Disk image formats modeled by `DomainDisk`. */
 export type DomainDiskFormat = 'qcow2' | 'raw';
 
+/** Discard mode for a `DomainDisk` (`<driver discard/>`). */
+export type DomainDiskDiscard = 'unmap' | 'ignore';
+
 /** A virtual disk attached to a domain. */
 export interface DomainDisk {
   /** Host path to the image (file) or device (block). */
@@ -90,6 +93,13 @@ export interface DomainDisk {
   readonly bus?: DomainDiskBus;
   /** Image format for the qemu driver. Default: `qcow2`. */
   readonly format?: DomainDiskFormat;
+  /**
+   * Guest trim behavior. Default `ignore` (qemu drops discards).
+   * `unmap` punches holes on trim, so guest `fstrim` shrinks the
+   * host image (e.g. sparsifying a golden-image builder before
+   * `qemu-img convert`).
+   */
+  readonly discard?: DomainDiskDiscard;
   /** Backing store kind. Default: `file`. */
   readonly kind?: 'file' | 'block';
   /**
@@ -339,7 +349,11 @@ export function serializeDomainXml(domain: DomainConf): string {
       const entry: MutableXmlElement = {
         '@type': disk.kind ?? 'file',
         '@device': disk.device ?? 'disk',
-        'driver': { '@name': 'qemu', '@type': disk.format ?? 'qcow2' },
+        'driver': {
+          '@name': 'qemu',
+          '@type': disk.format ?? 'qcow2',
+          ...(disk.discard !== undefined ? { '@discard': disk.discard } : {}),
+        },
         'source': { [sourceAttr]: disk.source },
         'target': { '@dev': target, '@bus': bus },
       };
@@ -588,6 +602,7 @@ export function parseDomainXml(xml: string): DomainConf {
     const bootEl = childElement(d, 'boot');
     const bus = isXmlElement(targetEl) ? xmlAttr(targetEl, 'bus') : undefined;
     const format = isXmlElement(driverEl) ? xmlAttr(driverEl, 'type') : undefined;
+    const discard = isXmlElement(driverEl) ? xmlAttr(driverEl, 'discard') : undefined;
     return {
       source,
       ...(isXmlElement(targetEl) && xmlAttr(targetEl, 'dev') !== undefined
@@ -595,6 +610,7 @@ export function parseDomainXml(xml: string): DomainConf {
         : {}),
       ...(bus === 'virtio' || bus === 'scsi' || bus === 'sata' || bus === 'ide' ? { bus } : {}),
       ...(format === 'qcow2' || format === 'raw' ? { format } : {}),
+      ...(discard === 'unmap' || discard === 'ignore' ? { discard } : {}),
       ...(kind === 'file' ? {} : { kind: kind as 'block' }),
       ...(device === 'disk' ? {} : { device: device as 'cdrom' }),
       ...('readonly' in d ? { readonly: true as const } : {}),
@@ -907,6 +923,9 @@ function _diskMatches(current: DomainDisk, desired: DomainDisk): boolean {
     return false;
   }
   if (desired.format !== undefined && desired.format !== (current.format ?? 'qcow2')) {
+    return false;
+  }
+  if (desired.discard !== undefined && desired.discard !== (current.discard ?? 'ignore')) {
     return false;
   }
   if (desired.kind !== undefined && desired.kind !== (current.kind ?? 'file')) {
