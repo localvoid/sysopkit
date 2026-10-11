@@ -37,17 +37,15 @@ export interface ServiceOptions extends SystemdScopeOptions {
   readonly name: string | readonly string[];
 }
 
-function _names(name: string | readonly string[]): string[] {
-  return typeof name === 'string' ? [name] : [...name];
-}
-
-function _checkNames(names: string[]): void {
+function _names(name: string | readonly string[]): readonly string[] {
+  const names = typeof name === 'string' ? [name] : name;
   if (names.length === 0) throw new Error('refusing: unit name is required');
   for (const n of names) {
-    if (n.length === 0) {
+    if (!n) {
       throw new Error(`refusing: bad unit name '${n}'`);
     }
   }
+  return names;
 }
 
 function _label(name: string | readonly string[]): string {
@@ -61,7 +59,6 @@ export async function enableService(options: ServiceOptions): Promise<void> {
     `systemctl enable ${_label(name)}`,
     async (ctx) => {
       const names = _names(name);
-      _checkNames(names);
       const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       /*
        * A service is considered enabled if its UnitFileState is "enabled" or
@@ -101,7 +98,6 @@ export async function disableService(options: ServiceOptions): Promise<void> {
     `systemctl disable ${_label(name)}`,
     async (ctx) => {
       const names = _names(name);
-      _checkNames(names);
       const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       const targets = names.filter((_, i) => ENABLED_STATES.includes(infos[i]!.UnitFileState));
       if (targets.length > 0) {
@@ -136,7 +132,6 @@ export async function startService(options: ServiceOptions): Promise<boolean | b
     `systemctl start ${_label(name)}`,
     async (ctx) => {
       const names = _names(name);
-      _checkNames(names);
       const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       const targets = new Set(
         names.filter(
@@ -175,7 +170,6 @@ export async function stopService(options: ServiceOptions): Promise<void> {
     `systemctl stop ${_label(name)}`,
     async (ctx) => {
       const names = _names(name);
-      _checkNames(names);
       const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       const targets = names.filter(
         (_, i) =>
@@ -210,7 +204,6 @@ export async function restartService(options: ServiceOptions): Promise<void> {
     `systemctl restart ${_label(name)}`,
     async (ctx) => {
       const names = _names(name);
-      _checkNames(names);
       const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       const targets = names.filter(
         (_, i) => infos[i]!.LoadState === 'loaded' || infos[i]!.LoadState === 'merged',
@@ -236,7 +229,6 @@ export async function reloadService(options: ServiceOptions): Promise<void> {
     `systemctl reload ${_label(name)}`,
     async (ctx) => {
       const names = _names(name);
-      _checkNames(names);
       const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       const targets = names.filter(
         (_, i) => infos[i]!.LoadState === 'loaded' || infos[i]!.LoadState === 'merged',
