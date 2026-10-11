@@ -34,16 +34,35 @@ export async function getServiceInfo(options: GetServiceInfoOptions): Promise<Se
 }
 
 export interface ServiceOptions extends SystemdScopeOptions {
-  readonly name: string;
+  readonly name: string | readonly string[];
+}
+
+function _names(name: string | readonly string[]): string[] {
+  return typeof name === 'string' ? [name] : [...name];
+}
+
+function _checkNames(names: string[]): void {
+  if (names.length === 0) throw new Error('refusing: unit name is required');
+  for (const n of names) {
+    if (n.length === 0) {
+      throw new Error(`refusing: bad unit name '${n}'`);
+    }
+  }
+}
+
+function _label(name: string | readonly string[]): string {
+  return typeof name === 'string' ? name : name.join(' ');
 }
 
 export async function enableService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `systemctl enable ${name}`,
+    `systemctl enable ${_label(name)}`,
     async (ctx) => {
-      const info = await getServiceInfo(options);
+      const names = _names(name);
+      _checkNames(names);
+      const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
       /*
        * A service is considered enabled if its UnitFileState is "enabled" or
        * "enabled-runtime". Other states like "static", "alias", "indirect",
@@ -54,16 +73,18 @@ export async function enableService(options: ServiceOptions): Promise<void> {
        * @see systemctl(1) is-enabled - enabled, enabled-runtime, linked,
        * masked, static, alias, indirect, generated, transient, bad, disabled, etc.
        */
-      const isEnabled = ENABLED_STATES.includes(info.UnitFileState);
-      if (!isEnabled) {
-        if (!ctx.dryRun) await sh(_systemctl('enable', name, scope));
-        emitChanged({
-          type: 'service',
-          resource: name,
-          property: 'enabled',
-          from: 'false',
-          to: 'true',
-        });
+      const targets = names.filter((_, i) => !ENABLED_STATES.includes(infos[i]!.UnitFileState));
+      if (targets.length > 0) {
+        if (!ctx.dryRun) await sh(_systemctl('enable', [...new Set(targets)], scope));
+        for (const unit of new Set(targets)) {
+          emitChanged({
+            type: 'service',
+            resource: unit,
+            property: 'enabled',
+            from: 'false',
+            to: 'true',
+          });
+        }
       }
     },
     {
@@ -77,19 +98,23 @@ export async function disableService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `systemctl disable ${name}`,
+    `systemctl disable ${_label(name)}`,
     async (ctx) => {
-      const info = await getServiceInfo(options);
-      const isEnabled = ENABLED_STATES.includes(info.UnitFileState);
-      if (isEnabled) {
-        if (!ctx.dryRun) await sh(_systemctl('disable', name, scope));
-        emitChanged({
-          type: 'service',
-          resource: name,
-          property: 'enabled',
-          from: 'true',
-          to: 'false',
-        });
+      const names = _names(name);
+      _checkNames(names);
+      const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
+      const targets = names.filter((_, i) => ENABLED_STATES.includes(infos[i]!.UnitFileState));
+      if (targets.length > 0) {
+        if (!ctx.dryRun) await sh(_systemctl('disable', [...new Set(targets)], scope));
+        for (const unit of new Set(targets)) {
+          emitChanged({
+            type: 'service',
+            resource: unit,
+            property: 'enabled',
+            from: 'true',
+            to: 'false',
+          });
+        }
       }
     },
     {
@@ -99,27 +124,42 @@ export async function disableService(options: ServiceOptions): Promise<void> {
   );
 }
 
-export async function startService(options: ServiceOptions): Promise<boolean> {
+export async function startService(options: ServiceOptions & { name: string }): Promise<boolean>;
+export async function startService(
+  options: ServiceOptions & { name: readonly string[] },
+): Promise<boolean[]>;
+export async function startService(options: ServiceOptions): Promise<boolean | boolean[]> {
   const { name, scope, user } = options;
+  const isArray = Array.isArray(name);
 
   return task(
-    `systemctl start ${name}`,
+    `systemctl start ${_label(name)}`,
     async (ctx) => {
-      const info = await getServiceInfo(options);
-      if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
-        if (info.ActiveState === 'inactive' || info.ActiveState === 'failed') {
-          if (!ctx.dryRun) await sh(_systemctl('start', name, scope));
+      const names = _names(name);
+      _checkNames(names);
+      const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
+      const targets = new Set(
+        names.filter(
+          (_, i) =>
+            (infos[i]!.LoadState === 'loaded' || infos[i]!.LoadState === 'merged') &&
+            (infos[i]!.ActiveState === 'inactive' || infos[i]!.ActiveState === 'failed'),
+        ),
+      );
+      const changed = names.map((n) => targets.has(n));
+      if (targets.size > 0) {
+        if (!ctx.dryRun) await sh(_systemctl('start', [...targets], scope));
+        for (const unit of targets) {
+          const info = infos[names.indexOf(unit)]!;
           emitChanged({
             type: 'service',
-            resource: name,
+            resource: unit,
             property: 'state',
             from: info.ActiveState,
             to: 'active',
           });
-          return true;
         }
       }
-      return false;
+      return isArray ? changed : changed[0]!;
     },
     {
       details: () => ({ scope, user }),
@@ -132,15 +172,23 @@ export async function stopService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `systemctl stop ${name}`,
+    `systemctl stop ${_label(name)}`,
     async (ctx) => {
-      const info = await getServiceInfo(options);
-      if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
-        if (info.ActiveState === 'active' || info.ActiveState === 'failed') {
-          if (!ctx.dryRun) await sh(_systemctl('stop', name, scope));
+      const names = _names(name);
+      _checkNames(names);
+      const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
+      const targets = names.filter(
+        (_, i) =>
+          (infos[i]!.LoadState === 'loaded' || infos[i]!.LoadState === 'merged') &&
+          (infos[i]!.ActiveState === 'active' || infos[i]!.ActiveState === 'failed'),
+      );
+      if (targets.length > 0) {
+        if (!ctx.dryRun) await sh(_systemctl('stop', [...new Set(targets)], scope));
+        for (const unit of new Set(targets)) {
+          const info = infos[names.indexOf(unit)]!;
           emitChanged({
             type: 'service',
-            resource: name,
+            resource: unit,
             property: 'state',
             from: info.ActiveState,
             to: 'inactive',
@@ -159,12 +207,19 @@ export async function restartService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `systemctl restart ${name}`,
+    `systemctl restart ${_label(name)}`,
     async (ctx) => {
-      const info = await getServiceInfo(options);
-      if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
-        if (!ctx.dryRun) await sh(_systemctl('restart', name, scope));
-        emitChanged({ type: 'service', resource: name, property: 'state', to: 'restarted' });
+      const names = _names(name);
+      _checkNames(names);
+      const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
+      const targets = names.filter(
+        (_, i) => infos[i]!.LoadState === 'loaded' || infos[i]!.LoadState === 'merged',
+      );
+      if (targets.length > 0) {
+        if (!ctx.dryRun) await sh(_systemctl('restart', [...new Set(targets)], scope));
+        for (const unit of new Set(targets)) {
+          emitChanged({ type: 'service', resource: unit, property: 'state', to: 'restarted' });
+        }
       }
     },
     {
@@ -178,12 +233,19 @@ export async function reloadService(options: ServiceOptions): Promise<void> {
   const { name, scope, user } = options;
 
   return task(
-    `systemctl reload ${name}`,
+    `systemctl reload ${_label(name)}`,
     async (ctx) => {
-      const info = await getServiceInfo(options);
-      if (info.LoadState === 'loaded' || info.LoadState === 'merged') {
-        if (!ctx.dryRun) await sh(_systemctl('reload', name, scope));
-        emitChanged({ type: 'service', resource: name, property: 'state', to: 'reloaded' });
+      const names = _names(name);
+      _checkNames(names);
+      const infos = await Promise.all(names.map((n) => getServiceInfo({ name: n, scope })));
+      const targets = names.filter(
+        (_, i) => infos[i]!.LoadState === 'loaded' || infos[i]!.LoadState === 'merged',
+      );
+      if (targets.length > 0) {
+        if (!ctx.dryRun) await sh(_systemctl('reload', [...new Set(targets)], scope));
+        for (const unit of new Set(targets)) {
+          emitChanged({ type: 'service', resource: unit, property: 'state', to: 'reloaded' });
+        }
       }
     },
     {
@@ -196,14 +258,22 @@ export async function reloadService(options: ServiceOptions): Promise<void> {
 /**
  * Build a systemctl command string.
  *
+ * Since systemd v262 multiple units can be queued in one transaction
+ * (e.g., `systemctl start a.service b.service`).
+ *
  * @param action - systemctl action (e.g., "start", "stop", "enable")
- * @param unit - Unit name
+ * @param unit - Unit name or list of unit names
  * @param options - Scope options
  * @returns Complete systemctl command string
  */
-export function _systemctl(action: string, unit: string, scope: SystemdScope = 'system'): string {
+export function _systemctl(
+  action: string,
+  unit: string | readonly string[],
+  scope: SystemdScope = 'system',
+): string {
   const userFlag = scope === 'user' ? '--user ' : '';
-  return `systemctl ${userFlag}${action} ${$_(unit)}`;
+  const units = typeof unit === 'string' ? $_(unit) : unit.map((u) => $_(u)).join(' ');
+  return `systemctl ${userFlag}${action} ${units}`;
 }
 
 /**

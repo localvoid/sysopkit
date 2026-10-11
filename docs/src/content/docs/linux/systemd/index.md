@@ -31,9 +31,10 @@ import {
 Most service operations accept `ServiceOptions` with the following fields:
 
 ```ts
-{ name: string; scope?: 'system' | 'user'; user?: string }
+{ name: string | readonly string[]; scope?: 'system' | 'user'; user?: string }
 ```
 
+- `name` — Single unit or list of units. Multiple units are queued in a single `systemctl` call (systemd v262 `EnqueueUnitJobMany`).
 - `scope` — Defaults to `"system"`. Use `"user"` for user-scoped units.
 - `user` — Username for user-scope (determines home directory paths).
 
@@ -71,10 +72,12 @@ await disableService({ name: 'nginx.service' });
 
 > **IDEMPOTENT**
 
-Starts a service. Returns `true` if the service was started, `false` if already running.
+Starts a service. Returns `true` if the service was started, `false` if already running. Pass an array to start several units with one `systemctl` call — returns one boolean per unit, in input order.
 
 ```ts
 await startService({ name: 'nginx.service' });
+await startService({ name: ['a.service', 'b.service'] });
+// [true, false]
 ```
 
 ## stopService()

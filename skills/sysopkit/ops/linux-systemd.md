@@ -21,12 +21,14 @@ import { getServiceInfo, enableService, startService, restartService } from '@sy
 
 await enableService({ name: 'nginx', scope? }); // idempotent
 await startService({ name: 'nginx', scope? });  // starts if inactive/failed, returns changed
+await startService({ name: ['a.service', 'b.service'] }); // one systemctl call, returns boolean[]
 await restartService({ name: 'nginx' });        // unconditional, requires loaded/merged unit
 ```
 
 - `getServiceInfo({ name, scope? })` (`systemctl show --property=…`) returns `{ LoadState, ActiveState, SubState, UnitFileState, MainPID }`.
 - Only `enabled` / `enabled-runtime` count as enabled for `enableService` / `disableService` idempotency.
 - `stopService` stops if active/failed; `reloadService` is unconditional like restart. `scope` selects `--user` vs system.
+- All service ops accept `name: string | readonly string[]`; multi-unit calls batch into one `systemctl` invocation and emit one change per affected unit.
 - After writing unit files, call `daemonReload()` before enabling/starting.
 
 ## Host identity
@@ -53,5 +55,5 @@ await setLocale({ locale: 'C.UTF-8' }); // bare form, sets LANG
 ## Pitfalls
 
 - `restart`/`reload` are unconditional — gate them behind `onChange` latches (see `events-changes.md`) or they bounce services on every run.
-- `startService` emits a change when it starts and returns `true`; on no-op it returns `false` without emitting. Gate downstream work on the return value — do not `emitChanged` again for the same start.
+- `startService` emits a change when it starts and returns `true`; on no-op it returns `false` without emitting. With an array `name` it returns `boolean[]` in input order. Gate downstream work on the return value — do not `emitChanged` again for the same start.
 - Unit file writes need `daemonReload()` before systemd sees them; forgetting it is the classic "changed the unit but nothing happened" bug.
