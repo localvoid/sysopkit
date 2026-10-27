@@ -109,13 +109,13 @@ packages/
 
 ## Commands
 
-- `bun run check` - type check / lint
+- `bun run lint` - lint
 - `bun run test` - unit tests
 - `bun run test -- "{test path}"` - filter by file
 - `bun run test -- -t "{test name}"` - filter by name (supports regex)
 
 ## Instructions
 
-- Do NOT run `tsc`, use `bun run check` for type-checking
+- Do NOT run `tsc`, use `bun run build` for type-checking
 - Keep docs and tests up-to-date
 - Validate op inputs inside `task()`/`utility()`, never before it: `runWithContext()` reports failures via `reporter.ctxError(ctx, e)` (`core/context.ts`), so a `throw` outside the task body loses the task frame in the reported context stack. Compute the task name/details defensively (no throws), then refuse first thing inside the callback. Scope: only ops that enter their own task/utility frame. Task-less primitives and pure helpers (`spawn`, `which`, temp guards, `parse*`/`serialize*`) are exempt — they throw inside the caller's frame by design, so do NOT wrap them just for error context.

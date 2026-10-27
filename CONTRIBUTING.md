@@ -138,7 +138,7 @@ bun run test
 6. Make sure you comply with the style guide. You can run the linter using
 
 ```sh
-bun run check
+bun run lint
 ```
 
 7. Push your topic branch up to your fork:

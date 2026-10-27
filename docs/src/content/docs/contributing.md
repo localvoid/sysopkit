@@ -25,7 +25,7 @@ Open an issue with the "enhancement" label. Describe the feature, its use case, 
 3. Run tests and type checking:
    ```bash
    bun run test
-   bun run check
+   bun run lint
    ```
 4. Rebase onto the latest `main` (no merge commits)
 5. Open a PR against `main`
