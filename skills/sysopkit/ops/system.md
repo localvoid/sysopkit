@@ -1,27 +1,23 @@
 # System ops: users, mount, network, config serializers
 
-```typescript
-import { serializeIni } from 'sysopkit/op/ini';
-import { mount, umount } from 'sysopkit/op/mount';
-import { parseHosts, serializeHosts } from 'sysopkit/op/net';
-import { serializeSshConf } from 'sysopkit/op/ssh';
-import { createUser, createGroup } from 'sysopkit/op/users';
-```
-
-## Users (`sysopkit/op/users`)
+## Users
 
 ```typescript
+import { createGroup, createUser, deleteGroup, deleteUser } from 'sysopkit/op/users';
+
 await createUser({ user: 'app', uid?, gid?, gecos?, home?, shell?, system?, groups? }); // groups appended via usermod -aG (must exist), never removed
 await deleteUser({ user: 'app' });
 await createGroup({ name: 'app', gid?, members?, system? }); // members diffed
 await deleteGroup({ name: 'app' });
 ```
 
-All four are **idempotent**: diff `/etc/passwd` / `/etc/group` first (`useradd`/`usermod`, `groupadd`/`groupmod`/`gpasswd -M`), `diffArrays` for group members. Read-only: `getCurrentUser()` (via `id`), `parsePasswdFile`, `parseGroupFile`.
+All four are **idempotent**: they diff `/etc/passwd`/`/etc/group` first (`useradd`/`usermod`, `groupadd`/`groupmod`/`gpasswd -M`) and use `diffArrays` for group members. Read-only: `getCurrentUser()` (via `id`), `parsePasswdFile`, `parseGroupFile`.
 
-## Mount (`sysopkit/op/mount`)
+## Mount
 
 ```typescript
+import { mount, umount } from 'sysopkit/op/mount';
+
 await mount({ src: '/dev/sda1', path: '/mnt/data', fstype: 'ext4', opts?: 'defaults' });
 await mount({ src: '/srv/data', path: '/mnt/data', bind: true }); // mount --bind, no -t/-o
 await mount({ src: '/dev', path: '/target/dev', rslave: true }); // implies bind + --make-rslave
@@ -32,19 +28,22 @@ await umount({ path: '/mnt/data' });
 await umount({ path: '/target', recursive: true, lazy: true, ignoreErrors: true }); // umount -l -R ... || true
 ```
 
-Idempotent. `fstype` required unless `bind`/`rslave`/`rbind`; `src` optional only for propagation-only remounts. Read-only: `mountInfo({ path })` (exit 64 when absent, includes `propagation`), `parseFstab` / `serializeFstab`.
+Idempotent. `fstype` is required unless `bind`/`rslave`/`rbind`; `src` is optional only for propagation-only remounts. Read-only: `mountInfo({ path })` (exit 64 when absent, includes `propagation`), `parseFstab`/`serializeFstab`.
 
-**Pitfalls:** regular mounts match source fuzzily (`===` or `includes` either way) and compare only the first comma-option — unusual `opts` strings can false-positive as "already mounted". Bind mounts ignore findmnt source (reports backing device) and compare `stat -c '%d %i'` identity instead. Recursive `umount -R` pre-check is submount-aware (detaches orphaned children even when `path` itself is unmounted); `ignoreErrors` appends `2>/dev/null || true` for cleanup paths.
+Mount matching has sharp edges:
 
-## Network probing
+- Regular mounts match a source fuzzily (`===` or `includes` either way) and compare only the first comma-option. Unusual `opts` strings can false-positive as already mounted.
+- Bind mounts ignore the findmnt source (it reports the backing device) and compare `stat -c '%d %i'` identity instead.
+- The recursive `umount -R` pre-check is submount-aware, so it detaches orphaned children even when `path` itself is unmounted. `ignoreErrors` appends `2>/dev/null || true` for cleanup paths.
 
-Poll ports/processes with `waitUntil()` (see `ops/shell.md`): `nc -z -w 1` or bash `/dev/tcp` for ports, exact-name `pidof` for processes.
+## Network
 
-- `sysopkit/op/net` (re-exports `./net/hosts.js`): `parseHosts` / `serializeHosts` for `/etc/hosts` (`HOSTS_PATH`), pure functions — no apply op; write the result with `createFile` yourself.
+- `sysopkit/op/net` re-exports `./net/hosts.js`: `parseHosts`/`serializeHosts` for `/etc/hosts` (`HOSTS_PATH`). Pure functions with no apply op; write the result with `createFile`.
+- Poll ports and processes with `waitUntil` ([utilities-errors](../utilities-errors.md#waituntil)): `nc -z -w 1` or bash `/dev/tcp` for ports, exact-name `pidof` for processes.
 
-## Pure serializers (no transport)
+## Pure serializers
 
-- `sysopkit/op/ssh`: `serializeSshConf(config)` (`sshd_config`; booleans → `yes`/`no`, space-strings quoted) plus `SSHD_CONF_PATH`, `KNOWN_HOSTS_PATH`.
-- `sysopkit/op/ini`: `serializeIni(data)` (typed sections) — no parser, no apply op.
+- `sysopkit/op/ssh`: `serializeSshConf(config)` for `sshd_config` (booleans → `yes`/`no`, space-strings quoted), plus `SSHD_CONF_PATH` and `KNOWN_HOSTS_PATH`.
+- `sysopkit/op/ini`: `serializeIni(data)` for typed sections. No parser and no apply op.
 
-Pattern for all serializers: `serialize*` → `createFile({ path, content })` → optional service reload. For OpenWrt UCI configs, use the separate `sysopkit-openwrt` skill.
+The serializer pattern is always `serialize*` → `createFile({ path, content })` → optional service reload. OpenWrt UCI uses the separate `sysopkit-openwrt` skill.

@@ -1,10 +1,6 @@
 # chroot middleware
 
-```typescript
-import { chroot, ChrootMiddleware } from 'sysopkit/middleware/chroot';
-```
-
-Confines every `spawn` in scope to a chroot directory — prefix rewrite `cmd → ['chroot', root, ...cmd]`, following `TransformCmdMiddleware` (new array, never mutates input).
+Confines every `spawn` in scope to a chroot directory by rewriting `cmd → ['chroot', root, ...cmd]`. It follows `TransformCmdMiddleware`: a new array, never a mutation of the input.
 
 ```typescript
 import { chroot } from 'sysopkit/middleware/chroot';
@@ -16,6 +12,6 @@ await chroot('/target', async () => {
 });
 ```
 
-- Validation up front: empty, relative, or `/` roots throw `refusing: …` before spawning (so `chroot(bad, fn)` never runs `fn`).
-- The middleware does **not** set up the chroot: populate `<root>` and bind-mount `/dev`, `/proc`, `/sys` inside it beforehand when confined commands (package scriptlets, `systemctl`, `dracut`) need them.
-- File ops that go through `spawn` (`createFile`, `sh`, `exec`) take chroot-relative paths in scope — drop the `<root>` prefix, otherwise it doubles.
+- Validation runs up front: an empty, relative, or `/` root throws `refusing: …` before spawning, so `chroot(bad, fn)` never runs `fn`.
+- The middleware does **not** set up the chroot. Populate `<root>` and bind-mount `/dev`, `/proc`, `/sys` inside it first when confined commands (package scriptlets, `systemctl`, `dracut`) need them.
+- `spawn`-based file ops (`createFile`, `sh`, `exec`) take chroot-relative paths in scope. Drop the `<root>` prefix, or it doubles.

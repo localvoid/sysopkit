@@ -1,21 +1,20 @@
-# Storage: `@sysopkit/libvirt/storage`
+# Storage
 
 ```typescript
 import {
-  definePool,
-  undefinePool,
   buildPool,
-  startPool,
+  createVolume,
+  definePool,
+  deleteVolume,
   destroyPool,
-  setPoolAutostart,
   getPool,
   getPoolInfo,
-  listPools,
-  createVolume,
-  deleteVolume,
   getVolumeInfo,
+  listPools,
   listVolumes,
-  volumeExists,
+  setPoolAutostart,
+  startPool,
+  undefinePool,
 } from '@sysopkit/libvirt/storage';
 ```
 
@@ -28,7 +27,7 @@ await startPool({ name: 'default' }); // boolean
 await setPoolAutostart({ name: 'default', autostart: true });
 ```
 
-Non-`dir` pools throw in `parsePoolXml` — use the raw XML path (`{ name, xml, update? }`). `listPools()` (`pool-list --all`), `getPool()` (normalized conf), `getPoolInfo()` (`pool-info`: active/autostart/persistent).
+Non-`dir` pools throw in `parsePoolXml`; use the raw XML path (`{ name, xml, update? }`). `listPools()` (`pool-list --all`), `getPool()` (normalized conf), `getPoolInfo()` (`pool-info`: active/autostart/persistent).
 
 ## Volumes
 
@@ -40,7 +39,9 @@ await createVolume({
 await deleteVolume({ pool: 'default', name: 'old.qcow2' }); // no-op when absent
 ```
 
-`createVolume` (`vol-create` with serialized XML) is a no-op when a volume with the same name, capacity, and format exists, and **throws** when it differs (volumes can't be resized in place — delete first). `getVolumeInfo` (`vol-dumpxml`: name/capacityMiB/format/path, units converted), `listVolumes({ pool })` (names via `vol-list`), `volumeExists`.
+`createVolume` (`vol-create` with serialized XML) is a no-op when a volume with the same name, capacity, and format exists. It **throws** when they differ, because volumes cannot be resized in place — delete first.
+
+`getVolumeInfo` (`vol-dumpxml`: name/capacityMiB/format/path, units converted), `listVolumes({ pool })` (names via `vol-list`), `volumeExists`.
 
 ## Pure helpers
 

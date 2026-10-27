@@ -1,59 +1,73 @@
 # UCI config reference
 
-```typescript
-import type { UciDhcp } from '@sysopkit/openwrt/uci/dhcp';
-import type { UciDropbear } from '@sysopkit/openwrt/uci/dropbear';
-import type { UciFirewall } from '@sysopkit/openwrt/uci/firewall';
-import type { UciNetwork } from '@sysopkit/openwrt/uci/network';
-import type { UciSqm } from '@sysopkit/openwrt/uci/sqm';
-import type { UciSystem } from '@sysopkit/openwrt/uci/system';
-import type { UciUpnpd } from '@sysopkit/openwrt/uci/upnpd';
-import type { UciWireless } from '@sysopkit/openwrt/uci/wireless';
-```
+Each package under `@sysopkit/openwrt/uci/*` is types-only. Pair the type with `serializeUci` from `@sysopkit/openwrt/uci`; see [uci](uci.md) for the model.
 
-All submodules above are **types-only** — pair each with `serializeUci` (see [uci](uci.md)). Each entry shows the top-level config type (`/etc/config/<name>`) and its section union.
+## network
 
-## network (`@sysopkit/openwrt/uci/network`)
+`@sysopkit/openwrt/uci/network` — `/etc/config/network`
 
-- `UciNetwork = UciNetworkSection[]` (`/etc/config/network`).
+- `UciNetwork = UciNetworkSection[]`.
 - Sections: `UciNetworkInterface` (proto, device, ipaddr, gateway, dns…), `UciNetworkDevice` (device-level options), `UciNetworkGlobals`, `UciNetworkRoute`, `UciNetworkRule`, `UciNetworkBridgeVlan`.
+- Reload: `/etc/init.d/network reload`.
 
-## wireless (`@sysopkit/openwrt/uci/wireless`)
+## wireless
 
-- `UciWireless = UciWirelessSection[]` (`/etc/config/wireless`).
+`@sysopkit/openwrt/uci/wireless` — `/etc/config/wireless`
+
+- `UciWireless = UciWirelessSection[]`.
 - Sections: `UciWifiDevice` (radio: type, channel, band, txpower…), `UciWifiIface` (ssid, encryption, key, network attachment…).
+- Reload: `wifi reload`.
 
-## firewall (`@sysopkit/openwrt/uci/firewall`)
+## firewall
 
-- `UciFirewall = UciFirewallSection[]` (`/etc/config/firewall`).
-- Sections: `UciFirewallDefault`, `UciFirewallZone`, `UciFirewallRule`, `UciFirewallForwarding`.
+`@sysopkit/openwrt/uci/firewall` — `/etc/config/firewall`
 
-## system (`@sysopkit/openwrt/uci/system`)
+- `UciFirewall = UciFirewallSection[]`.
+- Sections: `UciFirewallDefault`, `UciFirewallZone`, `UciFirewallForwarding`. `UciFirewallRule` is exported but is not part of the `UciFirewallSection` union in the current source; widen the type if you need rule sections.
+- Reload: `/etc/init.d/firewall reload`.
 
-- `UciSystem = UciSystemSection[]` (`/etc/config/system`).
+## system
+
+`@sysopkit/openwrt/uci/system` — `/etc/config/system`
+
+- `UciSystem = UciSystemSection[]`.
 - Sections: `UciSystemSystem` (hostname, timezone…), `UciSystemTimeserver`, `UciSystemLed`, `UciSystemRDNSSD`.
+- Reload: `/etc/init.d/system reload`.
 
-## dhcp (`@sysopkit/openwrt/uci/dhcp`)
+## dhcp
 
-- `UciDhcp = UciDhcpSection[]` (`/etc/config/dhcp`).
+`@sysopkit/openwrt/uci/dhcp` — `/etc/config/dhcp`
+
+- `UciDhcp = UciDhcpSection[]`.
 - Sections: `UciDhcpDnsmasq`, `UciDhcpDhcp`, `UciDhcpOdhcp`, `UciDhcpHost` (static leases), `UciDhcpMatch`, `UciDhcpBoot`.
+- Reload: `/etc/init.d/dnsmasq restart` (and `odhcpd` for DHCPv6).
 
-## dropbear (`@sysopkit/openwrt/uci/dropbear`)
+## dropbear
 
-- `UciDropbear = UciDropbearSection[]` (`/etc/config/dropbear`; `UciDropbearSection` is an alias of the top-level config).
+`@sysopkit/openwrt/uci/dropbear` — `/etc/config/dropbear`
+
+- `UciDropbear = UciDropbearSection[]`; `UciDropbearSection` aliases the top-level config.
 - Section: `UciDropbearDropbear` (port, password auth, root login…).
+- Reload: `/etc/init.d/dropbear restart`.
 
-## sqm (`@sysopkit/openwrt/uci/sqm`)
+## sqm
 
-- `UciSqm = UciSqmQueue[]` (`/etc/config/sqm`).
+`@sysopkit/openwrt/uci/sqm` — `/etc/config/sqm`
+
+- `UciSqm = UciSqmQueue[]`.
 - Section: `UciSqmQueue` (interface, qdisc, shaper rates…).
+- Reload: `/etc/init.d/sqm restart`.
 
-## upnpd (`@sysopkit/openwrt/uci/upnpd`)
+## upnpd
 
-- `UciUpnpd = UciUpnpdSection[]` (`/etc/config/upnpd`).
+`@sysopkit/openwrt/uci/upnpd` — `/etc/config/upnpd`
+
+- `UciUpnpd = UciUpnpdSection[]`.
 - Sections: `UciUpnpdConfig`, `UciUpnpdPermRule`.
+- Reload: `/etc/init.d/miniupnpd restart`.
 
-## Pitfalls
+## Rules
 
-- Section `type` strings must match the device's expected UCI types exactly — a typo produces a config the daemon ignores without error.
-- Reload/restart per subsystem after change: `network` → `/etc/init.d/network reload`, `wireless` → `wifi reload`, `firewall` → `/etc/init.d/firewall reload`, `dhcp`/`system` → restart the respective service. A file write without the matching reload changes nothing at runtime — confirm the exact command on the target OpenWrt version.
+- Build the whole file. A section left out of the array is deleted from the device.
+- Section `type` strings must match the device's expected UCI types exactly; a typo is silently ignored.
+- Reload commands vary by OpenWrt version and installed packages. Confirm the exact command on the target.

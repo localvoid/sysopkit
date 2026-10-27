@@ -1,12 +1,6 @@
 # Events and change tracking
 
-```typescript
-import { emit, emitChanged, onChange, CHANGE_EVENT, latch } from 'sysopkit';
-```
-
-## Model
-
-Events are branded symbols (collision-safe):
+Events are branded symbols, so they cannot collide:
 
 ```typescript
 type Event<T> = symbol & { __value?: T; __type?: 'sysopkit.event' };
@@ -27,10 +21,10 @@ emitChanged({ type: 'file', resource: '/etc/foo.conf', to: 'updated' });
 emit(MY_EVENT, payload); // custom events: define your own Event<T> symbol
 ```
 
-- `emit(event, data)` notifies `reporter.onEvent` first, then propagates **up** the parent chain, invoking handlers registered at each level. Synchronous — **handler exceptions bubble into the emitter**; keep handlers trivial and non-throwing.
-- Idempotent ops call `emitChanged()` internally only on real change, so dry-run still reports what _would_ change. Exception: `tar`/`untar` emit `packed`/`extracted` unconditionally, including in dry-run.
+- `emit(event, data)` notifies `reporter.onEvent` first, then propagates **up** the parent chain, invoking handlers at each level. It is synchronous: a handler exception bubbles into the emitter, so keep handlers trivial and non-throwing.
+- Idempotent ops call `emitChanged()` only on real change, so dry-run still reports what _would_ change. Exception: `tar`/`untar` emit `packed`/`extracted` unconditionally, dry-run included. `cp`, `touchFile`, and `curl` with `path` also emit unconditionally.
 
-## Scoped subscriptions
+## Subscribe for a scope
 
 ```typescript
 import { onChange, latch } from 'sysopkit';
@@ -46,12 +40,12 @@ if (restarted()) {
 }
 ```
 
-- `onChange(handler, fn)` = `utility('onChange', …)` that registers on `CHANGE_EVENT` for the duration of `fn`. The subscription dies when the utility context ends — it only catches emits from **descendants of that scope** (or the scope itself), never siblings or outer scopes.
-- `latch<T>()` returns `(value?: T) => boolean`: once called with a truthy value it sticks `true` forever. Use directly as the handler when you only need "did anything change". Falsy payloads never latch — `emitChanged` always passes an object, so this only bites custom events.
+- `onChange(handler, fn)` is `utility('onChange', …)` registering on `CHANGE_EVENT` for the duration of `fn`. The subscription dies when the utility frame ends: it catches emits from **descendants of that scope** (and the scope itself), never siblings or outer scopes.
+- `latch<T>()` returns `(value?: T) => boolean`. Once called with a truthy value it sticks `true`; use it directly when you only need "did anything change". A falsy payload never latches — `emitChanged` always passes an object, so only custom events can bite.
 - For richer logic, pass your own `(entries) => void` and inspect `type`/`resource`/`property`.
 
-## Gotchas
+## Rules
 
-- Scope placement matters: wrap the `task`s you monitor, not the code that reacts — reacting inside the scope re-emits into the same handler.
-- No async handler support; no error isolation. Filter by entry fields early to avoid reacting to unrelated changes in nested tasks.
-- `ConsoleReporter` renders `CHANGE_EVENT` as before/after diffs; custom events are ignored by the default reporter (implement `Reporter.onEvent` for output).
+- Wrap the `task`s you monitor, not the code that reacts. Reacting inside the scope re-emits into the same handler.
+- Handlers are synchronous with no error isolation. Filter on entry fields early so nested tasks' unrelated changes do not trigger the reaction.
+- `ConsoleReporter` renders `CHANGE_EVENT` as before/after diffs. It ignores custom events; implement `Reporter.onEvent` to print them.

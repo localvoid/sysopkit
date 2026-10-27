@@ -1,11 +1,11 @@
 ---
 name: sysopkit-libvirt
-description: Libvirt virtualization with sysopkit. Use when defining or managing KVM domains, virtual networks, storage pools/volumes, snapshots, or cdrom media — normalized DomainConf/NetworkConf/PoolConf/VolumeConf types, virsh define/lifecycle ops. Requires the sysopkit skill for execution model, connectors, and apply().
+description: 'Libvirt/KVM in SysopKit: normalized DomainConf/NetworkConf/PoolConf/VolumeConf, drift-only redefines, virsh lifecycle ops, snapshots, cdrom media, net-update, storage volumes. Bun-only.'
 ---
 
 # SysopKit Libvirt
 
-Normalized libvirt management (`@sysopkit/libvirt/*`). Typed configs instead of hand-written XML; `virsh` remains the transport. **Bun-only** — parsing/serialization delegate to `Bun.XML`.
+Normalized libvirt management (`@sysopkit/libvirt/*`). Typed configs replace hand-written XML; `virsh` stays the transport. **Bun-only**: parsing and serialization use `Bun.XML`.
 
 ```typescript
 import { defineDomain, startDomain } from '@sysopkit/libvirt/domain';
@@ -14,16 +14,20 @@ await defineDomain({ domain: { name: 'guest', memoryMiB: 2048, vcpus: 2 } });
 await startDomain({ name: 'guest' });
 ```
 
-Idempotency model for all `define*`: parse live `dumpxml`, field-compare with `*ConfigMatches`, redefine only on drift. Fields left undefined are **wildcards** (generated MACs, UUIDs, emulator paths, auto-added video/memballoon never cause drift). Raw-XML escape hatch (`{ name, xml, update? }`) defines by existence, redefines only with `update: true`.
+## Drift
 
-Rules that always apply:
+Every `define*` parses the live `dumpxml`, compares it with `*ConfigMatches`, and redefines only on **drift**. A second `define` with the same config is a no-op. Fields left undefined are **wildcards**: generated MACs, UUIDs, emulator paths, and auto-added video/memballoon never cause drift.
 
-- Every op accepts `{ uri?: 'qemu:///system' }`; omitted means the virsh default connection.
-- All invocations run under `LC_ALL=C` (virsh output is gettext-translated; parsers expect English).
-- Never pipe XML through `define /dev/stdin` — stdin fds can't be reopened by path on every transport (ENXIO, then EPIPE). The package stages through temp files internally; use `withTempFile` (`sysopkit/op/temp`) for your own file-needing commands.
-- State changes go through `domstate` (single token); autostart through `dominfo`/`net-info`/`pool-info`; config through `dumpxml`.
+The raw-XML escape hatch (`{ name, xml, update? }`) defines by existence and redefines only with `update: true`. Use it for anything the normalized model does not cover.
 
-## Router — read the page that matches the task
+Four rules apply to every op:
+
+- Every op accepts `{ uri?: 'qemu:///system' }`; omitting it uses the virsh default connection.
+- All invocations run under `LC_ALL=C` because virsh output is gettext-translated and the parsers expect English.
+- Stage XML through real files, never `define /dev/stdin`: stdin fds cannot be reopened by path on every transport (ENXIO, then EPIPE). The package does this internally; use `withTempFile` (`sysopkit/op/temp`) for your own file-needing commands.
+- Read state from `domstate` (single token), autostart from `dominfo`/`net-info`/`pool-info`, and config from `dumpxml`.
+
+## Route by resource
 
 | Task | Read |
 | --- | --- |
@@ -31,10 +35,10 @@ Rules that always apply:
 | Networks: `NetworkConf` (`nat`/`isolated`/`bridge`), define/lifecycle/autostart, `net-update` section edits | [network.md](network.md) |
 | Pools (`dir`) and volumes: define/build/start, create/delete | [storage.md](storage.md) |
 
-## Pitfalls
+## Rules
 
-- Minimal configs converge only on specified fields — a `{ name, memoryMiB, vcpus }` define never touches firmware, disks, or networks already present. Specify what you own.
-- `defineDomain` array entries (disks/networks) compare **positionally**; reordered entries read as drift.
-- `revertSnapshot` is destructive and always acts (like `restartService`) — gate it yourself.
-- `createVolume` throws when the existing volume differs in capacity/format (volumes can't be resized in place) — delete first.
-- Disk/interface/pool types outside the model (`rbd`, `floppy`, non-`dir` pools, `route` forwarding) throw with a raw-XML-path pointer instead of silently degrading.
+- A minimal config converges only on the fields it specifies. `{ name, memoryMiB, vcpus }` never touches firmware, disks, or networks already present; specify what you own.
+- `defineDomain` compares disk and network entries **positionally**; reordering them reads as drift.
+- `revertSnapshot` is destructive and always acts (like `restartService`); gate it yourself.
+- `createVolume` throws when the existing volume differs in capacity or format. Volumes cannot be resized in place; delete first.
+- Types outside the model (`rbd`, `floppy`, non-`dir` pools) throw with a raw-XML-path pointer instead of degrading silently. `route`/`open` forwarding parses as `isolated`; use raw XML when you need it preserved.

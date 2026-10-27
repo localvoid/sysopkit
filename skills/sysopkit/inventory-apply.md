@@ -1,13 +1,11 @@
 # Inventory and apply
 
-```typescript
-import { apply, ApplyError } from 'sysopkit';
-import { resolveInventory } from 'sysopkit/inventory';
-```
+Resolve targets, select hosts, run one function per host.
 
-## Defining inventory
+## Define inventory
 
 ```typescript
+import { SUDO_PASSWORD } from 'sysopkit/middleware/sudo';
 import { resolveInventory } from 'sysopkit/inventory';
 
 await using hosts = resolveInventory({
@@ -16,21 +14,21 @@ await using hosts = resolveInventory({
     web: {
       vars: { … }, tags: ['frontend'],    // group vars/tags
       hosts: {
-        'web-1': { host: '192.168.1.10', user: 'admin', port?, vars?, tags? },
-        'db-1':  { host: 'pod:postgres' }, // prefix selects connector
+        'web-1': { host: '192.168.1.10', options: { user: 'admin', port: 22 }, vars?, tags? },
+        'db-1':  { host: 'postgres', type: 'pod' }, // type selects connector
       },
     },
   },
-}, { connectors?: { 'k8s': (host, h) => new MyConnector(host) } });
+}, { connectors: { k8s: (h) => new MyConnector(h) } });
 ```
 
-- **Host prefixes** (split on first `:`) select the connector: `ssh:` (default when no known prefix matches) and `pod:`. `pod:` requires a non-empty container id, `ssh:` a non-empty host — else it throws. Unknown prefixes fall back to `SSHConnector` with the remainder after `:` as the host, so prefer explicit `ssh:` or bare hostnames. Custom factories are keyed by the bare prefix (`k8s`, not `k8s:`), merge over the defaults, and receive the host string _after_ the prefix.
-- Bare `host` (no prefix) falls back to `SSHConnector`; the inventory `name` (`web-1`) becomes the connector `name` used in reporter output.
-- **Var merging** is a shallow spread, precedence `inventory → group → host`. Symbol keys (`Var<T>`) are supported.
-- **Tags** are a deduplicated union of group + host tags.
-- `resolveInventory` returns a `ResolvedInventory` that creates connectors **lazily on first access** and caches them. It is `AsyncDisposable` — always `await using` it, or SSH sockets leak.
+- `type` selects the connector: `ssh` (default) or `pod`. Any other type needs a factory in `connectors`; `resolveInventory` throws at resolve time otherwise. A factory receives a `ResolvedHost` (`{ name, host, type, options, vars, tags }`).
+- `host` is a plain address (default: the inventory name), and the inventory key becomes the connector `name` in reporter output. `options` is passed straight into the connector constructor, so SSH `user`, `port`, `key`, `password`, and timeouts live there.
+- **Vars merge** by shallow spread, precedence `inventory → group → host`; symbol keys (`Var<T>`) survive.
+- **Tags** are a deduplicated union of group and host tags.
+- `resolveInventory` returns a `ResolvedInventory` that creates connectors **lazily on first access** and caches them. It is `AsyncDisposable`: use `await using`, or SSH sockets leak.
 
-## Selecting hosts
+## Select hosts
 
 | Method             | Meaning                                                 |
 | ------------------ | ------------------------------------------------------- |
@@ -40,24 +38,24 @@ await using hosts = resolveInventory({
 | `getAll()`         | Everything                                              |
 | `match(pattern)`   | Glob on inventory **name** only (`*` → `.*`, `?` → `.`) |
 
-Accessors throw `ResolvedInventory has been disposed` after dispose, and each call reuses the cached connector for that name.
+Accessors throw `ResolvedInventory has been disposed` after dispose. Every call reuses the connector cached under that name.
 
-## apply
+## Apply
 
 ```typescript
-// Single host — returns { success, conn, result }; throws ApplyError on failure
+// Single host — returns { success, conn, result }; throws ApplyError when fn fails
 await apply('name', connector, async (ctx) => { … });
 
-// Many hosts — parallel batches; returns ApplyResult[]; throws past threshold
+// Many hosts — parallel batches; returns ApplyResult[]; throws past the threshold
 await apply('name', hosts.getAll(), async (ctx) => { … },
   { batchSize?: 5, maxFailPercent?: 20 });
 ```
 
-- Every `apply` creates an `apply` context; each host gets a child `connector` context; `apply` calls `conn.connect(signal)` then `fn(ctx)`.
-- `fn` errors become `{ success: false, conn, error }` per host (with `reporter.ctxError`). **`connect()` errors are not captured** — they propagate and abort the whole `apply` (in multi-host mode the entire batch promise rejects; there is no per-host result for that host).
-- `batchSize ?? 5`; `batchSize: Infinity` runs one giant batch. `batchSize` must be `>= 1` (or `Infinity`) — `0` or negative never advances the batch loop.
-- `maxFailPercent ?? 100`; `failLimit = ceil(n * pct / 100)`. After each batch, if `failCount > failLimit`, unprocessed hosts are marked `{ success: false, error: 'Aborted due to max failures exceeded' }` and an `ApplyError` (extends `AggregateError`, carries `.results`) is thrown.
-- Below the threshold, multi-host `apply` **returns** the mixed array without throwing — you must inspect it. `maxFailPercent: 0` still lets the first batch complete before aborting (`failLimit = 0`, strict `>` comparison).
+- `apply` opens an `apply` frame; each host gets a child `connector` frame. It calls `conn.connect(signal)` and then `fn(ctx)`.
+- An `fn` error becomes `{ success: false, conn, error }` for that host and is reported through `reporter.ctxError`. A `connect()` error is **not** captured: it propagates and aborts the whole `apply`, and that host gets no result.
+- `batchSize` defaults to `5`; `Infinity` runs one batch. It must be `>= 1` (or `Infinity`); `0` or a negative value never advances the loop.
+- `maxFailPercent` defaults to `100`; `failLimit = ceil(n * pct / 100)`. After each batch, `failCount > failLimit` marks unprocessed hosts `{ success: false, error: 'Aborted due to max failures exceeded' }` and throws `ApplyError` (extends `AggregateError`, carries `.results`).
+- Below the threshold, multi-host `apply` **returns** the mixed array without throwing, so inspect it. `maxFailPercent: 0` still lets the first batch finish before aborting (`failLimit = 0`, strict `>`).
 
 ```typescript
 import { start } from 'sysopkit/start';
@@ -67,19 +65,18 @@ await start(async (ctx) => {
     const results = await apply('deploy', conns, fn, { batchSize: 5, maxFailPercent: 20 });
     for (const r of results) if (!r.success) ctx.error(`${r.conn.name}: ${r.error}`);
   } catch (e) {
-    if (e instanceof ApplyError)
+    if (e instanceof ApplyError) {
       for (const r of e.results) {
         if (!r.success) ctx.error(`${r.conn.name}: ${r.error}`);
       }
+    }
     throw e;
   }
 });
 ```
 
-`ctx` is the caller frame — `apply` requires ambient context, so this code already runs inside `start()`. Prefer the callback param over `context()`; reach for `context()` only in helpers that can't take the param. Always report via `ctx`/`context()` there, never `console.*` (see [execution-model](execution-model.md#logging-use-the-reporter-not-console)). `console.*` is only for code outside `start()`, where no context exists.
+## Rules
 
-## Gotchas
-
-- Single vs multi return shapes differ (object vs array). Overload resolution depends on `Connector` vs `Connector[]` — passing `getByName()` (possibly `undefined`) into single mode is a type error; guard it.
-- `apply` `vars` live on the apply context, visible to `fn` and its children via parent-chain lookup. Inventory host/group `vars` live on the connector object (`conn.vars`), not in the context chain — `ctx.tryGet()` does not see them. Pass `SUDO_*` and similar context vars via `start`/`apply`/`task`/`utility` `vars`, not inventory host vars.
+- Single and multi modes return different shapes (object vs array). Overload resolution keys on `Connector` vs `Connector[]`, so guard `getByName()` (possibly `undefined`) before passing it to single mode.
+- `apply` `vars` live on the apply frame and reach `fn` and its children through the parent chain. Inventory host/group `vars` live on the connector (`conn.vars`), not in the frame chain, so `ctx.tryGet()` cannot see them. Pass `SUDO_*` and similar context vars through `start`/`apply`/`task`/`utility` `vars`.
 - `match()` globs the inventory name, not the `host` address.

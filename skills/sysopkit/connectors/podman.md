@@ -1,27 +1,24 @@
 # Podman connector
 
-```typescript
-import { PodmanConnector } from 'sysopkit/connector/podman';
-import { sh } from 'sysopkit/op/sh';
-```
+Runs commands in a container through the control plane's Podman: `podman exec -i <host> …cmd`. Set `type: 'pod'` in the inventory and put the container name in `host`, or construct `PodmanConnector` directly.
 
 ```typescript
+import { PodmanConnector } from 'sysopkit/connector/podman';
+
 await using pod = new PodmanConnector({ host: 'my-app' });
 ```
 
-Selected by the `pod:` inventory prefix (`pod:postgres` → container `postgres`). Executes via `podman exec -i <host> …cmd` on the control plane's podman.
+- `connect()` runs `podman inspect --format '{{.State.Status}}'` once (a cached `verified` flag) and requires `running`, else it throws `ConnectorError`. Dispose does no work, but keep `await using` for uniformity.
+- `isReady()` is the side-effect-free form: `true` iff `running`, `false` otherwise, throwing only on abort. `waitForReady()` polls it.
+- `-i` keeps stdin open, which the sudo and expect middlewares need.
+- `rsh` is `['podman', 'exec', '-i']`. `rsync` builds `host:path` endpoints for SSH-style transports, so it cannot use Podman's `rsh`; transfer container files with `sh`/`tar` instead.
 
-- `connect()` runs `podman inspect --format '{{.State.Status}}'` once (cached `verified` flag) and requires `running`, else `ConnectorError`. No dispose work, but still use `await using` for uniformity.
-- `isReady()` is the side-effect-free form of the same check (`true` iff `running`, `false` otherwise, throws only on abort) — what `waitForReady()` polls.
-- `-i` keeps stdin open (needed by the sudo/expect middlewares).
-- `rsh` is `['podman', 'exec', '-i']`. `rsync` builds `host:path` endpoints for SSH-style transports, so it does not work over podman `rsh` — use `sh`/`tar` instead of `rsync` for container file transfer.
+## argv is verbatim
 
-## Pitfall: argv is verbatim — no shell
-
-Unlike [ssh](ssh.md), args pass through with **no shell join and no `$_` escaping**. Shell syntax requires an explicit `sh -c`, which is exactly what the `sh`/`bash` ops do — prefer them over raw `spawn`:
+Unlike [ssh](ssh.md), arguments pass through with **no shell join and no `$_` escaping**. Shell syntax needs an explicit `sh -c`, which is what the `sh`/`bash` ops do — prefer them over raw `spawn`:
 
 ```typescript
-await sh('cat /etc/os-release'); // works: becomes podman exec -i c sh -c '…'
+await sh('cat /etc/os-release'); // becomes podman exec -i c sh -c '…'
 ```
 
-Conversely, never pre-escape podman args with `$_` — it would insert literal quotes into the container command.
+Pass raw argv. `$_` would insert literal quotes into the container command.

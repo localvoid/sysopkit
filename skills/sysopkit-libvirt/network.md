@@ -1,20 +1,20 @@
-# Networks: `@sysopkit/libvirt/network`
+# Networks
 
 ```typescript
 import {
   defineNetwork,
-  undefineNetwork,
-  startNetwork,
   destroyNetwork,
-  setNetworkAutostart,
-  updateNetwork,
   getNetwork,
   getNetworkInfo,
   listNetworks,
+  setNetworkAutostart,
+  startNetwork,
+  undefineNetwork,
+  updateNetwork,
 } from '@sysopkit/libvirt/network';
 ```
 
-## NetworkConf (normalized model)
+## NetworkConf
 
 ```typescript
 await defineNetwork({
@@ -28,12 +28,17 @@ await defineNetwork({
 });
 ```
 
-`nat` writes `<forward mode="nat"/>`, `bridge` writes `<forward mode="bridge"/>`, `isolated` omits `<forward>`. `route`/`open` forward modes parse as `isolated` — manage those via the raw XML path (`{ name, xml, update? }`).
+Mode mapping:
+
+- `nat` writes `<forward mode="nat"/>`.
+- `bridge` writes `<forward mode="bridge"/>`.
+- `isolated` omits `<forward>`.
+- `route` and `open` forward modes parse as `isolated`; manage them through the raw XML path (`{ name, xml, update? }`).
 
 ## Lifecycle and inspection
 
 - `startNetwork` → `boolean`; `destroyNetwork` (active only); `undefineNetwork` (inactive only, no-op when absent); `setNetworkAutostart`.
-- `listNetworks()` (`net-list --all`: name/active/autostart/persistent), `getNetwork()` (normalized conf), `getNetworkInfo()` (`net-info`: + bridge).
+- `listNetworks()` (`net-list --all`: name/active/autostart/persistent), `getNetwork()` (normalized conf), `getNetworkInfo()` (`net-info`, plus bridge).
 
 ## Live section updates (`net-update`)
 
@@ -48,9 +53,13 @@ await updateNetwork({
 });
 ```
 
-Always acts (add-existing/delete-missing throws — converge first via `dumpxml`). Sections: `bridge`, `domain`, `ip`, `ip-dhcp-host`, `ip-dhcp-range`, `forward`, `forward-interface`, `forward-pf`, `portgroup`, `dns-host`, `dns-txt`, `dns-srv`; commands `add-first`/`add-last`/`add`/`delete`/`modify` (`modify` invalid for `ip-dhcp-range`, `forward-interface`). No flags = current state; `current` exclusive with `live`/`config`; `parentIndex?` disambiguates multiple parents.
+`updateNetwork` always acts. Adding an existing entry or deleting a missing one throws, so converge first by reading `dumpxml`.
 
-## Isolated test networks (host-setup recipe)
+- Sections: `bridge`, `domain`, `ip`, `ip-dhcp-host`, `ip-dhcp-range`, `forward`, `forward-interface`, `forward-pf`, `portgroup`, `dns-host`, `dns-txt`, `dns-srv`.
+- Commands: `add-first`, `add-last`, `add`, `delete`, `modify`. `modify` is invalid for `ip-dhcp-range` and `forward-interface`.
+- No flags targets current state; `current` is exclusive with `live`/`config`. `parentIndex?` disambiguates multiple parents.
+
+## Isolated test network
 
 ```typescript
 await defineNetwork({
